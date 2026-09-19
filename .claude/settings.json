@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm lint *)",
+      "Bash(pnpm test)",
+      "Bash(pnpm test *)",
+      "Bash(pnpm check)",
+      "Bash(pnpm format)",
+      "Bash(pnpm format:check)",
+      "Bash(pnpm build)",
+      "Bash(pnpm db:generate)",
+      "Bash(pnpm prisma validate)",
+      "Bash(pnpm prisma format)",
+      "Bash(pnpm prisma migrate status)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)"
+    ],
+    "deny": [
+      "Bash(pnpm prisma migrate reset *)",
+      "Bash(pnpm prisma db push --force-reset *)",
+      "Read(.env)",
+      "Read(.env.*)"
+    ]
+  }
+}

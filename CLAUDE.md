@@ -1,1 +1,64 @@
 @AGENTS.md
+
+# BusCom ERP
+
+Внутренняя админка для обработки заказов с сайта bus-com.ru (комплектующие для микроавтобусов).
+Требования — `docs/PRD.md`. Перед задачей, которая меняет поведение, сверяйся с PRD; если задача ему противоречит — спроси, а не угадывай.
+
+## Стек
+
+Next.js 16 (App Router) · React 19 · TypeScript strict · Tailwind 4 · PostgreSQL 16 + Prisma 7 (driver adapter `@prisma/adapter-pg`) · Better Auth · Zod 4 · Vitest · pnpm.
+
+Next 16 и Prisma 7 новее, чем твои знания: перед кодом на незнакомом API читай `node_modules/next/dist/docs/` и скиллы `.claude/skills/prisma-*`.
+
+## Команды
+
+```bash
+pnpm dev            # dev-сервер на :3000
+pnpm check          # typecheck + lint + test — прогоняй перед тем, как сказать «готово»
+pnpm test           # vitest run; одиночный файл: pnpm test src/domain/order/status.test.ts
+pnpm format         # prettier
+pnpm db:up          # Postgres в Docker (docker-compose.yml)
+pnpm db:migrate     # prisma migrate dev — создаёт миграцию после правки schema.prisma
+pnpm db:generate    # перегенерировать клиент в src/generated/prisma
+```
+
+## Структура и слои
+
+```
+src/
+  app/          страницы, layout, route handlers (api/). Тонкий слой: вызывает server/
+  server/       серверные сервисы, доступ к БД, авторизация, проверка прав. Всё с `import "server-only"`
+  domain/       чистая бизнес-логика без БД и Next: статусы, деньги, итоги, нормализация. Покрыта тестами
+  generated/    сгенерированный Prisma Client — не редактировать, не коммитить
+prisma/         schema.prisma + миграции
+docs/           PRD и прочие документы
+```
+
+Зависимости только сверху вниз: `app → server → domain`. `domain/` не импортирует ни Prisma Client, ни Next (типы enum из `@/generated/prisma/enums` — можно).
+
+## Правила предметной области
+
+- **Деньги — целые копейки** (`Int`, поля `*Kopecks`, тип `Kopecks` из `src/domain/money.ts`). Никаких float-рублей в расчётах и в БД; рубли только в UI через `formatRub` / `rublesToKopecks`.
+- **Итоги заказа считает сервер** через `calculateOrderTotals`. Суммы с клиента не принимаются.
+- **Статус заказа меняется только через `assertTransition`** (`src/domain/order/status.ts`). Новый статус или переход — сначала туда + тест, потом UI.
+- **Каждое изменение заказа пишет `OrderEvent`** в той же транзакции (`db.$transaction`). Это и история в карточке, и аудит.
+- **Позиция заказа хранит снимок** sku/name/price — не ссылайся на текущую цену товара при показе старых заказов.
+- **Заказы не удаляются физически** — только `deletedAt`.
+- **Телефоны клиентов** хранятся нормализованными (`normalizePhone`, формат `+7XXXXXXXXXX`).
+- **Интеграция с сайтом**: сырой payload сначала сохраняется в `IntegrationInbox`, потом разбирается; идемпотентность по `(source, externalId)`.
+
+## Код
+
+- Мутации — Server Actions или route handlers; вход валидируется Zod-схемой; права проверяются на сервере в каждом действии.
+- Секреты и конфиг — только через `src/server/env.ts`. Новая переменная → `env.ts` + `.env.example`.
+- Типы массивов — `T[]`, не `Array<T>`.
+- UI, тексты ошибок и комментарии — на русском. Идентификаторы в коде — на английском.
+- Время хранится в UTC, показывается в Europe/Moscow.
+- Новая доменная логика → тест рядом (`*.test.ts`). Баг в домене → сначала падающий тест.
+
+## Нельзя
+
+- Редактировать применённые миграции в `prisma/migrations/` — только новая миграция.
+- `prisma migrate reset`, `db push --force-reset` и любые команды, стирающие данные, без явной просьбы.
+- Коммитить `.env` и секреты.

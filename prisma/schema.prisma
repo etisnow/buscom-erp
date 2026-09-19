@@ -1,0 +1,329 @@
+// Схема БД BusCom ERP. Модель данных описана в docs/PRD.md (раздел «Архитектура и стек»).
+// Деньги — только Int в копейках (поля *Kopecks). Даты — timestamptz, UI показывает Europe/Moscow.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Пользователи и авторизация (таблицы user/session/account/verification — формат Better Auth)
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  MANAGER
+  WAREHOUSE
+  HEAD
+  ADMIN
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  role          UserRole @default(MANAGER)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions      Session[]
+  accounts      Account[]
+  managedOrders Order[]      @relation("OrderManager")
+  orderEvents   OrderEvent[]
+  payments      Payment[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ---------------------------------------------------------------------------
+// Клиенты
+// ---------------------------------------------------------------------------
+
+enum CustomerType {
+  PERSON
+  COMPANY
+}
+
+model Customer {
+  id         String       @id @default(cuid())
+  type       CustomerType @default(PERSON)
+  name       String
+  /// Нормализованный телефон в формате +7XXXXXXXXXX — ключ для сопоставления дублей
+  phone      String?
+  email      String?
+  inn        String?
+  kpp        String?
+  /// Реквизиты юрлица (банк, адрес и т.п.) — свободная структура до появления требований
+  requisites Json?
+  comment    String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  addresses CustomerAddress[]
+  orders    Order[]
+
+  @@index([phone])
+  @@index([email])
+  @@index([inn])
+}
+
+model CustomerAddress {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  city       String?
+  address    String
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
+}
+
+// ---------------------------------------------------------------------------
+// Каталог
+// ---------------------------------------------------------------------------
+
+model Product {
+  id            String   @id @default(cuid())
+  sku           String   @unique
+  name          String
+  category      String?
+  priceKopecks  Int
+  stock         Int      @default(0)
+  reserved      Int      @default(0)
+  /// Товар изготавливается под заказ — остаток не контролируется
+  madeToOrder   Boolean  @default(false)
+  leadTimeDays  Int?
+  /// Совместимые модели авто: ["ГАЗель Next", "Ford Transit", ...]
+  compatibility String[]
+  /// ID товара на bus-com.ru
+  externalId    String?  @unique
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orderItems OrderItem[]
+}
+
+// ---------------------------------------------------------------------------
+// Заказы
+// ---------------------------------------------------------------------------
+
+/// Переходы между статусами — только через src/domain/order/status.ts
+enum OrderStatus {
+  NEW
+  IN_PROGRESS
+  AWAITING_PAYMENT
+  PAID
+  ASSEMBLY
+  SHIPPED
+  COMPLETED
+  CANCELLED
+}
+
+enum OrderSource {
+  SITE
+  PHONE
+  EMAIL
+  MESSENGER
+  OTHER
+}
+
+enum DeliveryMethod {
+  PICKUP
+  CARRIER
+  COURIER
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  /// Человекочитаемый номер заказа (последовательность)
+  number     Int         @unique @default(autoincrement())
+  source     OrderSource @default(SITE)
+  /// Номер/ID заказа во внешней системе (на сайте)
+  externalId String?
+  status     OrderStatus @default(NEW)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  managerId  String?
+  manager    User?    @relation("OrderManager", fields: [managerId], references: [id])
+
+  /// Итоги пересчитываются только на сервере из позиций (src/domain/order/totals.ts)
+  itemsTotalKopecks    Int @default(0)
+  discountKopecks      Int @default(0)
+  deliveryPriceKopecks Int @default(0)
+  totalKopecks         Int @default(0)
+
+  deliveryMethod  DeliveryMethod?
+  carrier         String?
+  deliveryAddress String?
+  trackingNumber  String?
+  shippedAt       DateTime?
+
+  customerComment String?
+  cancelReason    String?
+  /// Время последней смены статуса — для расчёта SLA
+  statusChangedAt DateTime  @default(now())
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  items    OrderItem[]
+  payments Payment[]
+  events   OrderEvent[]
+
+  @@unique([source, externalId])
+  @@index([status])
+  @@index([managerId])
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id              String   @id @default(cuid())
+  orderId         String
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId       String?
+  product         Product? @relation(fields: [productId], references: [id])
+  /// Снимок товара на момент заказа — правки каталога не меняют старые заказы
+  sku             String
+  name            String
+  priceKopecks    Int
+  quantity        Int
+  discountKopecks Int      @default(0)
+  sortOrder       Int      @default(0)
+
+  @@index([orderId])
+}
+
+enum PaymentMethod {
+  INVOICE
+  ONLINE
+  CASH
+  COD
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method        PaymentMethod
+  amountKopecks Int
+  paidAt        DateTime
+  /// № платёжного поручения, ID транзакции и т.п.
+  reference     String?
+  createdById   String?
+  createdBy     User?         @relation(fields: [createdById], references: [id])
+  createdAt     DateTime      @default(now())
+
+  @@index([orderId])
+}
+
+enum OrderEventType {
+  CREATED
+  STATUS_CHANGED
+  ASSIGNED
+  UPDATED
+  ITEMS_CHANGED
+  PAYMENT_ADDED
+  COMMENT
+}
+
+/// Журнал заказа: история в карточке и аудит. Только добавление, без правок.
+model OrderEvent {
+  id         String         @id @default(cuid())
+  orderId    String
+  order      Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// null — действие системы (интеграция, автоматика)
+  userId     String?
+  user       User?          @relation(fields: [userId], references: [id])
+  type       OrderEventType
+  fromStatus OrderStatus?
+  toStatus   OrderStatus?
+  comment    String?
+  payload    Json?
+  createdAt  DateTime       @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Интеграция с сайтом
+// ---------------------------------------------------------------------------
+
+enum InboxStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+/// Сырые входящие события. Пишутся ДО разбора, чтобы заказ не терялся при ошибке маппинга.
+model IntegrationInbox {
+  id          String      @id @default(cuid())
+  source      String
+  externalId  String
+  payload     Json
+  status      InboxStatus @default(PENDING)
+  error       String?
+  attempts    Int         @default(0)
+  orderId     String?
+  receivedAt  DateTime    @default(now())
+  processedAt DateTime?
+
+  @@unique([source, externalId])
+  @@index([status])
+}
