@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import type { OrderEventType, OrderStatus } from "@/generated/prisma/enums";
 import { calculateOrderTotals } from "@/domain/order/totals";
+import { addWorkingMinutes, DEFAULT_SLA_MINUTES } from "@/domain/sla";
 import type { SessionUser } from "@/server/session";
 
 /** Клиент внутри транзакции: все действия сервиса пишут заказ и событие одним куском. */
@@ -95,4 +96,13 @@ export async function recalculateOrderTotals(tx: Tx, orderId: string): Promise<v
       totalKopecks: totals.totalKopecks,
     },
   });
+}
+
+/**
+ * Дедлайн SLA для статуса. Считается один раз при смене статуса и кладётся в заказ,
+ * чтобы фильтр «просроченные» в списке был условием `slaDueAt < now()`, а не перебором.
+ */
+export function slaDueAtFor(status: OrderStatus, statusChangedAt: Date): Date | null {
+  const minutes = DEFAULT_SLA_MINUTES[status];
+  return minutes === null ? null : addWorkingMinutes(statusChangedAt, minutes);
 }

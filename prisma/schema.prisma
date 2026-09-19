@@ -207,6 +207,9 @@ model Order {
   discountKopecks      Int @default(0)
   deliveryPriceKopecks Int @default(0)
   totalKopecks         Int @default(0)
+  /// Сумма принятых платежей. Кэш для фильтра и сортировки по оплате: сам статус оплаты
+  /// не хранится, его считает src/domain/order/payment-status.ts из этой суммы и итога.
+  paidKopecks          Int @default(0)
 
   deliveryMethod  DeliveryMethod?
   carrier         String?
@@ -218,6 +221,10 @@ model Order {
   cancelReason    String?
   /// Время последней смены статуса — для расчёта SLA
   statusChangedAt DateTime  @default(now())
+  /// Когда истекает SLA текущего статуса (рабочие минуты уже учтены при записи).
+  /// null — статус без контроля срока. Нужен, чтобы фильтр «просроченные» был запросом,
+  /// а не перебором заказов в приложении.
+  slaDueAt        DateTime?
   deletedAt       DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -231,6 +238,7 @@ model Order {
   @@index([managerId])
   @@index([customerId])
   @@index([createdAt])
+  @@index([slaDueAt])
 }
 
 model OrderItem {

@@ -6,6 +6,7 @@ import {
   loadOrder,
   OrderConflictError,
   orderInclude,
+  slaDueAtFor,
   writeOrderEvent,
   type OrderWithItems,
 } from "@/server/orders/internal";
@@ -27,9 +28,15 @@ export async function takeOrder(orderId: string, user: SessionUser): Promise<Ord
 
     assertTransition({ from: order.status, to: "IN_PROGRESS", role: user.role });
 
+    const changedAt = new Date();
     await tx.order.update({
       where: { id: order.id },
-      data: { managerId: user.id, status: "IN_PROGRESS", statusChangedAt: new Date() },
+      data: {
+        managerId: user.id,
+        status: "IN_PROGRESS",
+        statusChangedAt: changedAt,
+        slaDueAt: slaDueAtFor("IN_PROGRESS", changedAt),
+      },
     });
 
     await writeOrderEvent(tx, {

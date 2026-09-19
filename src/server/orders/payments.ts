@@ -54,6 +54,12 @@ export async function addPayment(input: AddPaymentInput): Promise<OrderWithItems
       },
     });
 
+    // Кэш суммы платежей: держим в той же транзакции, иначе фильтр по оплате соврёт.
+    await tx.order.update({
+      where: { id: order.id },
+      data: { paidKopecks: { increment: input.amountKopecks } },
+    });
+
     await writeOrderEvent(tx, {
       orderId: order.id,
       user: input.user,

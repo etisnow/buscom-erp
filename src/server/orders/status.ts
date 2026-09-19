@@ -6,6 +6,7 @@ import {
   loadOrder,
   OrderConflictError,
   orderInclude,
+  slaDueAtFor,
   writeOrderEvent,
   type OrderWithItems,
   type Tx,
@@ -49,13 +50,15 @@ export async function changeOrderStatus(input: ChangeStatusInput): Promise<Order
 
     await applyReservation(tx, order, order.status, input.to);
 
+    const changedAt = new Date();
     await tx.order.update({
       where: { id: order.id },
       data: {
         status: input.to,
-        statusChangedAt: new Date(),
+        statusChangedAt: changedAt,
+        slaDueAt: slaDueAtFor(input.to, changedAt),
         ...(input.to === "CANCELLED" ? { cancelReason: input.cancelReason ?? null } : {}),
-        ...(input.to === "SHIPPED" ? { shippedAt: new Date() } : {}),
+        ...(input.to === "SHIPPED" ? { shippedAt: changedAt } : {}),
       },
     });
 
@@ -79,9 +82,10 @@ export async function changeOrderStatus(input: ChangeStatusInput): Promise<Order
 export async function autoTransitionToPaid(tx: Tx, order: OrderWithItems): Promise<void> {
   await applyReservation(tx, order, order.status, "PAID");
 
+  const changedAt = new Date();
   await tx.order.update({
     where: { id: order.id },
-    data: { status: "PAID", statusChangedAt: new Date() },
+    data: { status: "PAID", statusChangedAt: changedAt, slaDueAt: slaDueAtFor("PAID", changedAt) },
   });
 
   await writeOrderEvent(tx, {

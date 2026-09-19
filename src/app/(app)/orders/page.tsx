@@ -1,20 +1,53 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import Link from "next/link";
+import { Plus } from "lucide-react";
+import { OrderFilters } from "@/components/orders/order-filters";
+import { OrdersPagination } from "@/components/orders/orders-pagination";
+import { OrdersTable } from "@/components/orders/orders-table";
+import { OrderViews } from "@/components/orders/order-views";
+import { Button } from "@/components/ui/button";
+import { ORDER_CREATE_ROLES, hasRole } from "@/domain/user/role";
+import { defaultView, listManagers, listOrders } from "@/server/orders/list";
 import { requireUser } from "@/server/session";
+import { parseOrderListParams, toSearchParams } from "./params";
 
 export const metadata: Metadata = {
   title: "Заказы — BusCom ERP",
 };
 
-// Заглушка: список заказов с фильтрами и видами делается на этапе 1 (PRD, M1).
-export default async function OrdersPage() {
+export default async function OrdersPage({ searchParams }: PageProps<"/orders">) {
   const user = await requireUser();
+  const params = await searchParams;
+  const filters = parseOrderListParams(params, defaultView(user));
+
+  const [result, managers] = await Promise.all([listOrders(filters, user), listManagers()]);
+  const urlParams = toSearchParams(params);
+  const now = new Date();
 
   return (
-    <main className="flex flex-col gap-2">
-      <h1 className="font-heading text-xl font-semibold">Заказы</h1>
-      <p className="text-muted-foreground text-sm">
-        Привет, {user.name}. Список заказов появится на этапе 1 — см. docs/PRD.md, модуль M1.
-      </p>
+    <main className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="font-heading text-xl font-semibold">Заказы</h1>
+        {hasRole(user.role, ORDER_CREATE_ROLES) ? (
+          <Button asChild size="sm">
+            <Link href="/orders/new">
+              <Plus />
+              Новый заказ
+            </Link>
+          </Button>
+        ) : null}
+      </div>
+
+      <OrderViews current={filters.view} counts={result.counts} params={urlParams} />
+
+      <Suspense fallback={null}>
+        <OrderFilters managers={managers} />
+      </Suspense>
+
+      <OrdersTable rows={result.rows} now={now} />
+
+      <OrdersPagination page={result.page} pageCount={result.pageCount} total={result.total} params={urlParams} />
     </main>
   );
 }

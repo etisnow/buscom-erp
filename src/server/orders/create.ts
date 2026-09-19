@@ -4,7 +4,13 @@ import type { Kopecks } from "@/domain/money";
 import type { DeliveryMethod, OrderSource } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
 import { findOrCreateCustomer, type CustomerDraft } from "@/server/customers/match";
-import { orderInclude, recalculateOrderTotals, writeOrderEvent, type OrderWithItems } from "@/server/orders/internal";
+import {
+  orderInclude,
+  recalculateOrderTotals,
+  slaDueAtFor,
+  writeOrderEvent,
+  type OrderWithItems,
+} from "@/server/orders/internal";
 import type { OrderItemDraft } from "@/server/orders/items";
 import { ForbiddenError } from "@/server/errors";
 import type { SessionUser } from "@/server/session";
@@ -54,6 +60,7 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderWithIte
       data: {
         source: input.source,
         status: "IN_PROGRESS",
+        slaDueAt: slaDueAtFor("IN_PROGRESS", new Date()),
         customerId,
         managerId: input.user.id,
         discountKopecks,
