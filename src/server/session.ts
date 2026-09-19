@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import type { UserRole } from "@/generated/prisma/enums";
 import { auth } from "@/server/auth";
+import { ForbiddenError } from "@/server/errors";
+
+export { ForbiddenError };
 
 /** Пользователь текущей сессии в том виде, в каком его используют экраны и сервисы. */
 export type SessionUser = {
@@ -13,14 +16,6 @@ export type SessionUser = {
   role: UserRole;
   isActive: boolean;
 };
-
-/** Ошибка прав: перехватывается Server Action'ами и route handler'ами, отдаётся как 403. */
-export class ForbiddenError extends Error {
-  constructor(message = "Недостаточно прав для этого действия") {
-    super(message);
-    this.name = "ForbiddenError";
-  }
-}
 
 /**
  * Текущий пользователь или null. `cache` — один запрос к БД на HTTP-запрос,
