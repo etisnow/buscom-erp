@@ -19,9 +19,11 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   /**
-   * Под защитой всё, кроме:
-   * `/login`, `/api/auth/*` (сам вход), `/api/integrations/*` (вебхуки сайта, своя подпись HMAC)
+   * Под защитой всё, кроме: `/login`, страниц восстановления пароля,
+   * `/api/auth/*` (сам вход), `/api/integrations/*` (вебхуки сайта, своя подпись HMAC)
    * и статики Next.
    */
-  matcher: ["/((?!login|api/auth|api/integrations|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!login|forgot-password|reset-password|api/auth|api/integrations|_next/static|_next/image|favicon.ico).*)",
+  ],
 };

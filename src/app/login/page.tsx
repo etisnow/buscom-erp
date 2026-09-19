@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSessionUser } from "@/server/session";
@@ -21,8 +22,11 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           <CardTitle className="text-xl">BusCom ERP</CardTitle>
           <CardDescription>Вход для сотрудников. Учётную запись заводит администратор.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
           <LoginForm next={typeof next === "string" ? next : undefined} />
+          <Link href="/forgot-password" className="text-muted-foreground text-sm hover:underline">
+            Забыли пароль?
+          </Link>
         </CardContent>
       </Card>
     </main>

@@ -4,6 +4,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/server/db";
 import { env } from "@/server/env";
+import { passwordResetLetter, sendLetter } from "@/server/mail";
 
 export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
@@ -13,6 +14,12 @@ export const auth = betterAuth({
     enabled: true,
     // Пользователей заводит администратор (PRD, M8) — самостоятельной регистрации нет.
     disableSignUp: true,
+    minPasswordLength: 8,
+    // Ссылка живёт час: PRD требует восстановление по почте, а не звонок администратору.
+    resetPasswordTokenExpiresIn: 60 * 60,
+    sendResetPassword: async ({ user, url }) => {
+      await sendLetter(passwordResetLetter(user.email, url));
+    },
   },
   user: {
     additionalFields: {
