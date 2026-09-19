@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileText, ClipboardList } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { OrderDelivery } from "@/components/orders/order-delivery";
 import { OrderHeader } from "@/components/orders/order-header";
 import { OrderHistory } from "@/components/orders/order-history";
@@ -40,12 +41,30 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
 
   return (
     <main className="flex flex-col gap-4">
-      <Link
-        href="/orders"
-        className="text-muted-foreground inline-flex w-fit items-center gap-1 text-sm hover:underline"
-      >
-        <ArrowLeft className="size-4" />К списку заказов
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link
+          href="/orders"
+          className="text-muted-foreground inline-flex w-fit items-center gap-1 text-sm hover:underline"
+        >
+          <ArrowLeft className="size-4" />К списку заказов
+        </Link>
+
+        {/* Печатные формы открываются в новой вкладке — оттуда их сохраняют или печатают. */}
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm">
+            <a href={`/api/orders/${order.number}/documents/invoice`} target="_blank" rel="noopener">
+              <FileText />
+              Счёт PDF
+            </a>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <a href={`/api/orders/${order.number}/documents/packing-list`} target="_blank" rel="noopener">
+              <ClipboardList />
+              Комплектовочный лист PDF
+            </a>
+          </Button>
+        </div>
+      </div>
 
       <OrderHeader
         orderId={order.id}
