@@ -1,7 +1,11 @@
 # BusCom ERP
 
 Внутренняя админка для обработки заказов с сайта [bus-com.ru](https://bus-com.ru/).
-Требования — [docs/PRD.md](docs/PRD.md), правила для разработки (в том числе для AI-агентов) — [CLAUDE.md](CLAUDE.md).
+
+- [docs/STATUS.md](docs/STATUS.md) — где мы сейчас и что дальше
+- [docs/PRD.md](docs/PRD.md) — требования и критерии приёмки
+- [docs/DECISIONS.md](docs/DECISIONS.md) — принятые решения и причины
+- [CLAUDE.md](CLAUDE.md) — правила разработки (в том числе для AI-агентов)
 
 ## Быстрый старт
 
