@@ -381,6 +381,57 @@ describeDb("сервис заказов (живая БД)", () => {
     expect(JSON.stringify(event?.payload)).toContain("100000");
   });
 
+  it("правка состава оплаченного заказа пересчитывает резерв", async () => {
+    const head = await makeUser("HEAD");
+    const product = await makeProduct({ stock: 20, priceKopecks: 100_000 });
+    const item = {
+      productId: product.id,
+      sku: product.sku,
+      name: product.name,
+      priceKopecks: 100_000,
+      quantity: 2,
+    };
+
+    const order = await createOrder({
+      source: "PHONE",
+      customer: { name: "Клиент" },
+      items: [item],
+      user: head,
+    });
+    await changeOrderStatus({ orderId: order.id, to: "AWAITING_PAYMENT", user: head });
+    expect(await stockOf(product.id)).toEqual({ stock: 20, reserved: 2 });
+
+    // Руководитель увеличил количество — резерв должен догнать состав.
+    await updateOrderItems({ orderId: order.id, items: [{ ...item, quantity: 5 }], user: head });
+    expect(await stockOf(product.id)).toEqual({ stock: 20, reserved: 5 });
+
+    // И уменьшиться, когда позиций стало меньше.
+    await updateOrderItems({ orderId: order.id, items: [{ ...item, quantity: 1 }], user: head });
+    expect(await stockOf(product.id)).toEqual({ stock: 20, reserved: 1 });
+  });
+
+  it("правка состава до резерва остатки не трогает", async () => {
+    const manager = await makeUser("MANAGER");
+    const product = await makeProduct({ stock: 20, priceKopecks: 100_000 });
+    const item = {
+      productId: product.id,
+      sku: product.sku,
+      name: product.name,
+      priceKopecks: 100_000,
+      quantity: 2,
+    };
+
+    const order = await createOrder({
+      source: "PHONE",
+      customer: { name: "Клиент" },
+      items: [item],
+      user: manager,
+    });
+
+    await updateOrderItems({ orderId: order.id, items: [{ ...item, quantity: 7 }], user: manager });
+    expect(await stockOf(product.id)).toEqual({ stock: 20, reserved: 0 });
+  });
+
   it("каждое действие оставляет след в журнале", async () => {
     const manager = await makeUser("MANAGER");
     const product = await makeProduct({ priceKopecks: 100_000 });
