@@ -28,6 +28,7 @@ export type OrderHeaderProps = {
   managers: { id: string; name: string }[];
   role: UserRole;
   canReassign: boolean;
+  cancelReasons: string[];
 };
 
 export function OrderHeader(props: OrderHeaderProps) {
@@ -142,6 +143,7 @@ export function OrderHeader(props: OrderHeaderProps) {
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         pending={pending}
+        reasons={props.cancelReasons}
         onConfirm={(reason, comment) =>
           handle(
             changeStatusAction({

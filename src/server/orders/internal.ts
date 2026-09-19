@@ -101,8 +101,13 @@ export async function recalculateOrderTotals(tx: Tx, orderId: string): Promise<v
 /**
  * Дедлайн SLA для статуса. Считается один раз при смене статуса и кладётся в заказ,
  * чтобы фильтр «просроченные» в списке был условием `slaDueAt < now()`, а не перебором.
+ * Нормативы приходят из настроек; без них берутся умолчания из домена.
  */
-export function slaDueAtFor(status: OrderStatus, statusChangedAt: Date): Date | null {
-  const minutes = DEFAULT_SLA_MINUTES[status];
-  return minutes === null ? null : addWorkingMinutes(statusChangedAt, minutes);
+export function slaDueAtFor(
+  status: OrderStatus,
+  statusChangedAt: Date,
+  slaMinutes: Record<OrderStatus, number | null> = DEFAULT_SLA_MINUTES,
+): Date | null {
+  const minutes = slaMinutes[status];
+  return minutes === null || minutes === undefined ? null : addWorkingMinutes(statusChangedAt, minutes);
 }

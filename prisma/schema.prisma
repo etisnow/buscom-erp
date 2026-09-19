@@ -310,6 +310,42 @@ model OrderEvent {
 }
 
 // ---------------------------------------------------------------------------
+// Справочники и настройки (PRD, M8)
+// ---------------------------------------------------------------------------
+
+enum DictionaryType {
+  /// Причины отмены заказа
+  CANCEL_REASON
+  /// Транспортные компании
+  CARRIER
+}
+
+/// Простые списки, которые редактирует администратор. Позиции не удаляются
+/// физически — гасятся `isActive`, иначе сломались бы ссылки в старых заказах.
+model DictionaryItem {
+  id        String         @id @default(cuid())
+  type      DictionaryType
+  name      String
+  sortOrder Int            @default(0)
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([type, name])
+  @@index([type, isActive])
+}
+
+/// Настройки системы: одно значение на ключ, структура значения — за кодом
+/// (src/server/settings). Значения по умолчанию живут в домене, здесь только
+/// то, что администратор поменял.
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
+// ---------------------------------------------------------------------------
 // Интеграция с сайтом
 // ---------------------------------------------------------------------------
 

@@ -5,6 +5,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/server/db";
 import { findOrCreateCustomer } from "@/server/customers/match";
 import { recalculateOrderTotals, slaDueAtFor, writeOrderEvent, type Tx } from "@/server/orders/internal";
+import { getSettings } from "@/server/settings/service";
 
 export const SITE_SOURCE = "site";
 
@@ -93,6 +94,8 @@ export async function retryInboxEntry(inboxId: string): Promise<IngestResult> {
 }
 
 async function createOrderFromPayload(payload: SiteOrderPayload, inboxId: string): Promise<number> {
+  const { slaMinutes } = await getSettings();
+
   return db.$transaction(async (tx) => {
     const customer = await findOrCreateCustomer(tx, {
       type: payload.customer.type,
@@ -111,7 +114,7 @@ async function createOrderFromPayload(payload: SiteOrderPayload, inboxId: string
         externalId: payload.externalId,
         status: "NEW",
         statusChangedAt: createdAt,
-        slaDueAt: slaDueAtFor("NEW", createdAt),
+        slaDueAt: slaDueAtFor("NEW", createdAt, slaMinutes),
         createdAt,
         customerId: customer.id,
         deliveryMethod: payload.delivery?.method ?? null,

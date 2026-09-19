@@ -10,6 +10,7 @@ import {
   writeOrderEvent,
   type OrderWithItems,
 } from "@/server/orders/internal";
+import { getSettings } from "@/server/settings/service";
 import type { SessionUser } from "@/server/session";
 
 export type OrderItemDraft = {
@@ -37,6 +38,8 @@ export type UpdateItemsInput = {
  * а правку руководителем после оплаты разбираем вручную (см. STATUS, долги).
  */
 export async function updateOrderItems(input: UpdateItemsInput): Promise<OrderWithItems> {
+  const { discountLimitPercent } = await getSettings();
+
   return db.$transaction(async (tx) => {
     const order = await loadOrder(tx, input.orderId);
     assertCanEditItems(order.status, input.user.role);
@@ -52,6 +55,7 @@ export async function updateOrderItems(input: UpdateItemsInput): Promise<OrderWi
       })),
       orderDiscountKopecks: discountKopecks,
       role: input.user.role,
+      limitPercent: discountLimitPercent,
     });
 
     const before = order.items.map((item) => ({

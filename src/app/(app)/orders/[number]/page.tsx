@@ -12,6 +12,7 @@ import { canEditItems, canReassignManager } from "@/domain/order/editing";
 import { TERMINAL_STATUSES } from "@/domain/order/status";
 import { findOrderByNumber } from "@/server/orders/details";
 import { listManagers } from "@/server/orders/list";
+import { getCancelReasons } from "@/server/settings/service";
 import { requireUser } from "@/server/session";
 
 export async function generateMetadata({ params }: PageProps<"/orders/[number]">): Promise<Metadata> {
@@ -26,7 +27,11 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
   const orderNumber = Number(number);
   if (!Number.isSafeInteger(orderNumber) || orderNumber <= 0) notFound();
 
-  const [order, managers] = await Promise.all([findOrderByNumber(orderNumber), listManagers()]);
+  const [order, managers, cancelReasons] = await Promise.all([
+    findOrderByNumber(orderNumber),
+    listManagers(),
+    getCancelReasons(),
+  ]);
   if (!order) notFound();
 
   // Склад видит карточку, но не правит состав и цены (PRD).
@@ -54,6 +59,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
         managers={managers}
         role={user.role}
         canReassign={canReassignManager(order.status, user.role)}
+        cancelReasons={cancelReasons}
       />
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">

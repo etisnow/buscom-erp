@@ -1,5 +1,6 @@
 import "server-only";
 import { assertTransition } from "@/domain/order/status";
+import { getSettings } from "@/server/settings/service";
 import type { OrderStatus } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
 import {
@@ -30,6 +31,8 @@ export type ChangeStatusInput = {
  * даже если кнопку «подсунули» напрямую.
  */
 export async function changeOrderStatus(input: ChangeStatusInput): Promise<OrderWithItems> {
+  const { slaMinutes } = await getSettings();
+
   return db.$transaction(async (tx) => {
     const order = await loadOrder(tx, input.orderId);
 
@@ -56,7 +59,7 @@ export async function changeOrderStatus(input: ChangeStatusInput): Promise<Order
       data: {
         status: input.to,
         statusChangedAt: changedAt,
-        slaDueAt: slaDueAtFor(input.to, changedAt),
+        slaDueAt: slaDueAtFor(input.to, changedAt, slaMinutes),
         ...(input.to === "CANCELLED" ? { cancelReason: input.cancelReason ?? null } : {}),
         ...(input.to === "SHIPPED" ? { shippedAt: changedAt } : {}),
       },
@@ -80,12 +83,13 @@ export async function changeOrderStatus(input: ChangeStatusInput): Promise<Order
  * Вызывается внутри уже открытой транзакции, из сервиса оплат.
  */
 export async function autoTransitionToPaid(tx: Tx, order: OrderWithItems): Promise<void> {
+  const { slaMinutes } = await getSettings();
   await applyReservation(tx, order, order.status, "PAID");
 
   const changedAt = new Date();
   await tx.order.update({
     where: { id: order.id },
-    data: { status: "PAID", statusChangedAt: changedAt, slaDueAt: slaDueAtFor("PAID", changedAt) },
+    data: { status: "PAID", statusChangedAt: changedAt, slaDueAt: slaDueAtFor("PAID", changedAt, slaMinutes) },
   });
 
   await writeOrderEvent(tx, {

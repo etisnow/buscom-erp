@@ -11,6 +11,7 @@ import {
   type OrderWithItems,
 } from "@/server/orders/internal";
 import { ForbiddenError } from "@/server/errors";
+import { getSettings } from "@/server/settings/service";
 import type { SessionUser } from "@/server/session";
 
 /**
@@ -18,6 +19,8 @@ import type { SessionUser } from "@/server/session";
  * (PRD, карточка заказа). Если заказ уже взял другой — понятная ошибка, а не перезапись.
  */
 export async function takeOrder(orderId: string, user: SessionUser): Promise<OrderWithItems> {
+  const { slaMinutes } = await getSettings();
+
   return db.$transaction(async (tx) => {
     const order = await loadOrder(tx, orderId);
 
@@ -35,7 +38,7 @@ export async function takeOrder(orderId: string, user: SessionUser): Promise<Ord
         managerId: user.id,
         status: "IN_PROGRESS",
         statusChangedAt: changedAt,
-        slaDueAt: slaDueAtFor("IN_PROGRESS", changedAt),
+        slaDueAt: slaDueAtFor("IN_PROGRESS", changedAt, slaMinutes),
       },
     });
 

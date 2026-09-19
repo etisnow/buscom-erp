@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { isKnownCancelReason } from "@/domain/order/cancel-reasons";
 import { DiscountLimitError } from "@/domain/order/discount";
 import { OrderEditError } from "@/domain/order/editing";
 import { OrderTransitionError } from "@/domain/order/status";
@@ -15,6 +14,7 @@ import { updateOrderItems } from "@/server/orders/items";
 import { addPayment } from "@/server/orders/payments";
 import { changeOrderStatus } from "@/server/orders/status";
 import { searchProducts, type ProductSuggestion } from "@/server/products/search";
+import { getCancelReasons } from "@/server/settings/service";
 import { requireUser } from "@/server/session";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -74,8 +74,10 @@ export async function changeStatusAction(input: z.input<typeof statusSchema>): P
   let cancelReason: string | undefined;
   if (data.to === "CANCELLED") {
     const reason = data.cancelReason?.trim() ?? "";
-    if (!isKnownCancelReason(reason)) {
-      return { ok: false, error: "Выберите причину отмены" };
+    // Причина сверяется со справочником на сервере: список из формы доверия не заслуживает.
+    const allowed = await getCancelReasons();
+    if (!allowed.includes(reason)) {
+      return { ok: false, error: "Выберите причину отмены из справочника" };
     }
     const comment = data.cancelComment?.trim();
     cancelReason = comment ? `${reason}. ${comment}` : reason;

@@ -11,6 +11,9 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 /** Роли, которым доступны экраны администрирования. */
 export const ADMIN_ROLES: UserRole[] = ["ADMIN"];
 
+/** Роли, которым виден раздел администрирования: руководителю — журнал интеграции на чтение. */
+export const ADMIN_SECTION_ROLES: UserRole[] = ["ADMIN", "HEAD"];
+
 /** Роли, которые могут создавать заказ вручную. */
 export const ORDER_CREATE_ROLES: UserRole[] = ["MANAGER", "HEAD", "ADMIN"];
 

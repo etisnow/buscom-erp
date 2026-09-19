@@ -13,6 +13,7 @@ import {
 } from "@/server/orders/internal";
 import type { OrderItemDraft } from "@/server/orders/items";
 import { ForbiddenError } from "@/server/errors";
+import { getSettings } from "@/server/settings/service";
 import type { SessionUser } from "@/server/session";
 
 export type CreateOrderInput = {
@@ -42,8 +43,11 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderWithIte
     throw new Error("В заказе должна быть хотя бы одна позиция");
   }
 
+  const { discountLimitPercent, slaMinutes } = await getSettings();
+
   const discountKopecks = input.discountKopecks ?? 0;
   assertDiscountWithinLimit({
+    limitPercent: discountLimitPercent,
     items: input.items.map((item) => ({
       priceKopecks: item.priceKopecks,
       quantity: item.quantity,
@@ -60,7 +64,7 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderWithIte
       data: {
         source: input.source,
         status: "IN_PROGRESS",
-        slaDueAt: slaDueAtFor("IN_PROGRESS", new Date()),
+        slaDueAt: slaDueAtFor("IN_PROGRESS", new Date(), slaMinutes),
         customerId,
         managerId: input.user.id,
         discountKopecks,

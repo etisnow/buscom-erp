@@ -4,7 +4,7 @@ import { OrderSearch } from "@/components/layout/order-search";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { ADMIN_ROLES, hasRole, roleLabel } from "@/domain/user/role";
+import { ADMIN_SECTION_ROLES, hasRole, roleLabel } from "@/domain/user/role";
 import { requireUser } from "@/server/session";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
@@ -16,7 +16,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     { href: "/customers", label: "Клиенты", icon: "customers" },
     { href: "/products", label: "Товары", icon: "products" },
   ];
-  if (hasRole(user.role, ADMIN_ROLES)) {
+  if (hasRole(user.role, ADMIN_SECTION_ROLES)) {
     items.push({ href: "/admin", label: "Администрирование", icon: "admin" });
   }
 

@@ -13,18 +13,20 @@ import {
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { CANCEL_REASONS } from "@/domain/order/cancel-reasons";
 
 /** Отмена заказа требует причины из справочника; уточнение — по желанию (PRD, карточка заказа). */
 export function CancelDialog({
   open,
   onOpenChange,
   pending,
+  reasons,
   onConfirm,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pending: boolean;
+  /** Справочник причин; наполняется администратором (PRD, M8) */
+  reasons: string[];
   onConfirm: (reason: string, comment: string) => void;
 }) {
   const [reason, setReason] = useState<string>("");
@@ -46,7 +48,7 @@ export function CancelDialog({
                 <SelectValue placeholder="Выберите причину" />
               </SelectTrigger>
               <SelectContent>
-                {CANCEL_REASONS.map((item) => (
+                {reasons.map((item) => (
                   <SelectItem key={item} value={item}>
                     {item}
                   </SelectItem>

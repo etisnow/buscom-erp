@@ -6,6 +6,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hashPassword } from "better-auth/crypto";
+import { CANCEL_REASONS } from "../src/domain/order/cancel-reasons";
 import { z } from "zod";
 import { PrismaClient } from "../src/generated/prisma/client";
 
@@ -111,9 +112,30 @@ async function seedProducts(): Promise<void> {
   console.log(`✓ Демо-товары: ${DEMO_PRODUCTS.length} позиций`);
 }
 
+/** Справочники: до первого редактирования администратором работают эти значения. */
+async function seedDictionaries(): Promise<void> {
+  const cancelReasons = [...CANCEL_REASONS];
+  const carriers = ["СДЭК", "Деловые линии", "ПЭК", "Байкал Сервис", "Почта России"];
+
+  await db.dictionaryItem.createMany({
+    data: [
+      ...cancelReasons.map((name, index) => ({
+        type: "CANCEL_REASON" as const,
+        name,
+        sortOrder: (index + 1) * 10,
+      })),
+      ...carriers.map((name, index) => ({ type: "CARRIER" as const, name, sortOrder: (index + 1) * 10 })),
+    ],
+    skipDuplicates: true,
+  });
+
+  console.log(`✓ Справочники: причин отмены ${cancelReasons.length}, транспортных компаний ${carriers.length}`);
+}
+
 async function main(): Promise<void> {
   await seedAdmin();
   await seedProducts();
+  await seedDictionaries();
 }
 
 main()
