@@ -49,3 +49,35 @@ Prisma 7 требует driver adapter (`@prisma/adapter-pg`) и `prisma.config.
 ## 2026-09-19 — Prisma-скиллы только для Claude Code
 
 `prisma init` поставил скиллы для нескольких агентов через абсолютные симлинки (ломаются в git и на другой машине). Оставлены обычными папками в `.claude/skills/`: `prisma-cli`, `prisma-client-api`, `prisma-database-setup`.
+
+## 2026-09-19 — shadcn/ui: пресет radix-nova
+
+`pnpm dlx shadcn@latest init -b radix -p nova`. База — Radix UI (не Base UI и не React Aria): у неё больше всего готовых примеров и она лучше всего известна агентам. Пресет Nova — иконки Lucide и шрифт Geist, который уже стоял в проекте. Компоненты лежат в `src/components/ui` и принадлежат проекту: править можно, но при обновлении через CLI правки затрутся — свои обёртки складывать в `src/components/layout` и рядом.
+
+`src/hooks/use-mobile.ts` переписан на `useSyncExternalStore`: версия из шаблона вызывала `setState` прямо в эффекте, на это ругается правило `react-hooks/set-state-in-effect` (React Compiler).
+
+## 2026-09-19 — Защита маршрутов: proxy + requireUser
+
+`src/proxy.ts` (в Next 16 `middleware` переименован в `proxy`) проверяет только наличие cookie сессии и редиректит на `/login?next=…`. Настоящая проверка — `requireUser(roles?)` в `src/server/session.ts`: сессия через Better Auth, роль и `isActive`. Так сделано потому, что proxy выполняется в отдельной среде и не должен ходить в БД (см. `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md`).
+
+Из-под защиты выведены `/login`, `/api/auth/*` и `/api/integrations/*` — у вебхуков сайта своя подпись HMAC.
+
+`requireUser` без сессии делает `redirect("/login")`, при нехватке роли кидает `ForbiddenError` (403 для Server Actions и route handlers). Отдельного экрана 403 пока нет: `forbidden()` в Next 16 под флагом `experimental.authInterrupts`, включать ради заглушек не стали.
+
+## 2026-09-19 — Деактивированный пользователь не входит
+
+Better Auth про `isActive` не знает, поэтому проверка в двух местах: `signInWithPassword` (`src/server/auth-service.ts`) смотрит флаг до вызова `auth.api.signInEmail`, а `getSessionUser` считает сессию деактивированного несуществующей. Сообщение о неверном пароле одно на все случаи — существование учётной записи не раскрываем.
+
+Ограничение попыток входа — встроенный `rateLimit` Better Auth: 10 запросов к `/sign-in/email` за 15 минут. Хранилище — память процесса; считаются все попытки, а не только неудачные (PRD требует «10 неудачных»). Для одного инстанса приемлемо; при нескольких инстансах или при точном соблюдении формулировки нужен свой счётчик в БД.
+
+## 2026-09-19 — Первый админ — сид, а не форма регистрации
+
+`prisma/seed.ts` (`pnpm db:seed`, он же `migrations.seed` в `prisma.config.ts`) создаёт ADMIN из `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` и демо-каталог. Пароль хешируется `hashPassword` из `better-auth/crypto` — той же функцией, что использует Better Auth по умолчанию, и кладётся в `account` с `providerId: "credential"`. Через `auth.api.signUpEmail` нельзя: регистрация выключена (`disableSignUp`). Сид идемпотентен: существующего пользователя не трогает, товары — `upsert`.
+
+## 2026-09-19 — Postgres без Docker на машине разработчика
+
+Docker на машине не установлен, зато стоит нативный PostgreSQL 16 на 5432. Для разработки используем его: роль `buscom` / БД `buscom_erp` с теми же логином и паролем, что в `docker-compose.yml`, чтобы `DATABASE_URL` был одинаковым при любом способе. `docker-compose.yml` оставлен для CI и других машин.
+
+## 2026-09-19 — `account.accountId` для пароля = id пользователя
+
+При входе Better Auth ищет аккаунт условием `providerId === "credential" && accountId === user.id` (`better-auth/dist/api/routes/sign-in.mjs`). Если положить в `accountId` email, пароль не находится и вход отдаёт 401 «Invalid email or password» без внятной причины. В `prisma/seed.ts` пользователь создаётся первым, затем аккаунт с `accountId: user.id`. То же правило — для будущего создания пользователей администратором.

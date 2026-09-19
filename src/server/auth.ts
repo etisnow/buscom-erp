@@ -20,5 +20,15 @@ export const auth = betterAuth({
       isActive: { type: "boolean", required: false, defaultValue: true, input: false },
     },
   },
+  // PRD, M8: подбор пароля ограничен. Счётчик в памяти процесса — для одного инстанса
+  // внутренней админки достаточно; при нескольких инстансах нужен общий storage.
+  rateLimit: {
+    enabled: true,
+    storage: "memory",
+    customRules: {
+      "/sign-in/email": { window: 15 * 60, max: 10 },
+      "/forget-password": { window: 15 * 60, max: 5 },
+    },
+  },
   plugins: [nextCookies()],
 });
