@@ -19,7 +19,10 @@ WORKDIR /app
 # а не на каждое изменение кода.
 # ---------------------------------------------------------------------------
 FROM base AS deps
-COPY package.json pnpm-lock.yaml prisma.config.ts ./
+# pnpm-workspace.yaml обязателен: в нём allowBuilds, разрешающий build-скрипты
+# prisma и esbuild. Без него pnpm 12 падает с ERR_PNPM_IGNORED_BUILDS, а не
+# пропускает их молча. В CI файл был и ошибка не всплывала — только в образе.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml prisma.config.ts ./
 COPY prisma ./prisma
 # postinstall запускает prisma generate — отсюда src/generated/prisma
 RUN pnpm install --frozen-lockfile
