@@ -1,8 +1,13 @@
 name: CI
 
+# `development` — рабочая ветка, в неё идут обычные коммиты. Проверки на ней
+# гоняются так же, как на main, а вот деплой не трогается: он висит на
+# `workflow_run` с фильтром `branches: [main]` и на прогоны по другим веткам
+# не реагирует (см. .github/workflows/deploy.yml). В main вливаем по просьбе
+# владельца — только этот мерж и приводит к выкату.
 on:
   push:
-    branches: [main]
+    branches: [main, development]
   pull_request:
 
 jobs:

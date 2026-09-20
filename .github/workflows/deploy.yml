@@ -3,6 +3,10 @@ name: Deploy
 # Деплой идёт только после зелёного CI по main: workflow_run дожидается
 # окончания «CI» и проверяет его результат. Пуш сам по себе ничего не
 # выкатывает — сломанная сборка до сервера не доедет.
+#
+# Коммиты в `development` и прогоны CI по ней сюда не доходят: фильтр
+# `branches` у workflow_run смотрит на ветку того самого прогона CI. Выкат
+# случается только когда ветку влили в main.
 on:
   workflow_run:
     workflows: ["CI"]
@@ -25,7 +29,13 @@ jobs:
   # (OpenVZ, swap не добавить), и next build там убивает OOM-killer —
   # проверено на живом сервере, см. docs/DECISIONS.md.
   build:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    # Ручной запуск разрешён только с main или с тега (откат на прошлую версию).
+    # Иначе достаточно было бы выбрать `development` в списке веток при запуске
+    # вручную — и на боевой сервер уехало бы то, что в main ещё не влито.
+    if: >-
+      ${{ (github.event_name == 'workflow_dispatch' &&
+           (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')))
+          || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
