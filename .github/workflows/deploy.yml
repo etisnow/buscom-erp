@@ -1,0 +1,84 @@
+name: Deploy
+
+# Деплой идёт только после зелёного CI по main: workflow_run дожидается
+# окончания «CI» и проверяет его результат. Пуш сам по себе ничего не
+# выкатывает — сломанная сборка до сервера не доедет.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  # Ручной запуск — для отката и для первого выката
+  workflow_dispatch:
+
+# Два деплоя одновременно на один сервер не нужны; новый ждёт окончания текущего.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # При workflow_dispatch поля event.workflow_run нет — тогда условие тоже верно
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Подготовить SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          # Ключ хоста берём из секрета, а не через ssh-keyscan на месте:
+          # keyscan доверяет тому, кто ответил, и не защищает от подмены.
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Выкатить
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/buscom-erp' }}
+        run: |
+          ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "DEPLOY_PATH='$DEPLOY_PATH' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          cd "$DEPLOY_PATH"
+
+          # Разворачиваем ровно то, что лежит в main, без локальных правок на сервере.
+          git fetch --prune origin main
+          git reset --hard origin/main
+          echo "Выкатываем $(git rev-parse --short HEAD): $(git log -1 --pretty=%s)"
+
+          COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.production"
+
+          # Миграции накатывает одноразовый контейнер; приложение стартует только
+          # после его успеха — это задано зависимостями в compose.
+          $COMPOSE up -d --build
+
+          # Ждём, пока приложение действительно ответит: `up -d` возвращается
+          # сразу, и без проверки зелёный деплой мог бы скрыть упавший контейнер.
+          for i in $(seq 1 30); do
+            if $COMPOSE exec -T app node -e "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
+              echo "Приложение отвечает"
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "Приложение не ответило за 150 секунд — логи ниже" >&2
+          $COMPOSE logs --tail 80 app >&2
+          exit 1
+          REMOTE
+
+      - name: Сообщить о провале
+        if: failure()
+        run: |
+          echo "::error::Деплой не прошёл. Прошлая версия на сервере осталась работать:" \
+               "docker compose up -d обновляет контейнеры только после успешной сборки."
