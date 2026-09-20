@@ -18,7 +18,7 @@ export function OrdersTable({ rows, now }: { rows: OrderListRow[]; now: Date }) 
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    <div className="min-w-0 overflow-x-auto rounded-lg border">
       <Table>
         <TableHeader>
           <TableRow>

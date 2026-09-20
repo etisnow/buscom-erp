@@ -4,6 +4,7 @@ import { Download } from "lucide-react";
 import { Suspense } from "react";
 import { toSearchParams } from "@/app/(app)/search-params";
 import { CustomersToolbar } from "@/components/customers/customers-toolbar";
+import { ListPagination } from "@/components/layout/list-pagination";
 import { NewCustomerDialog } from "@/components/customers/new-customer-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,10 +33,6 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
       <div className="flex items-baseline justify-between gap-4">
         <h1 className="font-heading text-xl font-semibold">Клиенты</h1>
         <div className="flex items-center gap-3">
-          <span className="text-muted-foreground text-sm">
-            Всего: {result.total}
-            {result.pageCount > 1 ? ` · страница ${result.page} из ${result.pageCount}` : ""}
-          </span>
           {/* Выгружается текущий список целиком — те же фильтры, но без пагинации. */}
           <Button asChild size="sm" variant="outline">
             <Link href={`/api/customers/export?${urlParams.toString()}`} prefetch={false}>
@@ -56,7 +53,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
           Клиентов по заданным условиям нет.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="min-w-0 overflow-x-auto rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -95,6 +92,15 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
           </Table>
         </div>
       )}
+
+      <ListPagination
+        page={result.page}
+        pageCount={result.pageCount}
+        total={result.total}
+        params={urlParams}
+        basePath="/customers"
+        label="Всего клиентов"
+      />
 
       <p className="text-muted-foreground text-xs">
         «Куплено на» — сумма отгруженных и выполненных заказов. Обычно клиенты появляются сами при приёме заказа: по

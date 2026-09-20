@@ -133,7 +133,7 @@ export function UsersTable({ users, currentUserId }: { users: UserRow[]; current
         </Dialog>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="min-w-0 overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>

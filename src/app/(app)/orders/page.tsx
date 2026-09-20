@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { Download, Plus } from "lucide-react";
 import { OrderFilters } from "@/components/orders/order-filters";
-import { OrdersPagination } from "@/components/orders/orders-pagination";
+import { ListPagination } from "@/components/layout/list-pagination";
 import { OrdersTable } from "@/components/orders/orders-table";
 import { OrderViews } from "@/components/orders/order-views";
 import { Button } from "@/components/ui/button";
@@ -57,7 +57,14 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
 
       <OrdersTable rows={result.rows} now={now} />
 
-      <OrdersPagination page={result.page} pageCount={result.pageCount} total={result.total} params={urlParams} />
+      <ListPagination
+        page={result.page}
+        pageCount={result.pageCount}
+        total={result.total}
+        params={urlParams}
+        basePath="/orders"
+        label="Всего заказов"
+      />
     </main>
   );
 }
