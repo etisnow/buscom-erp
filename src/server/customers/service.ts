@@ -1,6 +1,7 @@
 import "server-only";
 import { normalizePhone } from "@/domain/customer/phone";
 import type { CustomerType } from "@/generated/prisma/enums";
+import { findCustomer } from "@/server/customers/match";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import type { SessionUser } from "@/server/session";
@@ -10,6 +11,67 @@ const CUSTOMER_ROLES = ["MANAGER", "HEAD", "ADMIN"] as const;
 
 export function canEditCustomers(role: SessionUser["role"]): boolean {
   return CUSTOMER_ROLES.includes(role as (typeof CUSTOMER_ROLES)[number]);
+}
+
+/**
+ * Клиент с таким телефоном или email уже заведён. Несёт его id и имя, чтобы форма
+ * не просто отказала, а увела в карточку существующего (PRD, M2 — дубли сливают руками,
+ * плодить их из интерфейса незачем).
+ */
+export class CustomerExistsError extends Error {
+  constructor(
+    readonly customerId: string,
+    readonly customerName: string,
+  ) {
+    super(`Клиент «${customerName}» с таким телефоном или email уже есть`);
+    this.name = "CustomerExistsError";
+  }
+}
+
+export type NewCustomer = {
+  type: CustomerType;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  inn?: string | null;
+  kpp?: string | null;
+  comment?: string | null;
+};
+
+/**
+ * Заведение клиента из интерфейса, до первого заказа (PRD, M2.4). Сопоставление —
+ * то же, что при приёме заказа: сначала телефон, потом email. В отличие от
+ * `findOrCreateCustomer` найденного клиента молча не возвращаем: человек нажал
+ * «Новый клиент» и должен увидеть, что такой уже есть.
+ */
+export async function createCustomer(draft: NewCustomer, user: SessionUser): Promise<{ id: string }> {
+  if (!canEditCustomers(user.role)) {
+    throw new ForbiddenError("Заводить клиентов может менеджер, руководитель или администратор");
+  }
+
+  const name = draft.name.trim();
+  if (!name) throw new Error("Укажите имя или название");
+
+  return db.$transaction(async (tx) => {
+    const existing = await findCustomer(tx, draft);
+    if (existing) {
+      const found = await tx.customer.findUniqueOrThrow({ where: { id: existing.id }, select: { name: true } });
+      throw new CustomerExistsError(existing.id, found.name);
+    }
+
+    return tx.customer.create({
+      data: {
+        type: draft.type,
+        name,
+        phone: normalizePhone(draft.phone),
+        email: draft.email?.trim().toLowerCase() || null,
+        inn: draft.inn?.trim() || null,
+        kpp: draft.kpp?.trim() || null,
+        comment: draft.comment?.trim() || null,
+      },
+      select: { id: true },
+    });
+  });
 }
 
 export type CustomerUpdate = {

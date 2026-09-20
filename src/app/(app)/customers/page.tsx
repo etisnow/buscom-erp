@@ -4,6 +4,7 @@ import { Download } from "lucide-react";
 import { Suspense } from "react";
 import { toSearchParams } from "@/app/(app)/search-params";
 import { CustomersToolbar } from "@/components/customers/customers-toolbar";
+import { NewCustomerDialog } from "@/components/customers/new-customer-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,6 +12,7 @@ import { CUSTOMER_TYPE_LABELS } from "@/domain/customer/type";
 import { formatMoscowDate, formatPhone } from "@/domain/datetime";
 import { formatRub } from "@/domain/money";
 import { listCustomers } from "@/server/customers/list";
+import { canEditCustomers } from "@/server/customers/service";
 import { requirePageUser } from "@/server/session";
 import { parseCustomerListParams } from "./params";
 
@@ -19,7 +21,7 @@ export const metadata: Metadata = {
 };
 
 export default async function CustomersPage({ searchParams }: PageProps<"/customers">) {
-  await requirePageUser();
+  const user = await requirePageUser();
   const params = await searchParams;
 
   const result = await listCustomers(parseCustomerListParams(params));
@@ -41,6 +43,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
               Выгрузить CSV
             </Link>
           </Button>
+          {canEditCustomers(user.role) ? <NewCustomerDialog /> : null}
         </div>
       </div>
 
@@ -94,8 +97,8 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
       )}
 
       <p className="text-muted-foreground text-xs">
-        «Куплено на» — сумма отгруженных и выполненных заказов. Клиенты появляются сами при приёме заказа: по телефону и
-        email ERP узнаёт постоянного покупателя.
+        «Куплено на» — сумма отгруженных и выполненных заказов. Обычно клиенты появляются сами при приёме заказа: по
+        телефону и email ERP узнаёт постоянного покупателя. «Новый клиент» нужен, когда заказа ещё нет.
       </p>
     </main>
   );

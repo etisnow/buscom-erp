@@ -4,12 +4,22 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ForbiddenError } from "@/server/errors";
 import { lookupCustomers, type CustomerMatch } from "@/server/customers/lookup";
-import { addCustomerAddress, deleteCustomerAddress, mergeCustomers, updateCustomer } from "@/server/customers/service";
+import {
+  addCustomerAddress,
+  createCustomer,
+  CustomerExistsError,
+  deleteCustomerAddress,
+  mergeCustomers,
+  updateCustomer,
+} from "@/server/customers/service";
 import { requireUser } from "@/server/session";
 
 export type CustomerResult = { ok: true; message: string } | { ok: false; error: string };
 
-const updateSchema = z.object({
+/** Результат заведения клиента: id — чтобы форма ушла в его карточку. */
+export type CreateCustomerResult = { ok: true; id: string } | { ok: false; error: string; existingId?: string };
+
+const customerSchema = z.object({
   type: z.enum(["PERSON", "COMPANY"]),
   name: z.string().min(1, { error: "Укажите имя или название" }),
   phone: z.string().optional(),
@@ -33,12 +43,36 @@ async function run(action: () => Promise<unknown>, message: string, customerId?:
   }
 }
 
-export async function updateCustomerAction(id: string, input: z.input<typeof updateSchema>): Promise<CustomerResult> {
+export async function updateCustomerAction(id: string, input: z.input<typeof customerSchema>): Promise<CustomerResult> {
   const user = await requireUser();
-  const parsed = updateSchema.safeParse(input);
+  const parsed = customerSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
 
   return run(() => updateCustomer(id, parsed.data, user), "Клиент сохранён", id);
+}
+
+/**
+ * Заведение клиента из списка (PRD, M2.4). При совпадении телефона или email
+ * отдаём id найденного — форма предложит открыть его вместо создания дубля.
+ */
+export async function createCustomerAction(input: z.input<typeof customerSchema>): Promise<CreateCustomerResult> {
+  const user = await requireUser();
+  const parsed = customerSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+
+  try {
+    const customer = await createCustomer(parsed.data, user);
+    revalidatePath("/customers");
+    return { ok: true, id: customer.id };
+  } catch (error) {
+    if (error instanceof CustomerExistsError) {
+      return { ok: false, error: error.message, existingId: error.customerId };
+    }
+    if (error instanceof ForbiddenError || error instanceof Error) {
+      return { ok: false, error: error.message };
+    }
+    throw error;
+  }
 }
 
 export async function addAddressAction(
