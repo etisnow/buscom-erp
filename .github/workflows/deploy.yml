@@ -24,7 +24,23 @@ jobs:
     environment: production
 
     steps:
+      # Пока секреты не заведены, деплой пропускается, а не падает красным на
+      # каждом пуше в main. Секреты в условии job'а использовать нельзя —
+      # отсюда отдельный шаг с output.
+      - name: Проверить, настроен ли деплой
+        id: guard
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          if [ -z "$DEPLOY_HOST" ]; then
+            echo "::notice::Секреты деплоя не заданы (DEPLOY_HOST пуст) — выкат пропущен. Как их завести — docs/DEPLOY.md."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Подготовить SSH
+        if: steps.guard.outputs.configured == 'true'
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
@@ -39,6 +55,7 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
 
       - name: Выкатить
+        if: steps.guard.outputs.configured == 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
