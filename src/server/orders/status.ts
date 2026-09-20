@@ -25,8 +25,8 @@ export type ChangeStatusInput = {
 };
 
 /**
- * Смена статуса заказа: проверка перехода, резерв остатка и запись в журнал —
- * всё одной транзакцией. Любой переход мимо `assertTransition` сервер отклоняет,
+ * Смена статуса заказа: проверка перехода и запись в журнал — всё одной
+ * транзакцией. Любой переход мимо `assertTransition` сервер отклоняет,
  * даже если кнопку «подсунули» напрямую.
  */
 export async function changeOrderStatus(input: ChangeStatusInput): Promise<OrderWithItems> {

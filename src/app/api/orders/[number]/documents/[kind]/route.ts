@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { buildInvoice, buildPackingList } from "@/server/documents/invoice";
+import { buildInvoice } from "@/server/documents/invoice";
 import { renderPdf } from "@/server/documents/pdf";
 import { findOrderByNumber } from "@/server/orders/details";
 import { getSettings } from "@/server/settings/service";
 import { getSessionUser } from "@/server/session";
 
 /**
- * Печатные формы заказа: `invoice` — счёт на оплату, `packing-list` — комплектовочный лист.
+ * Печатные формы заказа: пока только `invoice` — счёт на оплату.
  * Отдельный route handler, а не Server Action: браузер должен получить файл на скачивание.
  */
 export async function GET(_request: NextRequest, { params }: RouteContext<"/api/orders/[number]/documents/[kind]">) {
@@ -19,18 +19,15 @@ export async function GET(_request: NextRequest, { params }: RouteContext<"/api/
   if (!Number.isSafeInteger(orderNumber) || orderNumber <= 0) {
     return NextResponse.json({ error: "Некорректный номер заказа" }, { status: 400 });
   }
-  if (kind !== "invoice" && kind !== "packing-list") {
+  if (kind !== "invoice") {
     return NextResponse.json({ error: "Неизвестный документ" }, { status: 404 });
   }
 
   const order = await findOrderByNumber(orderNumber);
   if (!order) return NextResponse.json({ error: "Заказ не найден" }, { status: 404 });
 
-  const definition =
-    kind === "invoice" ? buildInvoice(order, (await getSettings()).sellerRequisites) : buildPackingList(order);
-
-  const pdf = await renderPdf(definition);
-  const fileName = kind === "invoice" ? `schet-${order.number}.pdf` : `komplektovka-${order.number}.pdf`;
+  const pdf = await renderPdf(buildInvoice(order, (await getSettings()).sellerRequisites));
+  const fileName = `schet-${order.number}.pdf`;
 
   return new NextResponse(new Uint8Array(pdf), {
     headers: {

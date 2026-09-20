@@ -23,11 +23,7 @@ export type UpdateDeliveryInput = {
   user: SessionUser;
 };
 
-/**
- * Доставка: способ, ТК, адрес, стоимость и трек-номер.
- * Склад трек-номер вносит (это его работа), а стоимость доставки менять не может —
- * это цена для клиента.
- */
+/** Доставка: способ, ТК, адрес, стоимость и трек-номер. Всё одной транзакцией с событием заказа. */
 export async function updateOrderDelivery(input: UpdateDeliveryInput): Promise<OrderWithItems> {
   return db.$transaction(async (tx) => {
     const order = await loadOrder(tx, input.orderId);

@@ -5,7 +5,7 @@ import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import type { SessionUser } from "@/server/session";
 
-/** Склад с клиентской базой не работает. */
+/** Кто может заводить и править клиентов. */
 const CUSTOMER_ROLES = ["MANAGER", "HEAD", "ADMIN"] as const;
 
 export function canEditCustomers(role: SessionUser["role"]): boolean {
