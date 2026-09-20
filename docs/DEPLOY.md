@@ -154,23 +154,31 @@ ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/buscom_deploy -N ""
 
 Публичную часть (`~/.ssh/buscom_deploy.pub`) — в `/home/deploy/.ssh/authorized_keys` на сервере. Приватную (`~/.ssh/buscom_deploy`) — в секрет репозитория.
 
-**2. Ключ хоста**, чтобы Actions не доверял первому встречному:
+**2. Ключ хоста**, чтобы Actions не доверял первому встречному. Порт указывать обязательно, если он нестандартный, — запись в `known_hosts` привязана к паре «хост:порт»:
 
 ```bash
-ssh-keyscan -t ed25519 <IP или домен сервера>
+ssh-keyscan -t ed25519 -p <порт> <хост>
 ```
 
 **3. Завести в репозитории:**
 
 ```bash
 gh secret set DEPLOY_SSH_KEY < ~/.ssh/buscom_deploy
-gh secret set DEPLOY_HOST --body "<IP сервера>"
+gh secret set DEPLOY_HOST --body "<хост>"
 gh secret set DEPLOY_USER --body "deploy"
-ssh-keyscan -t ed25519 <IP сервера> | gh secret set DEPLOY_KNOWN_HOSTS
+ssh-keyscan -t ed25519 -p <порт> <хост> | gh secret set DEPLOY_KNOWN_HOSTS
+
+gh variable set DEPLOY_PORT --body "<порт>"            # если не 22
 gh variable set DEPLOY_PATH --body "/opt/buscom-erp"   # необязательно, по умолчанию так же
 ```
 
-`DEPLOY_PATH` — именно переменная (`vars`), а не секрет: путь не тайна, а в логах job'а его видно и это удобно.
+`DEPLOY_PORT` и `DEPLOY_PATH` — переменные (`vars`), а не секреты: они не тайна, а в логах job'а их видно, и это помогает разбираться.
+
+### Текущий сервер (Джино.VPS)
+
+Выделенного IP нет, наружу сервер доступен по имени `ba5699d52128.vps.myjino.ru`, SSH — на порту `49265` (раздел «Перенаправление портов» в панели). Домен уже настроен: `erp.bus-com.ru` — CNAME на это же имя. Внутренний порт проксирования 80/443 — `81`, он свободен.
+
+Отсюда значения: `DEPLOY_HOST=ba5699d52128.vps.myjino.ru`, `DEPLOY_PORT=49265`, `DEPLOY_USER=deploy`, `APP_PORT=81` в `.env.production`.
 
 ### Сборка идёт на сервере
 

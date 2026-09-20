@@ -59,9 +59,12 @@ jobs:
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          # Порт SSH задаётся переменной: у хостингов без выделенного IP он
+          # нестандартный (на Джино.VPS — из раздела «Перенаправление портов»).
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/buscom-erp' }}
         run: |
-          ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes \
+          ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" \
             "$DEPLOY_USER@$DEPLOY_HOST" \
             "DEPLOY_PATH='$DEPLOY_PATH' bash -s" <<'REMOTE'
           set -euo pipefail
