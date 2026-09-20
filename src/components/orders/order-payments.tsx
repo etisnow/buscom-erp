@@ -62,6 +62,16 @@ export function OrderPayments({
   const [reference, setReference] = useState("");
   const [pending, startTransition] = useTransition();
 
+  // Остаток изменился (приняли платёж) — подставляем новый, а не прежний.
+  // Иначе после полной оплаты в поле остаётся сумма прошлого остатка, и повторный
+  // клик молча записывает переплату. Правка состояния при смене пропсов идёт
+  // в рендере, а не в эффекте: так требует react-hooks/set-state-in-effect.
+  const [knownRemaining, setKnownRemaining] = useState(remaining);
+  if (knownRemaining !== remaining) {
+    setKnownRemaining(remaining);
+    setAmount((remaining / 100).toFixed(2));
+  }
+
   function submit() {
     let amountKopecks: number;
     try {
