@@ -7,9 +7,18 @@
  * мастера импорта. LibreOffice и «Google Таблицы» такой файл тоже понимают.
  */
 
+import { formatMoscowDateTime } from "@/domain/datetime";
+
 const DELIMITER = ";";
 const NEWLINE = "\r\n";
 const BOM = "﻿";
+
+/**
+ * Потолок выгрузки, общий для всех списков. Файл собирается в памяти одной
+ * строкой, поэтому объём ограничен; упрёмся — следующий шаг отдавать потоком
+ * по курсору. Общий, а не свой у каждого списка: причина ограничения одна.
+ */
+export const EXPORT_LIMIT = 10_000;
 
 export type CsvCell = string | number | null | undefined;
 
@@ -32,4 +41,19 @@ function escapeCell(value: CsvCell): string {
 /** Строки таблицы (первая — заголовки) в готовое содержимое файла. */
 export function toCsv(rows: CsvCell[][]): string {
   return BOM + rows.map((row) => row.map(escapeCell).join(DELIMITER)).join(NEWLINE) + NEWLINE;
+}
+
+/** «20.09.2026 14:35»: без запятой, иначе Excel видит в ячейке не дату, а текст. */
+export function csvDateTime(date: Date): string {
+  return formatMoscowDateTime(date).replace(",", "");
+}
+
+/**
+ * Имя файла с датой выгрузки по Москве: `klienty-2026-09-20.csv`.
+ * Упёрлись в потолок — это видно в самом имени, до открытия файла.
+ */
+export function csvFileName(prefix: string, now: Date, truncated: boolean): string {
+  const [day, month, year] = formatMoscowDateTime(now).slice(0, 10).split(".");
+  const suffix = truncated ? `-pervye-${EXPORT_LIMIT}` : "";
+  return `${prefix}-${year}-${month}-${day}${suffix}.csv`;
 }

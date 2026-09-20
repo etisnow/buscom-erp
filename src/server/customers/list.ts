@@ -32,7 +32,8 @@ export type CustomerListResult = {
   pageCount: number;
 };
 
-function where(filters: CustomerFilters): Prisma.CustomerWhereInput {
+/** Условия выборки общие со списком: выгрузка обязана повторять видимое на экране. */
+export function customersWhere(filters: CustomerFilters): Prisma.CustomerWhereInput {
   const and: Prisma.CustomerWhereInput[] = [];
 
   const query = filters.query?.trim();
@@ -59,7 +60,7 @@ const PURCHASED_STATUSES = ["SHIPPED", "COMPLETED"] as const;
 
 export async function listCustomers(filters: CustomerFilters): Promise<CustomerListResult> {
   const page = Math.max(1, filters.page ?? 1);
-  const customerWhere = where(filters);
+  const customerWhere = customersWhere(filters);
 
   const [customers, total] = await Promise.all([
     db.customer.findMany({

@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { ORDER_CREATE_ROLES, hasRole } from "@/domain/user/role";
 import { defaultView, listManagers, listOrders } from "@/server/orders/list";
 import { requirePageUser } from "@/server/session";
-import { parseOrderListParams, toSearchParams } from "./params";
+import { toSearchParams } from "@/app/(app)/search-params";
+import { parseOrderListParams } from "./params";
 
 export const metadata: Metadata = {
   title: "Заказы — BusCom ERP",

@@ -38,7 +38,8 @@ export type ProductListResult = {
   categories: string[];
 };
 
-function where(filters: ProductFilters): Prisma.ProductWhereInput {
+/** Условия выборки общие со списком: выгрузка обязана повторять видимое на экране. */
+export function productsWhere(filters: ProductFilters): Prisma.ProductWhereInput {
   const and: Prisma.ProductWhereInput[] = [];
 
   const query = filters.query?.trim();
@@ -65,7 +66,7 @@ function where(filters: ProductFilters): Prisma.ProductWhereInput {
 
 export async function listProducts(filters: ProductFilters): Promise<ProductListResult> {
   const page = Math.max(1, filters.page ?? 1);
-  const productWhere = where(filters);
+  const productWhere = productsWhere(filters);
 
   const [rows, total, categories] = await Promise.all([
     db.product.findMany({

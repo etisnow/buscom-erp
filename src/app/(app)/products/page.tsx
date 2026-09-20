@@ -1,40 +1,44 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Download } from "lucide-react";
 import { Suspense } from "react";
+import { toSearchParams } from "@/app/(app)/search-params";
 import { ProductsTable } from "@/components/products/products-table";
 import { ProductsToolbar } from "@/components/products/products-toolbar";
+import { Button } from "@/components/ui/button";
 import { listProducts } from "@/server/products/list";
 import { canEditCatalog, canEditStock } from "@/server/products/service";
 import { requirePageUser } from "@/server/session";
+import { parseProductListParams } from "./params";
 
 export const metadata: Metadata = {
   title: "Товары — BusCom ERP",
 };
 
-function single(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
 export default async function ProductsPage({ searchParams }: PageProps<"/products">) {
   const user = await requirePageUser();
   const params = await searchParams;
 
-  const page = Number(single(params.page) ?? "1");
-  const result = await listProducts({
-    query: single(params.q),
-    category: single(params.category),
-    onlyShortage: single(params.shortage) === "1",
-    onlyInactive: single(params.inactive) === "1",
-    page: Number.isSafeInteger(page) && page > 0 ? page : 1,
-  });
+  const result = await listProducts(parseProductListParams(params));
+  const urlParams = toSearchParams(params);
 
   return (
     <main className="flex flex-col gap-4">
       <div className="flex items-baseline justify-between gap-4">
         <h1 className="font-heading text-xl font-semibold">Товары</h1>
-        <span className="text-muted-foreground text-sm">
-          Всего: {result.total}
-          {result.pageCount > 1 ? ` · страница ${result.page} из ${result.pageCount}` : ""}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-muted-foreground text-sm">
+            Всего: {result.total}
+            {result.pageCount > 1 ? ` · страница ${result.page} из ${result.pageCount}` : ""}
+          </span>
+          {/* Выгружается текущий список целиком — те же фильтры, но без пагинации. */}
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/api/products/export?${urlParams.toString()}`} prefetch={false}>
+              <Download />
+              Выгрузить CSV
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Suspense fallback={null}>

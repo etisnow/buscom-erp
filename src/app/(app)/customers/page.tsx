@@ -1,48 +1,47 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Download } from "lucide-react";
 import { Suspense } from "react";
+import { toSearchParams } from "@/app/(app)/search-params";
 import { CustomersToolbar } from "@/components/customers/customers-toolbar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CUSTOMER_TYPE_LABELS } from "@/domain/customer/type";
 import { formatMoscowDate, formatPhone } from "@/domain/datetime";
 import { formatRub } from "@/domain/money";
-import type { CustomerType } from "@/generated/prisma/enums";
 import { listCustomers } from "@/server/customers/list";
 import { requirePageUser } from "@/server/session";
+import { parseCustomerListParams } from "./params";
 
 export const metadata: Metadata = {
   title: "Клиенты — BusCom ERP",
 };
 
-const TYPE_LABELS: Record<CustomerType, string> = {
-  PERSON: "Физлицо",
-  COMPANY: "Юрлицо",
-};
-
-function single(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
 export default async function CustomersPage({ searchParams }: PageProps<"/customers">) {
   await requirePageUser();
   const params = await searchParams;
 
-  const type = single(params.type);
-  const page = Number(single(params.page) ?? "1");
-  const result = await listCustomers({
-    query: single(params.q),
-    type: type === "PERSON" || type === "COMPANY" ? type : undefined,
-    page: Number.isSafeInteger(page) && page > 0 ? page : 1,
-  });
+  const result = await listCustomers(parseCustomerListParams(params));
+  const urlParams = toSearchParams(params);
 
   return (
     <main className="flex flex-col gap-4">
       <div className="flex items-baseline justify-between gap-4">
         <h1 className="font-heading text-xl font-semibold">Клиенты</h1>
-        <span className="text-muted-foreground text-sm">
-          Всего: {result.total}
-          {result.pageCount > 1 ? ` · страница ${result.page} из ${result.pageCount}` : ""}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-muted-foreground text-sm">
+            Всего: {result.total}
+            {result.pageCount > 1 ? ` · страница ${result.page} из ${result.pageCount}` : ""}
+          </span>
+          {/* Выгружается текущий список целиком — те же фильтры, но без пагинации. */}
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/api/customers/export?${urlParams.toString()}`} prefetch={false}>
+              <Download />
+              Выгрузить CSV
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Suspense fallback={null}>
@@ -78,7 +77,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className="font-normal">
-                      {TYPE_LABELS[customer.type]}
+                      {CUSTOMER_TYPE_LABELS[customer.type]}
                     </Badge>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{formatPhone(customer.phone)}</TableCell>

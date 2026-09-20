@@ -1,6 +1,6 @@
 import "server-only";
-import { toCsv } from "@/domain/csv";
-import { formatMoscowDateTime, formatPhoneLocal } from "@/domain/datetime";
+import { csvDateTime, csvFileName, EXPORT_LIMIT, toCsv } from "@/domain/csv";
+import { formatPhoneLocal } from "@/domain/datetime";
 import { formatRubPlain } from "@/domain/money";
 import { PAYMENT_STATUS_LABELS, paymentStatus } from "@/domain/order/payment-status";
 import { ORDER_SOURCE_LABELS } from "@/domain/order/source";
@@ -16,13 +16,6 @@ import type { SessionUser } from "@/server/session";
  * только без пагинации. Сумма и оплата — числами без знака валюты, чтобы Excel
  * мог их сложить; остальное словами, как в списке.
  */
-
-/**
- * Потолок выгрузки. На замере 100 000 заказов список держится в пределах требований
- * PRD, но CSV собирается в памяти одной строкой — при таком объёме это десятки
- * мегабайт. Если упрёмся, следующий шаг — отдавать файл потоком по курсору.
- */
-export const EXPORT_LIMIT = 10_000;
 
 const HEADERS = [
   "№",
@@ -45,21 +38,6 @@ export type OrdersCsv = {
   /** Выгрузка упёрлась в потолок — в файле не все заказы фильтра. */
   truncated: boolean;
 };
-
-/** «20.09.2026 14:35»: без запятой, иначе Excel видит в ячейке не дату, а текст. */
-function exportDateTime(date: Date): string {
-  return formatMoscowDateTime(date).replace(",", "");
-}
-
-/**
- * Имя файла с датой выгрузки по Москве: `zakazy-2026-09-20.csv`.
- * Упёрлись в потолок — это видно в самом имени, до открытия файла.
- */
-function fileName(now: Date, truncated: boolean): string {
-  const [day, month, year] = formatMoscowDateTime(now).slice(0, 10).split(".");
-  const suffix = truncated ? `-pervye-${EXPORT_LIMIT}` : "";
-  return `zakazy-${year}-${month}-${day}${suffix}.csv`;
-}
 
 export async function exportOrdersCsv(filters: OrderListFilters, user: SessionUser): Promise<OrdersCsv> {
   const now = new Date();
@@ -91,7 +69,7 @@ export async function exportOrdersCsv(filters: OrderListFilters, user: SessionUs
     ...rows.map((order) => [
       order.number,
       order.externalId ?? "",
-      exportDateTime(order.createdAt),
+      csvDateTime(order.createdAt),
       ORDER_STATUS_LABELS[order.status],
       order.customer.name,
       formatPhoneLocal(order.customer.phone),
@@ -104,5 +82,5 @@ export async function exportOrdersCsv(filters: OrderListFilters, user: SessionUs
     ]),
   ];
 
-  return { csv: toCsv(table), fileName: fileName(now, truncated), truncated };
+  return { csv: toCsv(table), fileName: csvFileName("zakazy", now, truncated), truncated };
 }
