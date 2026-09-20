@@ -145,6 +145,19 @@ jobs:
           export MIGRATE_IMAGE="$IMAGE_BASE/migrate:$SHA"
           COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.production"
 
+          # Место чистим ДО скачивания, а не после удачного выката: диска 9.8 ГБ,
+          # каждый выкат приносит два новых образа, и однажды pull упал на
+          # «no space left on device» — с образами позапрошлых выкатов на диске.
+          # Образы работающих контейнеров prune не трогает, остальное лежит в
+          # GHCR и при откате скачается заново.
+          echo "Место до очистки:"
+          df -h / < /dev/null || true
+          docker image prune -af < /dev/null || true
+          docker builder prune -af < /dev/null || true
+          echo "Место после очистки:"
+          df -h / < /dev/null || true
+          docker system df < /dev/null || true
+
           $COMPOSE pull postgres app migrate
 
           # Миграции накатывает одноразовый контейнер; приложение стартует только
@@ -164,8 +177,10 @@ jobs:
           for i in $(seq 1 30); do
             if curl -sf --max-time 5 -o /dev/null "http://127.0.0.1:$CHECK_PORT/login" < /dev/null; then
               echo "Приложение отвечает на порту $CHECK_PORT"
-              # Старые образы копятся на диске, которого 9.8 ГБ всего.
-              docker image prune -af --filter "until=168h" < /dev/null || true
+              # Прошлая версия остаётся в GHCR, а не на диске: 168-часовой фильтр,
+              # который стоял здесь раньше, не удалял ничего — выкаты одного дня
+              # все моложе недели, и диск кончился именно на них.
+              docker image prune -af < /dev/null || true
               exit 0
             fi
             sleep 5
