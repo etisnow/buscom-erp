@@ -151,20 +151,28 @@ jobs:
           # после его успеха — это задано зависимостями в compose.
           $COMPOSE up -d --no-build
 
-          # Ждём, пока приложение действительно ответит: `up -d` возвращается
-          # сразу, и без проверки зелёный деплой мог бы скрыть упавший контейнер.
+          # Проверяем опубликованный порт снаружи контейнера — ровно тот, куда
+          # ходит проксирование хостинга. `docker compose exec` здесь нельзя:
+          # он читает stdin, а этим stdin подаётся сам скрипт, и exec съедал
+          # его остаток. Скрипт молча обрывался, шаг засчитывался успешным —
+          # деплой рапортовал победу при упавшем приложении.
+          PORT_SPEC=$(sed -n 's/^APP_PORT=//p' .env.production | head -1)
+          CHECK_PORT=${PORT_SPEC##*:}
+          CHECK_PORT=${CHECK_PORT:-81}
+
+          # `up -d` возвращается сразу, приложению нужно время на старт.
           for i in $(seq 1 30); do
-            if $COMPOSE exec -T app node -e "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
-              echo "Приложение отвечает"
+            if curl -sf --max-time 5 -o /dev/null "http://127.0.0.1:$CHECK_PORT/login" < /dev/null; then
+              echo "Приложение отвечает на порту $CHECK_PORT"
               # Старые образы копятся на диске, которого 9.8 ГБ всего.
-              docker image prune -af --filter "until=168h" || true
+              docker image prune -af --filter "until=168h" < /dev/null || true
               exit 0
             fi
             sleep 5
           done
 
           echo "Приложение не ответило за 150 секунд — логи ниже" >&2
-          $COMPOSE logs --tail 80 app >&2
+          $COMPOSE logs --tail 80 app < /dev/null >&2
           exit 1
           REMOTE
 

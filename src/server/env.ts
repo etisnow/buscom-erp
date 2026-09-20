@@ -26,7 +26,24 @@ const envSchema = z.object({
   SMTP_FROM: z.string().default("BusCom ERP <noreply@bus-com.ru>"),
 });
 
-export const env = envSchema.parse(process.env);
+type RawEnv = Record<string, string | undefined>;
+
+/**
+ * Пустая строка означает «не задано», а не «задано пустым».
+ * Так пишут в `.env` и так передаёт Docker Compose незаполненную переменную:
+ * `SMTP_HOST: ${SMTP_HOST:-}` доходит до процесса как "". Без этой очистки
+ * `.optional()` не спасает — он допускает `undefined`, но не "", и приложение
+ * падало на старте в бою, хотя локально та же конфигурация работала.
+ */
+function withoutEmpty(raw: RawEnv): RawEnv {
+  return Object.fromEntries(Object.entries(raw).filter(([, value]) => value !== ""));
+}
+
+export function parseEnv(raw: RawEnv = process.env): z.infer<typeof envSchema> {
+  return envSchema.parse(withoutEmpty(raw));
+}
+
+export const env = parseEnv();
 
 /** Настроена ли отправка почты. */
 export const mailEnabled = Boolean(env.SMTP_HOST);
