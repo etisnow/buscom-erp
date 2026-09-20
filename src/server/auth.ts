@@ -27,13 +27,16 @@ export const auth = betterAuth({
       isActive: { type: "boolean", required: false, defaultValue: true, input: false },
     },
   },
-  // PRD, M8: подбор пароля ограничен. Счётчик в памяти процесса — для одного инстанса
-  // внутренней админки достаточно; при нескольких инстансах нужен общий storage.
+  // Защита от флуда: лимит запросов с одного адреса. Правило PRD «10 неудачных
+  // попыток за 15 минут» считается отдельно и по email — в БД, см.
+  // src/server/auth/login-attempts.ts. Здесь порог заведомо выше, чтобы он не
+  // срабатывал раньше и не блокировал соседа по NAT из-за чужих опечаток.
+  // Хранилище — память процесса: инстанс один, при нескольких нужен общий storage.
   rateLimit: {
     enabled: true,
     storage: "memory",
     customRules: {
-      "/sign-in/email": { window: 15 * 60, max: 10 },
+      "/sign-in/email": { window: 15 * 60, max: 60 },
       "/forget-password": { window: 15 * 60, max: 5 },
     },
   },

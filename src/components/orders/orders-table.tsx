@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OrderRowLink } from "@/components/orders/order-row-link";
 import { OrderStatusBadge, PaymentBadge } from "@/components/orders/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatMoscowDateTime, formatPhone } from "@/domain/datetime";
@@ -47,7 +48,11 @@ export function OrdersTable({ rows, now }: { rows: OrderListRow[]; now: Date }) 
             const inStatus = workingMinutesBetween(order.statusChangedAt, now);
 
             return (
-              <TableRow key={order.id} className={isOverdue ? "bg-rose-50 dark:bg-rose-950/30" : undefined}>
+              <OrderRowLink
+                key={order.id}
+                href={`/orders/${order.number}`}
+                className={isOverdue ? "bg-rose-50 dark:bg-rose-950/30" : undefined}
+              >
                 <TableCell className="font-medium">
                   <Link href={`/orders/${order.number}`} className="underline-offset-4 hover:underline">
                     {order.number}
@@ -80,7 +85,7 @@ export function OrdersTable({ rows, now }: { rows: OrderListRow[]; now: Date }) 
                 >
                   {formatWorkingMinutes(inStatus)}
                 </TableCell>
-              </TableRow>
+              </OrderRowLink>
             );
           })}
         </TableBody>

@@ -38,6 +38,7 @@ const TABLES = [
   '"Product"',
   '"DictionaryItem"',
   '"Setting"',
+  '"FailedLogin"',
   '"session"',
   '"account"',
   '"user"',
