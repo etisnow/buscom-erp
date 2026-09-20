@@ -34,9 +34,14 @@ jobs:
       RUN_DB_TESTS: "1"
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      # v5 у всех трёх — первая мажорная версия на Node 24. На v4 раннер уже
+      # принудительно запускал их вне заявленного Node 20 и предупреждал об этом.
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      # setup-node@v5 сам включает кэш, если в package.json есть packageManager.
+      # Оставляем `cache: pnpm` явно: так видно, что кэшируется, и не зависит от
+      # автоопределения. pnpm ставится раньше — иначе кэшу нечем считать путь к store.
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
