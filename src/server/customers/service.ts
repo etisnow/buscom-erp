@@ -28,6 +28,8 @@ export class CustomerExistsError extends Error {
   }
 }
 
+export type NewCustomerAddress = { city?: string | null; address: string; isDefault?: boolean };
+
 export type NewCustomer = {
   type: CustomerType;
   name: string;
@@ -36,6 +38,7 @@ export type NewCustomer = {
   inn?: string | null;
   kpp?: string | null;
   comment?: string | null;
+  addresses?: NewCustomerAddress[];
 };
 
 /**
@@ -59,6 +62,18 @@ export async function createCustomer(draft: NewCustomer, user: SessionUser): Pro
       throw new CustomerExistsError(existing.id, found.name);
     }
 
+    // Пустые строки адресов отбрасываем: форма разрешает добавить строку и не заполнить её.
+    const addresses = (draft.addresses ?? [])
+      .map((item) => ({ city: item.city?.trim() || null, address: item.address.trim(), isDefault: item.isDefault }))
+      .filter((item) => item.address);
+
+    // Адрес по умолчанию один, как и при добавлении из карточки: помеченный,
+    // иначе первый — иначе у нового клиента не будет адреса по умолчанию вовсе.
+    const defaultIndex = Math.max(
+      addresses.findIndex((item) => item.isDefault),
+      0,
+    );
+
     return tx.customer.create({
       data: {
         type: draft.type,
@@ -68,6 +83,13 @@ export async function createCustomer(draft: NewCustomer, user: SessionUser): Pro
         inn: draft.inn?.trim() || null,
         kpp: draft.kpp?.trim() || null,
         comment: draft.comment?.trim() || null,
+        addresses: {
+          create: addresses.map((item, index) => ({
+            city: item.city,
+            address: item.address,
+            isDefault: index === defaultIndex,
+          })),
+        },
       },
       select: { id: true },
     });

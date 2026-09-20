@@ -52,6 +52,39 @@ describeDb("заведение клиента из интерфейса (жив�
     expect(await testDb.customer.count()).toBe(2);
   });
 
+  it("заводит клиента вместе с адресами, помеченный — по умолчанию", async () => {
+    const { id } = await createCustomer(
+      {
+        type: "COMPANY",
+        name: "ООО «Автолайн»",
+        addresses: [
+          { city: "Москва", address: "ул. Ленина, 1" },
+          { city: "Екатеринбург", address: "терминал СДЭК", isDefault: true },
+        ],
+      },
+      manager,
+    );
+
+    const addresses = await testDb.customerAddress.findMany({ where: { customerId: id }, orderBy: { city: "asc" } });
+    expect(addresses).toHaveLength(2);
+    expect(addresses.filter((item) => item.isDefault).map((item) => item.address)).toEqual(["терминал СДЭК"]);
+  });
+
+  it("без пометки адрес по умолчанию — первый; пустые строки адресов отбрасываются", async () => {
+    const { id } = await createCustomer(
+      {
+        type: "PERSON",
+        name: "Иванов Иван",
+        addresses: [{ address: "  " }, { city: "Пермь", address: "ул. Мира, 5" }, { address: "" }],
+      },
+      manager,
+    );
+
+    const addresses = await testDb.customerAddress.findMany({ where: { customerId: id } });
+    expect(addresses).toHaveLength(1);
+    expect(addresses[0]).toMatchObject({ city: "Пермь", address: "ул. Мира, 5", isDefault: true });
+  });
+
   it("пустое имя не проходит", async () => {
     await expect(createCustomer({ type: "PERSON", name: "   " }, manager)).rejects.toThrow(/Укажите имя/);
     expect(await testDb.customer.count()).toBe(0);

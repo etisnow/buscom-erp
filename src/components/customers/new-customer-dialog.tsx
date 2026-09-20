@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { UserPlus } from "lucide-react";
+import { Plus, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -15,15 +15,21 @@ import { createCustomerAction } from "@/app/(app)/customers/actions";
 
 const EMPTY = { name: "", phone: "", email: "", inn: "", kpp: "", comment: "" };
 
+type AddressDraft = { city: string; address: string; isDefault: boolean };
+
+const EMPTY_ADDRESS: AddressDraft = { city: "", address: "", isDefault: false };
+
 /**
- * Заведение клиента до первого заказа (PRD, M2.4). Обычно клиент появляется сам
- * при приёме заказа, поэтому форма короткая: остальное дозаполняется в карточке.
+ * Заведение клиента до первого заказа (PRD, M2.4). Клиента не с сайта заводят
+ * целиком и сразу, поэтому в форме есть и адреса доставки: иначе их пришлось бы
+ * добавлять вторым заходом, уже в карточке.
  */
 export function NewCustomerDialog() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<CustomerType>("PERSON");
   const [fields, setFields] = useState(EMPTY);
+  const [addresses, setAddresses] = useState<AddressDraft[]>([]);
   // Найденный дубль: показываем ссылку на него вместо того, чтобы завести второго.
   const [existingId, setExistingId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -33,12 +39,25 @@ export function NewCustomerDialog() {
     setExistingId(null);
   }
 
+  function setAddress(index: number, patch: Partial<AddressDraft>) {
+    setAddresses((current) =>
+      current.map((item, i) => {
+        if (i !== index) {
+          // Адрес по умолчанию один: отмечая новый, снимаем признак с прежнего.
+          return patch.isDefault ? { ...item, isDefault: false } : item;
+        }
+        return { ...item, ...patch };
+      }),
+    );
+  }
+
   function submit() {
     startTransition(async () => {
-      const result = await createCustomerAction({ type, ...fields });
+      const result = await createCustomerAction({ type, ...fields, addresses });
       if (result.ok) {
         setOpen(false);
         setFields(EMPTY);
+        setAddresses([]);
         setType("PERSON");
         toast.success("Клиент заведён");
         router.push(`/customers/${result.id}`);
@@ -159,6 +178,74 @@ export function NewCustomerDialog() {
                 rows={2}
               />
             </div>
+          </div>
+
+          <div className="flex flex-col gap-2 border-t pt-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-medium">Адреса доставки</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setAddresses((current) => [...current, { ...EMPTY_ADDRESS, isDefault: !current.length }])
+                }
+              >
+                <Plus />
+                Добавить адрес
+              </Button>
+            </div>
+
+            {addresses.length === 0 ? (
+              <p className="text-muted-foreground text-xs">
+                Необязательно — адрес можно добавить и позже, в карточке клиента.
+              </p>
+            ) : null}
+
+            {addresses.map((item, index) => (
+              // Строки без своего id: порядок не меняется, удаление сдвигает хвост целиком.
+              <div key={index} className="flex flex-wrap items-end gap-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs" htmlFor={`new-address-city-${index}`}>
+                    Город
+                  </Label>
+                  <Input
+                    id={`new-address-city-${index}`}
+                    value={item.city}
+                    onChange={(event) => setAddress(index, { city: event.target.value })}
+                    className="h-8 w-36"
+                  />
+                </div>
+                <div className="flex min-w-40 flex-1 flex-col gap-1.5">
+                  <Label className="text-xs" htmlFor={`new-address-value-${index}`}>
+                    Адрес или терминал
+                  </Label>
+                  <Input
+                    id={`new-address-value-${index}`}
+                    value={item.address}
+                    onChange={(event) => setAddress(index, { address: event.target.value })}
+                    className="h-8"
+                  />
+                </div>
+                <label className="flex h-8 items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={item.isDefault}
+                    onChange={(event) => setAddress(index, { isDefault: event.target.checked })}
+                    className="size-4"
+                  />
+                  по умолчанию
+                </label>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  aria-label="Убрать адрес"
+                  onClick={() => setAddresses((current) => current.filter((_, i) => i !== index))}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            ))}
           </div>
 
           {existingId ? (

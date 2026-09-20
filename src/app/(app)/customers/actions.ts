@@ -29,6 +29,13 @@ const customerSchema = z.object({
   comment: z.string().optional(),
 });
 
+/** Заведение клиента принимает и адреса: у клиента не с сайта их вводят сразу. */
+const createSchema = customerSchema.extend({
+  addresses: z
+    .array(z.object({ city: z.string().optional(), address: z.string(), isDefault: z.boolean().optional() }))
+    .optional(),
+});
+
 async function run(action: () => Promise<unknown>, message: string, customerId?: string): Promise<CustomerResult> {
   try {
     await action();
@@ -55,9 +62,9 @@ export async function updateCustomerAction(id: string, input: z.input<typeof cus
  * Заведение клиента из списка (PRD, M2.4). При совпадении телефона или email
  * отдаём id найденного — форма предложит открыть его вместо создания дубля.
  */
-export async function createCustomerAction(input: z.input<typeof customerSchema>): Promise<CreateCustomerResult> {
+export async function createCustomerAction(input: z.input<typeof createSchema>): Promise<CreateCustomerResult> {
   const user = await requireUser();
-  const parsed = customerSchema.safeParse(input);
+  const parsed = createSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
 
   try {
