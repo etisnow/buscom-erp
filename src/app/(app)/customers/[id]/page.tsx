@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { CustomerAddresses, CustomerForm, MergeCustomers } from "@/components/customers/customer-card";
 import { OrderStatusBadge, PaymentBadge } from "@/components/orders/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { parseCustomerRequisites } from "@/domain/customer/requisites";
 import { formatMoscowDateTime } from "@/domain/datetime";
 import { formatRub } from "@/domain/money";
 import { findCustomer } from "@/server/customers/list";
@@ -59,6 +60,9 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
             email: customer.email,
             inn: customer.inn,
             kpp: customer.kpp,
+            contactPerson: customer.contactPerson,
+            passport: customer.passport,
+            requisites: parseCustomerRequisites(customer.requisites),
             comment: customer.comment,
           }}
           editable={editable}
@@ -68,7 +72,6 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
           customerId={customer.id}
           addresses={customer.addresses.map((address) => ({
             id: address.id,
-            city: address.city,
             address: address.address,
             isDefault: address.isDefault,
           }))}

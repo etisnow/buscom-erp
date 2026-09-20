@@ -1,4 +1,5 @@
 import { beforeEach, expect, it } from "vitest";
+import { EMPTY_CUSTOMER_REQUISITES, parseCustomerRequisites } from "@/domain/customer/requisites";
 import { createCustomer, CustomerExistsError } from "@/server/customers/service";
 import { describeDb, resetDb, testDb } from "@/test/db";
 import { makeUser } from "@/test/fixtures";
@@ -36,13 +37,19 @@ describeDb("заведение клиента из интерфейса (жив�
     expect(await testDb.customer.count()).toBe(1);
   });
 
-  it("не заводит дубль по email без учёта регистра", async () => {
+  it("одинаковый email у разных клиентов разрешён: одна почта бухгалтерии на несколько юрлиц", async () => {
     await testDb.customer.create({ data: { name: "ООО «Автолайн»", type: "COMPANY", email: "buh@avtolain.ru" } });
 
-    await expect(
-      createCustomer({ type: "COMPANY", name: "Автолайн", email: "BUH@Avtolain.RU" }, manager),
-    ).rejects.toThrow(CustomerExistsError);
-    expect(await testDb.customer.count()).toBe(1);
+    await createCustomer({ type: "COMPANY", name: "ООО «Автолайн-Юг»", email: "BUH@Avtolain.RU" }, manager);
+
+    expect(await testDb.customer.count()).toBe(2);
+  });
+
+  it("клиентов без телефона можно завести сколько угодно: уникальность только по непустым", async () => {
+    await createCustomer({ type: "PERSON", name: "Без телефона 1" }, manager);
+    await createCustomer({ type: "PERSON", name: "Без телефона 2" }, manager);
+
+    expect(await testDb.customer.count()).toBe(2);
   });
 
   it("однофамильцы без телефона и email заводятся оба: совпадение только по контактам", async () => {
@@ -57,17 +64,16 @@ describeDb("заведение клиента из интерфейса (жив�
       {
         type: "COMPANY",
         name: "ООО «Автолайн»",
-        addresses: [
-          { city: "Москва", address: "ул. Ленина, 1" },
-          { city: "Екатеринбург", address: "терминал СДЭК", isDefault: true },
-        ],
+        addresses: [{ address: "Москва, ул. Ленина, 1" }, { address: "Екатеринбург, терминал СДЭК", isDefault: true }],
       },
       manager,
     );
 
-    const addresses = await testDb.customerAddress.findMany({ where: { customerId: id }, orderBy: { city: "asc" } });
+    const addresses = await testDb.customerAddress.findMany({ where: { customerId: id } });
     expect(addresses).toHaveLength(2);
-    expect(addresses.filter((item) => item.isDefault).map((item) => item.address)).toEqual(["терминал СДЭК"]);
+    expect(addresses.filter((item) => item.isDefault).map((item) => item.address)).toEqual([
+      "Екатеринбург, терминал СДЭК",
+    ]);
   });
 
   it("без пометки адрес по умолчанию — первый; пустые строки адресов отбрасываются", async () => {
@@ -75,14 +81,35 @@ describeDb("заведение клиента из интерфейса (жив�
       {
         type: "PERSON",
         name: "Иванов Иван",
-        addresses: [{ address: "  " }, { city: "Пермь", address: "ул. Мира, 5" }, { address: "" }],
+        addresses: [{ address: "  " }, { address: "Пермь, ул. Мира, 5" }, { address: "" }],
       },
       manager,
     );
 
     const addresses = await testDb.customerAddress.findMany({ where: { customerId: id } });
     expect(addresses).toHaveLength(1);
-    expect(addresses[0]).toMatchObject({ city: "Пермь", address: "ул. Мира, 5", isDefault: true });
+    expect(addresses[0]).toMatchObject({ address: "Пермь, ул. Мира, 5", isDefault: true });
+  });
+
+  it("реквизиты юрлица ложатся в Json, пустые — не сохраняются", async () => {
+    const { id } = await createCustomer(
+      {
+        type: "COMPANY",
+        name: "ООО «Транс»",
+        contactPerson: "Пётр Петров",
+        requisites: { ...EMPTY_CUSTOMER_REQUISITES, ogrn: "1083917001629", bankName: "Сбербанк" },
+      },
+      manager,
+    );
+    const { id: emptyId } = await createCustomer(
+      { type: "COMPANY", name: "ООО «Пусто»", requisites: EMPTY_CUSTOMER_REQUISITES },
+      manager,
+    );
+
+    const filled = await testDb.customer.findUniqueOrThrow({ where: { id } });
+    expect(parseCustomerRequisites(filled.requisites).ogrn).toBe("1083917001629");
+    expect(filled.contactPerson).toBe("Пётр Петров");
+    expect((await testDb.customer.findUniqueOrThrow({ where: { id: emptyId } })).requisites).toBeNull();
   });
 
   it("пустое имя не проходит", async () => {

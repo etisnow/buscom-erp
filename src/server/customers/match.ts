@@ -17,6 +17,10 @@ export type CustomerDraft = {
  * Сопоставление клиента при приёме заказа (PRD, «Бизнес-правила»):
  * сначала по нормализованному телефону, потом по email без учёта регистра.
  * Найденного клиента не перезаписываем — новые данные остаются в заказе.
+ *
+ * По email сопоставляем, только если он ровно у одного клиента: почта бухгалтерии
+ * бывает общей на несколько юрлиц, и тогда «первый попавшийся» привязал бы заказ
+ * не к тому. Телефон такой оговорки не требует — он уникален в схеме.
  */
 export async function findCustomer(tx: Tx, draft: CustomerDraft): Promise<{ id: string } | null> {
   const phone = normalizePhone(draft.phone);
@@ -27,8 +31,8 @@ export async function findCustomer(tx: Tx, draft: CustomerDraft): Promise<{ id: 
 
   const email = draft.email?.trim().toLowerCase();
   if (email) {
-    const byEmail = await tx.customer.findFirst({ where: { email }, select: { id: true } });
-    if (byEmail) return byEmail;
+    const byEmail = await tx.customer.findMany({ where: { email }, select: { id: true }, take: 2 });
+    if (byEmail.length === 1) return byEmail[0]!;
   }
 
   return null;

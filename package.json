@@ -18,6 +18,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:generate": "prisma generate",
+    "import:customers": "tsx --tsconfig tsconfig.scripts.json scripts/import-customers.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },

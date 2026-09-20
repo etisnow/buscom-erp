@@ -1,0 +1,10 @@
+{
+  "//": "Для скриптов из scripts/, запускаемых через tsx. Отличие одно: `server-only` подменяется заглушкой — вне Next этот пакет бросает ошибку, а скриптам нужен серверный слой. Тот же приём, что в vitest.config.mts.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"],
+      "server-only": ["./src/test/server-only-stub.ts"]
+    }
+  }
+}

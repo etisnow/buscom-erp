@@ -57,3 +57,68 @@ export function csvFileName(prefix: string, now: Date, truncated: boolean): stri
   const suffix = truncated ? `-pervye-${EXPORT_LIMIT}` : "";
   return `${prefix}-${year}-${month}-${day}${suffix}.csv`;
 }
+
+/**
+ * Разбор CSV — для импорта чужих выгрузок (docs/STATUS.md, «Выгрузка клиентов»).
+ * Правила те же, что у сборки: кавычки экранируются удвоением, внутри кавычек
+ * бывают и разделитель, и перевод строки — в «Примечании» прежней ERP они есть.
+ * Свой разбор, а не библиотека: формат маленький, а зависимость пришлось бы
+ * тащить в прод ради разового скрипта.
+ */
+export function parseCsv(text: string, delimiter = DELIMITER): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let quoted = false;
+  // BOM пришёл бы первым символом первой ячейки и испортил имя колонки.
+  const source = text.startsWith(BOM) ? text.slice(1) : text;
+
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i]!;
+
+    if (quoted) {
+      if (char !== '"') {
+        cell += char;
+      } else if (source[i + 1] === '"') {
+        cell += '"';
+        i += 1;
+      } else {
+        quoted = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      quoted = true;
+    } else if (char === delimiter) {
+      row.push(cell);
+      cell = "";
+    } else if (char === "\n" || char === "\r") {
+      // CRLF — один конец строки, а не два пустых.
+      if (char === "\r" && source[i + 1] === "\n") i += 1;
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+
+  if (cell !== "" || row.length > 0) {
+    row.push(cell);
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+/** Строки файла как объекты по заголовкам первой строки. */
+export function parseCsvRows(text: string, delimiter = DELIMITER): Record<string, string>[] {
+  const [header, ...rest] = parseCsv(text, delimiter);
+  if (!header) return [];
+
+  return rest
+    .filter((row) => row.some((cell) => cell.trim() !== ""))
+    .map((row) => Object.fromEntries(header.map((name, index) => [name.trim(), (row[index] ?? "").trim()])));
+}

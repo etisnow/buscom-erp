@@ -111,24 +111,32 @@ enum CustomerType {
 }
 
 model Customer {
-  id         String       @id @default(cuid())
-  type       CustomerType @default(PERSON)
-  name       String
-  /// Нормализованный телефон в формате +7XXXXXXXXXX — ключ для сопоставления дублей
-  phone      String?
-  email      String?
-  inn        String?
-  kpp        String?
-  /// Реквизиты юрлица (банк, адрес и т.п.) — свободная структура до появления требований
+  id   String       @id @default(cuid())
+  type CustomerType @default(PERSON)
+  /// Имя физлица или название юрлица — одно поле на оба случая
+  name String
+  /// Нормализованный телефон в формате +7XXXXXXXXXX — ключ сопоставления и дублей.
+  /// Уникален, но может быть пустым: у части клиентов телефона нет, и таких много
+  /// (в Postgres UNIQUE не мешает нескольким NULL).
+  phone String? @unique
+  /// Может повторяться: на несколько юрлиц бывает одна почта бухгалтерии
+  email String?
+
+  inn String?
+  kpp String?
+  /// Реквизиты юрлица (банк, р/с, руководитель и т.п.), форма — `CustomerRequisites`
   requisites Json?
-  comment    String?
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+  /// Контактное лицо у юрлица: кому звонить, если в `name` название компании
+  contactPerson String?
+  /// Паспорт физлица одной строкой — как его записывали в прежней ERP
+  passport  String?
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   addresses CustomerAddress[]
   orders    Order[]
 
-  @@index([phone])
   @@index([email])
   @@index([inn])
 }
@@ -137,7 +145,8 @@ model CustomerAddress {
   id         String   @id @default(cuid())
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  city       String?
+  /// Адрес одной строкой: города отдельным полем не ведём — так приходит и с сайта,
+  /// и из прежней ERP, а разбирать чужие строки на части всё равно нечем
   address    String
   isDefault  Boolean  @default(false)
   createdAt  DateTime @default(now())

@@ -9,6 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  CUSTOMER_REQUISITES_LABELS,
+  hasCustomerRequisites,
+  type CustomerRequisites,
+} from "@/domain/customer/requisites";
 import { formatPhone } from "@/domain/datetime";
 import type { CustomerType } from "@/generated/prisma/enums";
 import type { CustomerMatch } from "@/server/customers/lookup";
@@ -29,10 +34,15 @@ export type CustomerFormData = {
   email: string | null;
   inn: string | null;
   kpp: string | null;
+  contactPerson: string | null;
+  passport: string | null;
+  requisites: CustomerRequisites;
   comment: string | null;
 };
 
-export type AddressRow = { id: string; city: string | null; address: string; isDefault: boolean };
+export type AddressRow = { id: string; address: string; isDefault: boolean };
+
+const REQUISITES_FIELDS = Object.keys(CUSTOMER_REQUISITES_LABELS) as (keyof CustomerRequisites)[];
 
 function useAction() {
   const [pending, startTransition] = useTransition();
@@ -55,6 +65,9 @@ export function CustomerForm({ customer, editable }: { customer: CustomerFormDat
   const [email, setEmail] = useState(customer.email ?? "");
   const [inn, setInn] = useState(customer.inn ?? "");
   const [kpp, setKpp] = useState(customer.kpp ?? "");
+  const [contactPerson, setContactPerson] = useState(customer.contactPerson ?? "");
+  const [passport, setPassport] = useState(customer.passport ?? "");
+  const [requisites, setRequisites] = useState(customer.requisites);
   const [comment, setComment] = useState(customer.comment ?? "");
   const { pending, handle } = useAction();
 
@@ -147,6 +160,34 @@ export function CustomerForm({ customer, editable }: { customer: CustomerFormDat
           </>
         ) : null}
 
+        {type === "COMPANY" ? (
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label className="text-xs" htmlFor="customer-contact">
+              Контактное лицо
+            </Label>
+            <Input
+              id="customer-contact"
+              value={contactPerson}
+              onChange={(event) => setContactPerson(event.target.value)}
+              disabled={!editable}
+              className="h-8"
+            />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label className="text-xs" htmlFor="customer-passport">
+              Паспорт
+            </Label>
+            <Input
+              id="customer-passport"
+              value={passport}
+              onChange={(event) => setPassport(event.target.value)}
+              disabled={!editable}
+              className="h-8"
+            />
+          </div>
+        )}
+
         <div className="flex flex-col gap-1.5 sm:col-span-2">
           <Label className="text-xs" htmlFor="customer-comment">
             Комментарий
@@ -161,13 +202,50 @@ export function CustomerForm({ customer, editable }: { customer: CustomerFormDat
         </div>
       </div>
 
+      {type === "COMPANY" ? (
+        <details className="border-t pt-3" open={hasCustomerRequisites(requisites)}>
+          <summary className="cursor-pointer text-sm font-medium">Реквизиты для договоров</summary>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {REQUISITES_FIELDS.map((key) => (
+              <div key={key} className="flex flex-col gap-1.5">
+                <Label className="text-xs" htmlFor={`requisites-${key}`}>
+                  {CUSTOMER_REQUISITES_LABELS[key]}
+                </Label>
+                <Input
+                  id={`requisites-${key}`}
+                  value={requisites[key]}
+                  onChange={(event) => setRequisites((current) => ({ ...current, [key]: event.target.value }))}
+                  disabled={!editable}
+                  className="h-8"
+                />
+              </div>
+            ))}
+          </div>
+        </details>
+      ) : null}
+
       {editable ? (
         <div>
           <Button
             size="sm"
             variant="outline"
             disabled={pending || !name.trim()}
-            onClick={() => handle(updateCustomerAction(customer.id, { type, name, phone, email, inn, kpp, comment }))}
+            onClick={() =>
+              handle(
+                updateCustomerAction(customer.id, {
+                  type,
+                  name,
+                  phone,
+                  email,
+                  inn,
+                  kpp,
+                  contactPerson,
+                  passport,
+                  requisites,
+                  comment,
+                }),
+              )
+            }
           >
             Сохранить
           </Button>
@@ -189,7 +267,6 @@ export function CustomerAddresses({
   addresses: AddressRow[];
   editable: boolean;
 }) {
-  const [city, setCity] = useState("");
   const [address, setAddress] = useState("");
   const [isDefault, setIsDefault] = useState(addresses.length === 0);
   const { pending, handle } = useAction();
@@ -204,10 +281,7 @@ export function CustomerAddresses({
         <ul className="flex flex-col gap-1 text-sm">
           {addresses.map((item) => (
             <li key={item.id} className="flex items-center gap-2">
-              <span>
-                {item.city ? `${item.city}, ` : ""}
-                {item.address}
-              </span>
+              <span>{item.address}</span>
               {item.isDefault ? <span className="text-muted-foreground text-xs">по умолчанию</span> : null}
               {editable ? (
                 <Button
@@ -228,17 +302,6 @@ export function CustomerAddresses({
 
       {editable ? (
         <div className="flex flex-wrap items-end gap-2 border-t pt-3">
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs" htmlFor="address-city">
-              Город
-            </Label>
-            <Input
-              id="address-city"
-              value={city}
-              onChange={(event) => setCity(event.target.value)}
-              className="h-8 w-40"
-            />
-          </div>
           <div className="flex flex-1 flex-col gap-1.5">
             <Label className="text-xs" htmlFor="address-value">
               Адрес или терминал
@@ -264,8 +327,7 @@ export function CustomerAddresses({
             variant="outline"
             disabled={pending || !address.trim()}
             onClick={() => {
-              handle(addAddressAction(customerId, city, address, isDefault));
-              setCity("");
+              handle(addAddressAction(customerId, address, isDefault));
               setAddress("");
             }}
           >

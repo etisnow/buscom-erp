@@ -13,11 +13,11 @@ import { Textarea } from "@/components/ui/textarea";
 import type { CustomerType } from "@/generated/prisma/enums";
 import { createCustomerAction } from "@/app/(app)/customers/actions";
 
-const EMPTY = { name: "", phone: "", email: "", inn: "", kpp: "", comment: "" };
+const EMPTY = { name: "", phone: "", email: "", inn: "", kpp: "", contactPerson: "", passport: "", comment: "" };
 
-type AddressDraft = { city: string; address: string; isDefault: boolean };
+type AddressDraft = { address: string; isDefault: boolean };
 
-const EMPTY_ADDRESS: AddressDraft = { city: "", address: "", isDefault: false };
+const EMPTY_ADDRESS: AddressDraft = { address: "", isDefault: false };
 
 /**
  * Заведение клиента до первого заказа (PRD, M2.4). Клиента не с сайта заводят
@@ -81,8 +81,8 @@ export function NewCustomerDialog() {
           <DialogHeader>
             <DialogTitle>Новый клиент</DialogTitle>
             <DialogDescription>
-              Обязательно только имя. Телефон сохранится в виде +7XXXXXXXXXX — по нему ERP узнает клиента в заказах с
-              сайта.
+              Обязательно только имя. Телефон сохранится в виде +7XXXXXXXXXX — по нему ERP узнаёт клиента в заказах с
+              сайта и не даёт завести дубль. Реквизиты юрлица дозаполняются в карточке.
             </DialogDescription>
           </DialogHeader>
 
@@ -167,6 +167,32 @@ export function NewCustomerDialog() {
               </>
             ) : null}
 
+            {type === "COMPANY" ? (
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <Label className="text-xs" htmlFor="new-customer-contact">
+                  Контактное лицо
+                </Label>
+                <Input
+                  id="new-customer-contact"
+                  value={fields.contactPerson}
+                  onChange={(event) => set("contactPerson", event.target.value)}
+                  className="h-8"
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <Label className="text-xs" htmlFor="new-customer-passport">
+                  Паспорт
+                </Label>
+                <Input
+                  id="new-customer-passport"
+                  value={fields.passport}
+                  onChange={(event) => set("passport", event.target.value)}
+                  className="h-8"
+                />
+              </div>
+            )}
+
             <div className="flex flex-col gap-1.5 sm:col-span-2">
               <Label className="text-xs" htmlFor="new-customer-comment">
                 Комментарий
@@ -204,17 +230,6 @@ export function NewCustomerDialog() {
             {addresses.map((item, index) => (
               // Строки без своего id: порядок не меняется, удаление сдвигает хвост целиком.
               <div key={index} className="flex flex-wrap items-end gap-2">
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs" htmlFor={`new-address-city-${index}`}>
-                    Город
-                  </Label>
-                  <Input
-                    id={`new-address-city-${index}`}
-                    value={item.city}
-                    onChange={(event) => setAddress(index, { city: event.target.value })}
-                    className="h-8 w-36"
-                  />
-                </div>
                 <div className="flex min-w-40 flex-1 flex-col gap-1.5">
                   <Label className="text-xs" htmlFor={`new-address-value-${index}`}>
                     Адрес или терминал

@@ -1,7 +1,8 @@
 import "server-only";
 import { normalizePhone } from "@/domain/customer/phone";
+import { hasCustomerRequisites, type CustomerRequisites } from "@/domain/customer/requisites";
+import { Prisma } from "@/generated/prisma/client";
 import type { CustomerType } from "@/generated/prisma/enums";
-import { findCustomer } from "@/server/customers/match";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import type { SessionUser } from "@/server/session";
@@ -14,21 +15,22 @@ export function canEditCustomers(role: SessionUser["role"]): boolean {
 }
 
 /**
- * Клиент с таким телефоном или email уже заведён. Несёт его id и имя, чтобы форма
- * не просто отказала, а увела в карточку существующего (PRD, M2 — дубли сливают руками,
- * плодить их из интерфейса незачем).
+ * Клиент с таким телефоном уже заведён. Несёт его id и имя, чтобы форма не просто
+ * отказала, а увела в карточку существующего (PRD, M2 — дубли сливают руками,
+ * плодить их из интерфейса незачем). По email не проверяем: одна почта бухгалтерии
+ * на несколько юрлиц — обычное дело, и в схеме email не уникален.
  */
 export class CustomerExistsError extends Error {
   constructor(
     readonly customerId: string,
     readonly customerName: string,
   ) {
-    super(`Клиент «${customerName}» с таким телефоном или email уже есть`);
+    super(`Клиент «${customerName}» с таким телефоном уже есть`);
     this.name = "CustomerExistsError";
   }
 }
 
-export type NewCustomerAddress = { city?: string | null; address: string; isDefault?: boolean };
+export type NewCustomerAddress = { address: string; isDefault?: boolean };
 
 export type NewCustomer = {
   type: CustomerType;
@@ -37,15 +39,18 @@ export type NewCustomer = {
   email?: string | null;
   inn?: string | null;
   kpp?: string | null;
+  contactPerson?: string | null;
+  passport?: string | null;
+  requisites?: CustomerRequisites | null;
   comment?: string | null;
   addresses?: NewCustomerAddress[];
 };
 
 /**
- * Заведение клиента из интерфейса, до первого заказа (PRD, M2.4). Сопоставление —
- * то же, что при приёме заказа: сначала телефон, потом email. В отличие от
- * `findOrCreateCustomer` найденного клиента молча не возвращаем: человек нажал
- * «Новый клиент» и должен увидеть, что такой уже есть.
+ * Заведение клиента из интерфейса, до первого заказа (PRD, M2.4). Дубль ловим по
+ * телефону — он уникален в схеме. В отличие от `findOrCreateCustomer` найденного
+ * клиента молча не возвращаем: человек нажал «Новый клиент» и должен увидеть,
+ * что такой уже есть.
  */
 export async function createCustomer(draft: NewCustomer, user: SessionUser): Promise<{ id: string }> {
   if (!canEditCustomers(user.role)) {
@@ -55,16 +60,17 @@ export async function createCustomer(draft: NewCustomer, user: SessionUser): Pro
   const name = draft.name.trim();
   if (!name) throw new Error("Укажите имя или название");
 
+  const phone = normalizePhone(draft.phone);
+
   return db.$transaction(async (tx) => {
-    const existing = await findCustomer(tx, draft);
-    if (existing) {
-      const found = await tx.customer.findUniqueOrThrow({ where: { id: existing.id }, select: { name: true } });
-      throw new CustomerExistsError(existing.id, found.name);
+    if (phone) {
+      const existing = await tx.customer.findUnique({ where: { phone }, select: { id: true, name: true } });
+      if (existing) throw new CustomerExistsError(existing.id, existing.name);
     }
 
     // Пустые строки адресов отбрасываем: форма разрешает добавить строку и не заполнить её.
     const addresses = (draft.addresses ?? [])
-      .map((item) => ({ city: item.city?.trim() || null, address: item.address.trim(), isDefault: item.isDefault }))
+      .map((item) => ({ address: item.address.trim(), isDefault: item.isDefault }))
       .filter((item) => item.address);
 
     // Адрес по умолчанию один, как и при добавлении из карточки: помеченный,
@@ -78,14 +84,16 @@ export async function createCustomer(draft: NewCustomer, user: SessionUser): Pro
       data: {
         type: draft.type,
         name,
-        phone: normalizePhone(draft.phone),
+        phone,
         email: draft.email?.trim().toLowerCase() || null,
         inn: draft.inn?.trim() || null,
         kpp: draft.kpp?.trim() || null,
+        contactPerson: draft.contactPerson?.trim() || null,
+        passport: draft.passport?.trim() || null,
+        requisites: draft.requisites && hasCustomerRequisites(draft.requisites) ? draft.requisites : undefined,
         comment: draft.comment?.trim() || null,
         addresses: {
           create: addresses.map((item, index) => ({
-            city: item.city,
             address: item.address,
             isDefault: index === defaultIndex,
           })),
@@ -103,6 +111,9 @@ export type CustomerUpdate = {
   email?: string | null;
   inn?: string | null;
   kpp?: string | null;
+  contactPerson?: string | null;
+  passport?: string | null;
+  requisites?: CustomerRequisites | null;
   comment?: string | null;
 };
 
@@ -111,16 +122,32 @@ export async function updateCustomer(id: string, update: CustomerUpdate, user: S
     throw new ForbiddenError("Править клиентов может менеджер, руководитель или администратор");
   }
 
+  // Телефон уникален: без этой проверки правка отдала бы сырое P2002 вместо понятного текста.
+  const phone = update.phone !== undefined ? normalizePhone(update.phone) : undefined;
+  if (phone) {
+    const existing = await db.customer.findUnique({ where: { phone }, select: { id: true, name: true } });
+    if (existing && existing.id !== id) throw new CustomerExistsError(existing.id, existing.name);
+  }
+
   await db.customer.update({
     where: { id },
     data: {
       ...(update.type !== undefined ? { type: update.type } : {}),
       ...(update.name !== undefined ? { name: update.name.trim() } : {}),
       // Телефон всегда приводится к +7XXXXXXXXXX: по нему сопоставляются заказы с сайта.
-      ...(update.phone !== undefined ? { phone: normalizePhone(update.phone) } : {}),
+      ...(update.phone !== undefined ? { phone } : {}),
       ...(update.email !== undefined ? { email: update.email?.trim().toLowerCase() || null } : {}),
       ...(update.inn !== undefined ? { inn: update.inn?.trim() || null } : {}),
       ...(update.kpp !== undefined ? { kpp: update.kpp?.trim() || null } : {}),
+      ...(update.contactPerson !== undefined ? { contactPerson: update.contactPerson?.trim() || null } : {}),
+      ...(update.passport !== undefined ? { passport: update.passport?.trim() || null } : {}),
+      // Пустые реквизиты стираем в NULL: незачем хранить объект из одних пустых строк.
+      ...(update.requisites !== undefined
+        ? {
+            requisites:
+              update.requisites && hasCustomerRequisites(update.requisites) ? update.requisites : Prisma.DbNull,
+          }
+        : {}),
       ...(update.comment !== undefined ? { comment: update.comment?.trim() || null } : {}),
     },
   });
@@ -128,7 +155,7 @@ export async function updateCustomer(id: string, update: CustomerUpdate, user: S
 
 export async function addCustomerAddress(
   customerId: string,
-  address: { city?: string | null; address: string; isDefault?: boolean },
+  address: { address: string; isDefault?: boolean },
   user: SessionUser,
 ): Promise<void> {
   if (!canEditCustomers(user.role)) {
@@ -143,12 +170,7 @@ export async function addCustomerAddress(
       await tx.customerAddress.updateMany({ where: { customerId }, data: { isDefault: false } });
     }
     await tx.customerAddress.create({
-      data: {
-        customerId,
-        city: address.city?.trim() || null,
-        address: value,
-        isDefault: address.isDefault ?? false,
-      },
+      data: { customerId, address: value, isDefault: address.isDefault ?? false },
     });
   });
 }
@@ -193,6 +215,10 @@ export async function mergeCustomers(targetId: string, duplicateId: string, user
       data: { customerId: targetId, ...(targetHasDefault ? { isDefault: false } : {}) },
     });
 
+    // Дубль удаляем ДО правки основного: телефон уникален, и перенос номера
+    // с ещё живого дубля упёрся бы в индекс.
+    await tx.customer.delete({ where: { id: duplicateId } });
+
     await tx.customer.update({
       where: { id: targetId },
       data: {
@@ -200,10 +226,11 @@ export async function mergeCustomers(targetId: string, duplicateId: string, user
         email: target.email ?? duplicate.email,
         inn: target.inn ?? duplicate.inn,
         kpp: target.kpp ?? duplicate.kpp,
+        contactPerson: target.contactPerson ?? duplicate.contactPerson,
+        passport: target.passport ?? duplicate.passport,
+        requisites: target.requisites ?? duplicate.requisites ?? Prisma.DbNull,
         comment: [target.comment, duplicate.comment].filter(Boolean).join("\n") || null,
       },
     });
-
-    await tx.customer.delete({ where: { id: duplicateId } });
   });
 }

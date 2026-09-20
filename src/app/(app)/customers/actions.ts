@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { customerRequisitesSchema } from "@/domain/customer/requisites";
 import { ForbiddenError } from "@/server/errors";
 import { lookupCustomers, type CustomerMatch } from "@/server/customers/lookup";
 import {
@@ -26,14 +27,15 @@ const customerSchema = z.object({
   email: z.string().optional(),
   inn: z.string().optional(),
   kpp: z.string().optional(),
+  contactPerson: z.string().optional(),
+  passport: z.string().optional(),
+  requisites: customerRequisitesSchema.optional(),
   comment: z.string().optional(),
 });
 
 /** Заведение клиента принимает и адреса: у клиента не с сайта их вводят сразу. */
 const createSchema = customerSchema.extend({
-  addresses: z
-    .array(z.object({ city: z.string().optional(), address: z.string(), isDefault: z.boolean().optional() }))
-    .optional(),
+  addresses: z.array(z.object({ address: z.string(), isDefault: z.boolean().optional() })).optional(),
 });
 
 async function run(action: () => Promise<unknown>, message: string, customerId?: string): Promise<CustomerResult> {
@@ -84,14 +86,13 @@ export async function createCustomerAction(input: z.input<typeof createSchema>):
 
 export async function addAddressAction(
   customerId: string,
-  city: string,
   address: string,
   isDefault: boolean,
 ): Promise<CustomerResult> {
   const user = await requireUser();
   if (!address.trim()) return { ok: false, error: "Адрес не может быть пустым" };
 
-  return run(() => addCustomerAddress(customerId, { city, address, isDefault }, user), "Адрес добавлен", customerId);
+  return run(() => addCustomerAddress(customerId, { address, isDefault }, user), "Адрес добавлен", customerId);
 }
 
 export async function deleteAddressAction(customerId: string, addressId: string): Promise<CustomerResult> {
