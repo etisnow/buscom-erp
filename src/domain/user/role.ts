@@ -13,6 +13,12 @@ export const ADMIN_ROLES: UserRole[] = ["ADMIN"];
 /** Роли, которым виден раздел администрирования: руководителю — журнал интеграции на чтение. */
 export const ADMIN_SECTION_ROLES: UserRole[] = ["ADMIN", "HEAD"];
 
+/**
+ * Роли, которым можно удалять клиента. Уже, чем правка карточки: удаление
+ * необратимо, а PRD и заказы менеджеру удалять не даёт.
+ */
+export const CUSTOMER_DELETE_ROLES: UserRole[] = ["HEAD", "ADMIN"];
+
 /** Роли, которые могут создавать заказ вручную. */
 export const ORDER_CREATE_ROLES: UserRole[] = ["MANAGER", "HEAD", "ADMIN"];
 

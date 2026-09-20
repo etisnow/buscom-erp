@@ -1,6 +1,7 @@
 import "server-only";
 import { normalizePhone } from "@/domain/customer/phone";
 import { hasCustomerRequisites, type CustomerRequisites } from "@/domain/customer/requisites";
+import { CUSTOMER_DELETE_ROLES, hasRole } from "@/domain/user/role";
 import { Prisma } from "@/generated/prisma/client";
 import type { CustomerType } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
@@ -180,6 +181,42 @@ export async function deleteCustomerAddress(addressId: string, user: SessionUser
     throw new ForbiddenError("Адреса удаляет менеджер, руководитель или администратор");
   }
   await db.customerAddress.delete({ where: { id: addressId } });
+}
+
+/**
+ * Клиента с заказами не удаляем: заказ ссылается на него обязательным полем, и
+ * без клиента карточка заказа осталась бы без покупателя. Считаем и удалённые
+ * заказы (`deletedAt`) — строки в базе они занимают, и внешний ключ их держит.
+ */
+export class CustomerHasOrdersError extends Error {
+  constructor(readonly ordersCount: number) {
+    super(
+      `За клиентом числятся заказы (${ordersCount}) — удалить нельзя. ` +
+        "Если это дубль, объедините его с основным клиентом: заказы переедут туда.",
+    );
+    this.name = "CustomerHasOrdersError";
+  }
+}
+
+/**
+ * Удаление клиента. Физическое, а не `deletedAt`, как у заказов: у клиента без
+ * заказов терять нечего, а телефон у него уникален — помеченная удалённой запись
+ * навсегда заняла бы номер, и завести человека заново стало бы невозможно.
+ * Адреса уезжают следом каскадом (`onDelete: Cascade` в схеме).
+ */
+export async function deleteCustomer(id: string, user: SessionUser): Promise<void> {
+  if (!hasRole(user.role, CUSTOMER_DELETE_ROLES)) {
+    throw new ForbiddenError("Удалять клиентов может только руководитель или администратор");
+  }
+
+  const customer = await db.customer.findUnique({
+    where: { id },
+    select: { _count: { select: { orders: true } } },
+  });
+  if (!customer) throw new Error("Клиент не найден");
+  if (customer._count.orders > 0) throw new CustomerHasOrdersError(customer._count.orders);
+
+  await db.customer.delete({ where: { id } });
 }
 
 /**

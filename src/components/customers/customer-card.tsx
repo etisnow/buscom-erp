@@ -1,7 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Merge, Trash2 } from "lucide-react";
+import { Merge, Trash, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,6 +21,7 @@ import type { CustomerMatch } from "@/server/customers/lookup";
 import {
   addAddressAction,
   deleteAddressAction,
+  deleteCustomerAction,
   findDuplicatesAction,
   mergeCustomersAction,
   updateCustomerAction,
@@ -404,6 +406,61 @@ export function MergeCustomers({ customerId, customerName }: { customerId: strin
             {query.trim().length >= 3 && matches.length === 0 && !searching ? (
               <p className="text-muted-foreground px-1 py-3 text-sm">Похожих клиентов не нашлось.</p>
             ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/**
+ * Удаление клиента. Диалог свой, а не `confirm()`: браузерное окно блокирует
+ * страницу и выглядит чужеродно. Клиента с заказами сервер удалить не даст —
+ * сообщение об этом приходит оттуда и показывается как есть.
+ */
+export function DeleteCustomer({ customerId, customerName }: { customerId: string; customerName: string }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+
+  function remove() {
+    startTransition(async () => {
+      const result = await deleteCustomerAction(customerId);
+      if (!result.ok) {
+        toast.error(result.error);
+        setOpen(false);
+        return;
+      }
+
+      toast.success(result.message);
+      router.push("/customers");
+    });
+  }
+
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <Trash />
+        Удалить
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Удалить клиента?</DialogTitle>
+            <DialogDescription>
+              «{customerName}» и его адреса доставки будут удалены без возможности восстановить. Клиента, за которым
+              числятся заказы, удалить нельзя — такой дубль объединяют с основным.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
+              Отмена
+            </Button>
+            <Button variant="destructive" size="sm" disabled={pending} onClick={remove}>
+              Удалить
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

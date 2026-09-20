@@ -9,6 +9,7 @@ import {
   addCustomerAddress,
   createCustomer,
   CustomerExistsError,
+  deleteCustomer,
   deleteCustomerAddress,
   mergeCustomers,
   updateCustomer,
@@ -98,6 +99,25 @@ export async function addAddressAction(
 export async function deleteAddressAction(customerId: string, addressId: string): Promise<CustomerResult> {
   const user = await requireUser();
   return run(() => deleteCustomerAddress(addressId, user), "Адрес удалён", customerId);
+}
+
+/**
+ * Удаление клиента. После него карточки уже нет, поэтому форма уводит в список —
+ * `revalidatePath` на саму карточку не зовём, ревалидировать нечего.
+ */
+export async function deleteCustomerAction(id: string): Promise<CustomerResult> {
+  const user = await requireUser();
+
+  try {
+    await deleteCustomer(id, user);
+    revalidatePath("/customers");
+    return { ok: true, message: "Клиент удалён" };
+  } catch (error) {
+    if (error instanceof ForbiddenError || error instanceof Error) {
+      return { ok: false, error: error.message };
+    }
+    throw error;
+  }
 }
 
 export async function mergeCustomersAction(targetId: string, duplicateId: string): Promise<CustomerResult> {

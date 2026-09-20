@@ -1,8 +1,14 @@
 import { beforeEach, expect, it } from "vitest";
 import { EMPTY_CUSTOMER_REQUISITES, parseCustomerRequisites } from "@/domain/customer/requisites";
-import { createCustomer, CustomerExistsError } from "@/server/customers/service";
+import {
+  createCustomer,
+  CustomerExistsError,
+  CustomerHasOrdersError,
+  deleteCustomer,
+} from "@/server/customers/service";
+import { createOrder } from "@/server/orders/create";
 import { describeDb, resetDb, testDb } from "@/test/db";
-import { makeUser } from "@/test/fixtures";
+import { makeProduct, makeUser } from "@/test/fixtures";
 import type { SessionUser } from "@/server/session";
 
 describeDb("заведение клиента из интерфейса (живая БД)", () => {
@@ -115,5 +121,72 @@ describeDb("заведение клиента из интерфейса (жив�
   it("пустое имя не проходит", async () => {
     await expect(createCustomer({ type: "PERSON", name: "   " }, manager)).rejects.toThrow(/Укажите имя/);
     expect(await testDb.customer.count()).toBe(0);
+  });
+});
+
+describeDb("удаление клиента (живая БД)", () => {
+  let head: SessionUser;
+
+  beforeEach(async () => {
+    await resetDb();
+    head = await makeUser("HEAD");
+  });
+
+  it("удаляет клиента вместе с адресами", async () => {
+    const { id } = await createCustomer(
+      { type: "PERSON", name: "Иванов Иван", phone: "89161234567", addresses: [{ address: "Москва, ул. Ленина, 1" }] },
+      head,
+    );
+
+    await deleteCustomer(id, head);
+
+    expect(await testDb.customer.count()).toBe(0);
+    expect(await testDb.customerAddress.count()).toBe(0);
+  });
+
+  it("освобождает телефон: клиента с тем же номером можно завести заново", async () => {
+    const { id } = await createCustomer({ type: "PERSON", name: "Ошибка ввода", phone: "89161234567" }, head);
+    await deleteCustomer(id, head);
+
+    const again = await createCustomer({ type: "PERSON", name: "Иванов Иван", phone: "89161234567" }, head);
+
+    expect((await testDb.customer.findUniqueOrThrow({ where: { id: again.id } })).phone).toBe("+79161234567");
+  });
+
+  it("клиента с заказами не удаляет и объясняет, что делать", async () => {
+    const manager = await makeUser("MANAGER");
+    const product = await makeProduct({ priceKopecks: 100_000 });
+    const order = await createOrder({
+      source: "PHONE",
+      customer: { type: "PERSON", name: "Иванов Иван", phone: "89161234567" },
+      items: [
+        {
+          productId: product.id,
+          sku: product.sku,
+          name: product.name,
+          priceKopecks: 100_000,
+          quantity: 1,
+          discountKopecks: 0,
+        },
+      ],
+      discountKopecks: 0,
+      deliveryMethod: null,
+      deliveryPriceKopecks: 0,
+      user: manager,
+    });
+
+    const attempt = deleteCustomer(order.customerId, head);
+
+    await expect(attempt).rejects.toThrow(CustomerHasOrdersError);
+    await expect(attempt).rejects.toThrow(/объедините его с основным/i);
+    expect(await testDb.customer.count()).toBe(1);
+  });
+
+  it("менеджер удалять не может", async () => {
+    const manager = await makeUser("MANAGER");
+    const { id } = await createCustomer({ type: "PERSON", name: "Иванов Иван" }, manager);
+
+    await expect(deleteCustomer(id, manager)).rejects.toThrow(/Удалять клиентов может/);
+    expect(await testDb.customer.count()).toBe(1);
   });
 });
