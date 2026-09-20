@@ -142,6 +142,30 @@ docker compose -f docker-compose.prod.yml logs -f app
 
 Дальше — войти, сменить временный пароль, завести сотрудников на `/admin/users`.
 
+## Логин и пароль администратора
+
+Они не в репозитории, а в `.env.production` на сервере. Со своей машины:
+
+```bash
+ssh -p 49265 deploy@ba5699d52128.vps.myjino.ru 'grep SEED_ADMIN /opt/buscom-erp/.env.production'
+```
+
+Без SSH-ключа — в панели Джино, вкладка «Консоль»:
+
+```bash
+grep SEED_ADMIN /opt/buscom-erp/.env.production
+```
+
+`SEED_ADMIN_EMAIL` — логин, `SEED_ADMIN_PASSWORD` — временный пароль, `SEED_ADMIN_NAME` — отображаемое имя.
+
+Пароль лежит на сервере открытым текстом, поэтому после первого входа его меняют в интерфейсе, а значение в файле затирают — сид идемпотентен и существующего пользователя не трогает.
+
+Если пароль не подходит, а SMTP ещё не заполнен, ссылка на сброс уходит не письмом, а в лог контейнера:
+
+```bash
+docker compose -f /opt/buscom-erp/docker-compose.prod.yml logs app | grep -i reset
+```
+
 ## Автодеплой из GitHub Actions
 
 `.github/workflows/deploy.yml` выкатывает `main` на сервер. Запускается не по пушу, а по событию `workflow_run` — **только после зелёного CI**: сломанная сборка до сервера не доедет. Есть и ручной запуск (`workflow_dispatch`) — для первого выката и для отката; он разрешён с `main` или с тега, с других веток job не стартует.

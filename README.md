@@ -26,4 +26,22 @@ pnpm check   # typecheck + lint + unit-тесты
 pnpm build   # продакшен-сборка
 ```
 
-Те же проверки (плюс `format:check` и `prisma validate`) запускает CI на каждый push в `main` и каждый PR.
+Те же проверки (плюс `format:check` и `prisma validate`) запускает CI на каждый push в `main` и `development` и на каждый PR. Коммиты идут в `development`; в `main` вливает владелец — этот мерж и выкатывает на сервер.
+
+## Боевой контур
+
+Админка: `https://erp.bus-com.ru`. Рунбук, бэкапы и разбор типовых неполадок — [docs/DEPLOY.md](docs/DEPLOY.md).
+
+**Логин и пароль администратора** лежат на сервере, в репозиторий не попадают. Посмотреть — со своей машины по SSH:
+
+```bash
+ssh -p 49265 deploy@ba5699d52128.vps.myjino.ru 'grep SEED_ADMIN /opt/buscom-erp/.env.production'
+```
+
+Или в панели Джино, вкладка «Консоль», одной командой:
+
+```bash
+grep SEED_ADMIN /opt/buscom-erp/.env.production
+```
+
+`SEED_ADMIN_EMAIL` — логин, `SEED_ADMIN_PASSWORD` — временный пароль. Он лежит там открытым текстом, поэтому после первого входа его меняют, а значение в файле затирают: сид идемпотентен и существующего пользователя не трогает.
