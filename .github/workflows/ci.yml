@@ -8,12 +8,31 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+
+    services:
+      # Живой Postgres нужен интеграционным тестам сервиса заказов и приёма заказов с сайта.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: buscom_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     env:
-      # Сборке и тестам БД не нужна, но env.ts валидирует переменные при импорте серверного кода
-      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      # Имя базы обязано содержать «test»: src/test/db.ts откажется чистить любую другую.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/buscom_test
       BETTER_AUTH_SECRET: ci-secret-ci-secret-ci-secret-ci-secret
       BETTER_AUTH_URL: http://localhost:3000
       SITE_WEBHOOK_SECRET: ci-webhook-secret-ci-webhook-secret-ci
+      RUN_DB_TESTS: "1"
+
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -25,6 +44,7 @@ jobs:
       - run: pnpm format:check
       - run: pnpm typecheck
       - run: pnpm lint
+      - run: pnpm prisma migrate deploy
       - run: pnpm test
       - run: pnpm prisma validate
       - run: pnpm build

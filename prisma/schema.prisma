@@ -207,6 +207,9 @@ model Order {
   discountKopecks      Int @default(0)
   deliveryPriceKopecks Int @default(0)
   totalKopecks         Int @default(0)
+  /// Сумма принятых платежей. Кэш для фильтра и сортировки по оплате: сам статус оплаты
+  /// не хранится, его считает src/domain/order/payment-status.ts из этой суммы и итога.
+  paidKopecks          Int @default(0)
 
   deliveryMethod  DeliveryMethod?
   carrier         String?
@@ -218,6 +221,10 @@ model Order {
   cancelReason    String?
   /// Время последней смены статуса — для расчёта SLA
   statusChangedAt DateTime  @default(now())
+  /// Когда истекает SLA текущего статуса (рабочие минуты уже учтены при записи).
+  /// null — статус без контроля срока. Нужен, чтобы фильтр «просроченные» был запросом,
+  /// а не перебором заказов в приложении.
+  slaDueAt        DateTime?
   deletedAt       DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -231,6 +238,7 @@ model Order {
   @@index([managerId])
   @@index([customerId])
   @@index([createdAt])
+  @@index([slaDueAt])
 }
 
 model OrderItem {
@@ -299,6 +307,42 @@ model OrderEvent {
   createdAt  DateTime       @default(now())
 
   @@index([orderId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Справочники и настройки (PRD, M8)
+// ---------------------------------------------------------------------------
+
+enum DictionaryType {
+  /// Причины отмены заказа
+  CANCEL_REASON
+  /// Транспортные компании
+  CARRIER
+}
+
+/// Простые списки, которые редактирует администратор. Позиции не удаляются
+/// физически — гасятся `isActive`, иначе сломались бы ссылки в старых заказах.
+model DictionaryItem {
+  id        String         @id @default(cuid())
+  type      DictionaryType
+  name      String
+  sortOrder Int            @default(0)
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([type, name])
+  @@index([type, isActive])
+}
+
+/// Настройки системы: одно значение на ключ, структура значения — за кодом
+/// (src/server/settings). Значения по умолчанию живут в домене, здесь только
+/// то, что администратор поменял.
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+  updatedBy String?
 }
 
 // ---------------------------------------------------------------------------
