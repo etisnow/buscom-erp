@@ -13,6 +13,10 @@ let configured = false;
 function ensureFonts(): void {
   if (configured) return;
 
+  // pdfmake выведен из бандла через serverExternalPackages (next.config.ts):
+  // он читает свои шрифты с диска, а из бандла путь к пакету не восстановить.
+  // Благодаря этому в node_modules рядом с сервером лежит обычный pdfmake,
+  // и путь от cwd работает и в dev, и в standalone-сборке.
   const fontsDir = path.join(process.cwd(), "node_modules", "pdfmake", "build", "fonts", "Roboto");
   pdfMake.setFonts({
     Roboto: {
