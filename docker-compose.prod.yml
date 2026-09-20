@@ -34,6 +34,10 @@ services:
   # Одноразовый контейнер: накатывает миграции и завершается. Приложение
   # стартует только после его успеха — иначе поднялось бы на старой схеме.
   migrate:
+    # Образ собирается в GitHub Actions и скачивается сюда: на боевой
+    # машине 1.5 ГБ без swap, next build там убивает OOM (см. DECISIONS).
+    # build остаётся для ручной сборки на машине, где памяти достаточно.
+    image: ${MIGRATE_IMAGE:-buscom-erp-migrate:local}
     build:
       context: .
       target: migrator
@@ -50,6 +54,7 @@ services:
         condition: service_healthy
 
   app:
+    image: ${APP_IMAGE:-buscom-erp-app:local}
     build:
       context: .
       target: runner
