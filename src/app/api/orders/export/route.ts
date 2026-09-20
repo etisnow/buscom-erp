@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const raw = Object.fromEntries([...new Set(params.keys())].map((key) => [key, params.getAll(key)]));
 
   // Страница в выгрузке не участвует: файл содержит весь список, а не одну страницу.
-  const filters = { ...parseOrderListParams(raw, defaultView(user)), page: 1 };
+  const filters = { ...parseOrderListParams(raw, defaultView()), page: 1 };
   const { csv, fileName, truncated } = await exportOrdersCsv(filters, user);
 
   return new NextResponse(csv, {

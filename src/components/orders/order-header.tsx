@@ -38,7 +38,7 @@ export function OrderHeader(props: OrderHeaderProps) {
   // Кнопки показываем ровно те, что разрешает статусная машина для этой роли.
   const transitions = availableTransitions(props.status, props.role).filter((to) => to !== "CANCELLED");
   const canCancel = availableTransitions(props.status, props.role).includes("CANCELLED");
-  const canTake = props.status === "NEW" && props.role !== "WAREHOUSE";
+  const canTake = props.status === "NEW";
 
   function handle(result: Promise<ActionResult>, successMessage: string) {
     startTransition(async () => {

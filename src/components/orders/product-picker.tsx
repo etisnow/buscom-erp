@@ -76,9 +76,7 @@ export function ProductPicker({
             >
               <span className="flex flex-col">
                 <span>{product.name}</span>
-                <span className="text-muted-foreground text-xs">
-                  {product.sku} · {product.madeToOrder ? "под заказ" : `в наличии: ${Math.max(0, product.available)}`}
-                </span>
+                <span className="text-muted-foreground text-xs">{product.sku}</span>
               </span>
               <span className="whitespace-nowrap">{formatRub(product.priceKopecks)}</span>
             </button>

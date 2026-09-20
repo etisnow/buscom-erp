@@ -3,7 +3,6 @@ import type { UserRole } from "@/generated/prisma/enums";
 /** Названия ролей для UI (PRD, «Пользователи и роли»). */
 export const ROLE_LABELS: Record<UserRole, string> = {
   MANAGER: "Менеджер",
-  WAREHOUSE: "Склад",
   HEAD: "Руководитель",
   ADMIN: "Администратор",
 };

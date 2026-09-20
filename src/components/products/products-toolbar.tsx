@@ -61,14 +61,6 @@ export function ProductsToolbar({ categories, canEditCatalog }: { categories: st
       </Select>
 
       <Button
-        variant={searchParams.has("shortage") ? "default" : "outline"}
-        size="sm"
-        onClick={() => apply({ shortage: searchParams.has("shortage") ? null : "1" })}
-      >
-        Нет в наличии
-      </Button>
-
-      <Button
         variant={searchParams.has("inactive") ? "default" : "outline"}
         size="sm"
         onClick={() => apply({ inactive: searchParams.has("inactive") ? null : "1" })}

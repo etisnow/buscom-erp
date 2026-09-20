@@ -6,19 +6,21 @@ import { db } from "@/server/db";
 import type { SessionUser } from "@/server/session";
 
 /** Сохранённые виды из PRD, «Список заказов». */
-export type OrderView = "all" | "mine" | "unassigned" | "to-ship" | "overdue";
+export type OrderView = "all" | "mine" | "unassigned" | "overdue";
 
 export const ORDER_VIEW_LABELS: Record<OrderView, string> = {
   all: "Все",
   mine: "Мои",
   unassigned: "Без менеджера",
-  "to-ship": "К отгрузке",
   overdue: "Просроченные",
 };
 
-/** Склад открывает «К отгрузке», остальные — «Все» (PRD). */
-export function defaultView(user: SessionUser): OrderView {
-  return user.role === "WAREHOUSE" ? "to-ship" : "all";
+/**
+ * Вид по умолчанию. Раньше зависел от роли: склад открывал «К отгрузке».
+ * Склада в проекте нет, вид тоже убран — все открывают «Все».
+ */
+export function defaultView(): OrderView {
+  return "all";
 }
 
 export type PaymentFilter = "unpaid" | "partial" | "paid";
@@ -71,8 +73,6 @@ function viewWhere(view: OrderView, user: SessionUser, now: Date): Prisma.OrderW
       return { managerId: user.id };
     case "unassigned":
       return { managerId: null };
-    case "to-ship":
-      return { status: { in: ["PAID", "ASSEMBLY"] } };
     case "overdue":
       return { slaDueAt: { lt: now } };
     case "all":
@@ -139,7 +139,7 @@ function baseWhere(filters: OrderListFilters): Prisma.OrderWhereInput {
   return { AND: and };
 }
 
-const ALL_VIEWS: OrderView[] = ["all", "mine", "unassigned", "to-ship", "overdue"];
+const ALL_VIEWS: OrderView[] = ["all", "mine", "unassigned", "overdue"];
 
 /**
  * Условия выборки для текущих фильтров и вида. Общие у списка и у выгрузки в CSV,

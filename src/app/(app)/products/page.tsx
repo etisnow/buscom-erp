@@ -7,7 +7,7 @@ import { ProductsTable } from "@/components/products/products-table";
 import { ProductsToolbar } from "@/components/products/products-toolbar";
 import { Button } from "@/components/ui/button";
 import { listProducts } from "@/server/products/list";
-import { canEditCatalog, canEditStock } from "@/server/products/service";
+import { canEditCatalog } from "@/server/products/service";
 import { requirePageUser } from "@/server/session";
 import { parseProductListParams } from "./params";
 
@@ -45,11 +45,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
         <ProductsToolbar categories={result.categories} canEditCatalog={canEditCatalog(user.role)} />
       </Suspense>
 
-      <ProductsTable
-        rows={result.rows}
-        canEditCatalog={canEditCatalog(user.role)}
-        canEditStock={canEditStock(user.role)}
-      />
+      <ProductsTable rows={result.rows} canEditCatalog={canEditCatalog(user.role)} />
     </main>
   );
 }

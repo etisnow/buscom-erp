@@ -3,13 +3,13 @@ import { list, pageNumber, single, type RawParams } from "@/app/(app)/search-par
 import type { OrderListFilters, OrderView } from "@/server/orders/list";
 
 /** Значения из URL приходят строками и могут быть чем угодно — разбираем схемой. */
-const viewSchema = z.enum(["all", "mine", "unassigned", "to-ship", "overdue"]);
+const viewSchema = z.enum(["all", "mine", "unassigned", "overdue"]);
 const statusSchema = z.enum([
   "NEW",
   "IN_PROGRESS",
   "AWAITING_PAYMENT",
   "PAID",
-  "ASSEMBLY",
+  "SHIPPING",
   "SHIPPED",
   "COMPLETED",
   "CANCELLED",

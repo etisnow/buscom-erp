@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 export default async function OrdersPage({ searchParams }: PageProps<"/orders">) {
   const user = await requirePageUser();
   const params = await searchParams;
-  const filters = parseOrderListParams(params, defaultView(user));
+  const filters = parseOrderListParams(params, defaultView());
 
   const [result, managers] = await Promise.all([listOrders(filters, user), listManagers()]);
   const urlParams = toSearchParams(params);

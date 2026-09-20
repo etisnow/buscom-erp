@@ -112,7 +112,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
               reference: payment.reference,
               authorName: payment.createdBy?.name ?? null,
             }))}
-            canAdd={user.role !== "WAREHOUSE" && order.status !== "CANCELLED"}
+            canAdd={order.status !== "CANCELLED"}
           />
 
           <OrderHistory
@@ -172,7 +172,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
             deliveryPriceKopecks={order.deliveryPriceKopecks}
             trackingNumber={order.trackingNumber}
             canEdit={!isClosed}
-            canEditPrice={!isClosed && user.role !== "WAREHOUSE"}
+            canEditPrice={!isClosed}
           />
 
           {order.customerComment ? (

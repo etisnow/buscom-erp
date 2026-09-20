@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ORDER_VIEW_LABELS, type OrderView } from "@/server/orders/list";
 
-const VIEWS: OrderView[] = ["all", "mine", "unassigned", "to-ship", "overdue"];
+const VIEWS: OrderView[] = ["all", "mine", "unassigned", "overdue"];
 
 /**
  * Вкладки-виды. Обычные ссылки, а не состояние компонента: вид, фильтры и страница

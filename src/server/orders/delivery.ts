@@ -35,12 +35,6 @@ export async function updateOrderDelivery(input: UpdateDeliveryInput): Promise<O
     if (TERMINAL_STATUSES.includes(order.status)) {
       throw new ForbiddenError("Заказ закрыт — доставку изменить нельзя");
     }
-    const changesPrice =
-      input.deliveryPriceKopecks !== undefined && input.deliveryPriceKopecks !== order.deliveryPriceKopecks;
-    if (input.user.role === "WAREHOUSE" && changesPrice) {
-      throw new ForbiddenError("Склад не меняет стоимость доставки");
-    }
-
     const data = {
       ...(input.deliveryMethod !== undefined ? { deliveryMethod: input.deliveryMethod } : {}),
       ...(input.carrier !== undefined ? { carrier: input.carrier } : {}),

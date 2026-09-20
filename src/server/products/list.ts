@@ -5,8 +5,6 @@ import { db } from "@/server/db";
 export type ProductFilters = {
   query?: string;
   category?: string;
-  /** Только те, чей свободный остаток меньше или равен нулю */
-  onlyShortage?: boolean;
   onlyInactive?: boolean;
   page?: number;
 };
@@ -19,10 +17,6 @@ const listSelect = {
   name: true,
   category: true,
   priceKopecks: true,
-  stock: true,
-  reserved: true,
-  madeToOrder: true,
-  leadTimeDays: true,
   compatibility: true,
   isActive: true,
   updatedAt: true,
@@ -56,10 +50,6 @@ export function productsWhere(filters: ProductFilters): Prisma.ProductWhereInput
   }
   if (filters.category) and.push({ category: filters.category });
   if (filters.onlyInactive) and.push({ isActive: false });
-  // Нехватка считается по свободному остатку, товары «под заказ» не учитываются.
-  if (filters.onlyShortage) {
-    and.push({ madeToOrder: false, reserved: { gte: db.product.fields.stock } });
-  }
 
   return and.length > 0 ? { AND: and } : {};
 }

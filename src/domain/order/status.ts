@@ -10,7 +10,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   IN_PROGRESS: "В работе",
   AWAITING_PAYMENT: "Ждёт оплаты",
   PAID: "Оплачен",
-  ASSEMBLY: "Сборка",
+  SHIPPING: "Отправка",
   SHIPPED: "Отгружен",
   COMPLETED: "Выполнен",
   CANCELLED: "Отменён",
@@ -22,7 +22,6 @@ type Transition = {
 };
 
 const MANAGERS: UserRole[] = ["MANAGER", "HEAD", "ADMIN"];
-const WAREHOUSE: UserRole[] = ["WAREHOUSE", "HEAD", "ADMIN"];
 const HEAD_ONLY: UserRole[] = ["HEAD", "ADMIN"];
 
 const TRANSITIONS: Record<OrderStatus, Transition[]> = {
@@ -32,8 +31,8 @@ const TRANSITIONS: Record<OrderStatus, Transition[]> = {
   ],
   IN_PROGRESS: [
     { to: "AWAITING_PAYMENT", roles: MANAGERS },
-    // постоплата: сборка без предоплаты
-    { to: "ASSEMBLY", roles: MANAGERS },
+    // постоплата: отправляем без предоплаты
+    { to: "SHIPPING", roles: MANAGERS },
     { to: "CANCELLED", roles: MANAGERS },
   ],
   AWAITING_PAYMENT: [
@@ -42,12 +41,12 @@ const TRANSITIONS: Record<OrderStatus, Transition[]> = {
     { to: "CANCELLED", roles: MANAGERS },
   ],
   PAID: [
-    { to: "ASSEMBLY", roles: WAREHOUSE },
+    { to: "SHIPPING", roles: MANAGERS },
     // отмена после оплаты — только руководитель (нужен возврат денег)
     { to: "CANCELLED", roles: HEAD_ONLY },
   ],
-  ASSEMBLY: [
-    { to: "SHIPPED", roles: WAREHOUSE },
+  SHIPPING: [
+    { to: "SHIPPED", roles: MANAGERS },
     { to: "CANCELLED", roles: HEAD_ONLY },
   ],
   SHIPPED: [{ to: "COMPLETED", roles: MANAGERS }],

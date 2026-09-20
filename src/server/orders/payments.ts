@@ -11,7 +11,6 @@ import {
   type OrderWithItems,
 } from "@/server/orders/internal";
 import { autoTransitionToPaid } from "@/server/orders/status";
-import { ForbiddenError } from "@/server/errors";
 import type { SessionUser } from "@/server/session";
 
 export type AddPaymentInput = {
@@ -29,9 +28,6 @@ export type AddPaymentInput = {
  * он сам уходит в PAID — автором этого события в журнале значится система (PRD).
  */
 export async function addPayment(input: AddPaymentInput): Promise<OrderWithItems> {
-  if (input.user.role === "WAREHOUSE") {
-    throw new ForbiddenError("Склад не отмечает оплаты");
-  }
   if (!Number.isSafeInteger(input.amountKopecks) || input.amountKopecks <= 0) {
     throw new OrderConflictError("Сумма оплаты должна быть больше нуля");
   }

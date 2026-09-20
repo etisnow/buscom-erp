@@ -10,7 +10,6 @@ import {
   writeOrderEvent,
   type OrderWithItems,
 } from "@/server/orders/internal";
-import { adjustReservation } from "@/server/orders/reservation";
 import { getSettings } from "@/server/settings/service";
 import type { SessionUser } from "@/server/session";
 
@@ -35,8 +34,6 @@ export type UpdateItemsInput = {
 /**
  * Полная замена состава заказа: позиции, скидка на заказ, стоимость доставки.
  * Итоги считает сервер, лимит скидки проверяется до записи.
- * Если заказ уже держит резерв (правка руководителем после оплаты), резерв
- * пересчитывается на разницу составов.
  */
 export async function updateOrderItems(input: UpdateItemsInput): Promise<OrderWithItems> {
   const { discountLimitPercent } = await getSettings();
@@ -66,9 +63,6 @@ export async function updateOrderItems(input: UpdateItemsInput): Promise<OrderWi
       quantity: item.quantity,
       discountKopecks: item.discountKopecks,
     }));
-
-    // Резерв правим до подмены позиций: нужен и прежний состав, и новый.
-    await adjustReservation(tx, order, input.items);
 
     await tx.orderItem.deleteMany({ where: { orderId: order.id } });
     await tx.orderItem.createMany({

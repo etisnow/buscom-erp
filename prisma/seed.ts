@@ -54,7 +54,6 @@ const DEMO_PRODUCTS = [
     name: "Сиденье тройное «ГАЗель Next», ткань",
     category: "Сиденья",
     priceKopecks: 2_450_000,
-    stock: 6,
     compatibility: ["ГАЗель Next", "ГАЗель Бизнес"],
   },
   {
@@ -62,7 +61,6 @@ const DEMO_PRODUCTS = [
     name: "Сиденье двойное Mercedes Sprinter, экокожа",
     category: "Сиденья",
     priceKopecks: 1_980_000,
-    stock: 4,
     compatibility: ["Mercedes Sprinter"],
   },
   {
@@ -70,7 +68,6 @@ const DEMO_PRODUCTS = [
     name: "Люк вентиляционный 700×700, механический",
     category: "Люки",
     priceKopecks: 890_000,
-    stock: 12,
     compatibility: ["ГАЗель Next", "Ford Transit", "Mercedes Sprinter"],
   },
   {
@@ -78,9 +75,6 @@ const DEMO_PRODUCTS = [
     name: "Полка багажная 2 м с подсветкой",
     category: "Полки",
     priceKopecks: 1_340_000,
-    stock: 0,
-    madeToOrder: true,
-    leadTimeDays: 21,
     compatibility: ["Ford Transit"],
   },
   {
@@ -88,7 +82,6 @@ const DEMO_PRODUCTS = [
     name: "Поручень нержавеющий 1500 мм",
     category: "Поручни",
     priceKopecks: 320_000,
-    stock: 30,
     compatibility: ["ГАЗель Next", "Ford Transit"],
   },
   {
@@ -96,7 +89,6 @@ const DEMO_PRODUCTS = [
     name: "Ступень электрическая выдвижная 800 мм",
     category: "Ступени",
     priceKopecks: 5_600_000,
-    stock: 2,
     compatibility: ["Mercedes Sprinter", "Ford Transit"],
   },
 ];

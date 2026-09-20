@@ -19,22 +19,18 @@ describeDb("выгрузка каталога в CSV (живая БД)", () => {
     const { csv, truncated } = await exportProductsCsv({});
     const rows = lines(csv);
 
-    expect(rows[0]).toBe(
-      "Артикул;Название;Категория;Цена, ₽;Остаток;Резерв;Свободно;Под заказ;Срок, дн.;Совместимость;В каталоге",
-    );
+    expect(rows[0]).toBe("Артикул;Название;Категория;Цена, ₽;Совместимость;В каталоге");
     expect(rows).toHaveLength(3);
     expect(truncated).toBe(false);
   });
 
-  it("цена числом, свободный остаток посчитан, совместимость одной ячейкой", async () => {
+  it("цена числом, совместимость одной ячейкой", async () => {
     await testDb.product.create({
       data: {
         sku: "A-1",
         name: "Фара левая",
         category: "Оптика",
         priceKopecks: 123_450,
-        stock: 10,
-        reserved: 3,
         compatibility: ["ГАЗель Next", "Соболь"],
       },
     });
@@ -43,31 +39,16 @@ describeDb("выгрузка каталога в CSV (живая БД)", () => {
     const cells = lines(csv)[1]!.split(";");
 
     expect(cells[3]).toBe("1234,50");
-    expect(cells[4]).toBe("10");
-    expect(cells[5]).toBe("3");
-    expect(cells[6]).toBe("7");
     // Запятая внутри ячейки разделителем не является: он — точка с запятой.
-    expect(cells[9]).toBe("ГАЗель Next, Соболь");
+    expect(cells[4]).toBe("ГАЗель Next, Соболь");
   });
 
-  it("свободный остаток может быть отрицательным — это видно в файле", async () => {
-    await testDb.product.create({ data: { sku: "A-1", name: "Фара", priceKopecks: 1, stock: 1, reserved: 3 } });
+  it("скрытый товар помечен словом", async () => {
+    await testDb.product.create({ data: { sku: "A-1", name: "Порог", priceKopecks: 1, isActive: false } });
 
     const cells = lines((await exportProductsCsv({})).csv)[1]!.split(";");
 
-    expect(cells[6]).toBe("-2");
-  });
-
-  it("товар под заказ и скрытый помечены словами", async () => {
-    await testDb.product.create({
-      data: { sku: "A-1", name: "Порог", priceKopecks: 1, madeToOrder: true, leadTimeDays: 14, isActive: false },
-    });
-
-    const cells = lines((await exportProductsCsv({})).csv)[1]!.split(";");
-
-    expect(cells[7]).toBe("да");
-    expect(cells[8]).toBe("14");
-    expect(cells[10]).toBe("скрыт");
+    expect(cells[5]).toBe("скрыт");
   });
 
   it("выгружается тот же список, что на экране: фильтры учитываются", async () => {

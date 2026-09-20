@@ -14,9 +14,9 @@ datasource db {
 // Пользователи и авторизация (таблицы user/session/account/verification — формат Better Auth)
 // ---------------------------------------------------------------------------
 
+/// Склада в компании нет, роли WAREHOUSE тоже — см. docs/DECISIONS.md
 enum UserRole {
   MANAGER
-  WAREHOUSE
   HEAD
   ADMIN
 }
@@ -149,17 +149,13 @@ model CustomerAddress {
 // Каталог
 // ---------------------------------------------------------------------------
 
+/// Каталог без количеств: склада нет, остаток и резерв не ведутся.
 model Product {
   id            String   @id @default(cuid())
   sku           String   @unique
   name          String
   category      String?
   priceKopecks  Int
-  stock         Int      @default(0)
-  reserved      Int      @default(0)
-  /// Товар изготавливается под заказ — остаток не контролируется
-  madeToOrder   Boolean  @default(false)
-  leadTimeDays  Int?
   /// Совместимые модели авто: ["ГАЗель Next", "Ford Transit", ...]
   compatibility String[]
   /// ID товара на bus-com.ru
@@ -181,7 +177,8 @@ enum OrderStatus {
   IN_PROGRESS
   AWAITING_PAYMENT
   PAID
-  ASSEMBLY
+  /// «Отправка»: заказ готовят и передают перевозчику. Раньше назывался ASSEMBLY («Сборка»)
+  SHIPPING
   SHIPPED
   COMPLETED
   CANCELLED

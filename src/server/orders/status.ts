@@ -12,7 +12,6 @@ import {
   type OrderWithItems,
   type Tx,
 } from "@/server/orders/internal";
-import { applyReservation } from "@/server/orders/reservation";
 import type { SessionUser } from "@/server/session";
 
 export type ChangeStatusInput = {
@@ -51,8 +50,6 @@ export async function changeOrderStatus(input: ChangeStatusInput): Promise<Order
       throw new OrderConflictError("Для отгрузки транспортной компанией нужен трек-номер");
     }
 
-    await applyReservation(tx, order, order.status, input.to);
-
     const changedAt = new Date();
     await tx.order.update({
       where: { id: order.id },
@@ -84,7 +81,6 @@ export async function changeOrderStatus(input: ChangeStatusInput): Promise<Order
  */
 export async function autoTransitionToPaid(tx: Tx, order: OrderWithItems): Promise<void> {
   const { slaMinutes } = await getSettings();
-  await applyReservation(tx, order, order.status, "PAID");
 
   const changedAt = new Date();
   await tx.order.update({

@@ -76,10 +76,6 @@ export async function assignManager(orderId: string, managerId: string, user: Se
     if (!manager) {
       throw new OrderConflictError("Такого сотрудника нет или он отключён");
     }
-    if (manager.role === "WAREHOUSE") {
-      throw new OrderConflictError("Склад не может быть ответственным за заказ");
-    }
-
     await tx.order.update({ where: { id: order.id }, data: { managerId: manager.id } });
 
     await writeOrderEvent(tx, {

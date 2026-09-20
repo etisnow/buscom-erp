@@ -6,5 +6,4 @@ export { updateOrderItems, type OrderItemDraft, type UpdateItemsInput } from "@/
 export { addPayment, type AddPaymentInput } from "@/server/orders/payments";
 export { changeOrderStatus, type ChangeStatusInput } from "@/server/orders/status";
 export { assignManager, takeOrder } from "@/server/orders/assignment";
-export { findStockShortages, type StockShortage } from "@/server/orders/reservation";
 export { OrderConflictError, OrderNotFoundError, orderInclude, type OrderWithItems } from "@/server/orders/internal";

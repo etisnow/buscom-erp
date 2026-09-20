@@ -8,23 +8,10 @@ import { productsWhere, type ProductFilters } from "@/server/products/list";
  * Выгрузка каталога в CSV (PRD, M7: «выгрузка любого списка»).
  *
  * Схема та же, что у заказов и клиентов: те же фильтры, что на экране, без
- * пагинации. «Свободно» считается здесь, а не формулой в файле: на экране это
- * тоже посчитанное значение, и расхождений быть не должно.
+ * пагинации. Количеств в каталоге нет — склада в проекте не ведут.
  */
 
-const HEADERS = [
-  "Артикул",
-  "Название",
-  "Категория",
-  "Цена, ₽",
-  "Остаток",
-  "Резерв",
-  "Свободно",
-  "Под заказ",
-  "Срок, дн.",
-  "Совместимость",
-  "В каталоге",
-];
+const HEADERS = ["Артикул", "Название", "Категория", "Цена, ₽", "Совместимость", "В каталоге"];
 
 export type ProductsCsv = {
   csv: string;
@@ -43,10 +30,6 @@ export async function exportProductsCsv(filters: ProductFilters): Promise<Produc
       name: true,
       category: true,
       priceKopecks: true,
-      stock: true,
-      reserved: true,
-      madeToOrder: true,
-      leadTimeDays: true,
       compatibility: true,
       isActive: true,
     },
@@ -64,11 +47,6 @@ export async function exportProductsCsv(filters: ProductFilters): Promise<Produc
       product.name,
       product.category ?? "",
       formatRubPlain(product.priceKopecks),
-      product.stock,
-      product.reserved,
-      product.stock - product.reserved,
-      product.madeToOrder ? "да" : "",
-      product.leadTimeDays ?? "",
       // Совместимость — массив моделей; точку с запятой внутри ячейки экранирует toCsv.
       product.compatibility.join(", "),
       product.isActive ? "да" : "скрыт",

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ForbiddenError } from "@/server/errors";
-import { createProduct, setProductStock, updateProduct } from "@/server/products/service";
+import { createProduct, updateProduct } from "@/server/products/service";
 import { requireUser } from "@/server/session";
 
 export type ProductResult = { ok: true; message: string } | { ok: false; error: string };
@@ -13,9 +13,6 @@ const draftSchema = z.object({
   name: z.string().min(1, { error: "Укажите название" }),
   category: z.string().optional(),
   priceKopecks: z.number().int().min(0, { error: "Цена не может быть отрицательной" }),
-  stock: z.number().int().min(0).optional(),
-  madeToOrder: z.boolean().optional(),
-  leadTimeDays: z.number().int().positive().nullable().optional(),
   /** Совместимые модели авто вводятся через запятую */
   compatibility: z.array(z.string().min(1)).optional(),
   isActive: z.boolean().optional(),
@@ -48,11 +45,6 @@ export async function updateProductAction(id: string, input: z.input<typeof draf
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
 
   return run(() => updateProduct(id, parsed.data, user), "Товар сохранён");
-}
-
-export async function setStockAction(id: string, stock: number): Promise<ProductResult> {
-  const user = await requireUser();
-  return run(() => setProductStock(id, stock, user), "Остаток обновлён");
 }
 
 export async function toggleProductAction(id: string, isActive: boolean): Promise<ProductResult> {

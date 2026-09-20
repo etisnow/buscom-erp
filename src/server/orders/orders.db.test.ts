@@ -6,7 +6,7 @@ import { changeOrderStatus } from "@/server/orders/status";
 import { takeOrder, assignManager } from "@/server/orders/assignment";
 import { addOrderComment } from "@/server/orders/comments";
 import { describeDb, resetDb, testDb } from "@/test/db";
-import { makeProduct, makeUser, stockOf } from "@/test/fixtures";
+import { makeProduct, makeUser } from "@/test/fixtures";
 
 describeDb("сервис заказов (живая БД)", () => {
   beforeEach(async () => {
@@ -90,65 +90,6 @@ describeDb("сервис заказов (живая БД)", () => {
       user: head,
     });
     expect(order.discountKopecks).toBe(20_000);
-  });
-
-  it("резерв ставится при выходе из работы и снимается при отмене", async () => {
-    const manager = await makeUser("MANAGER");
-    const product = await makeProduct({ stock: 10, priceKopecks: 100_000 });
-
-    const order = await createOrder({
-      source: "PHONE",
-      customer: { name: "Клиент" },
-      items: [{ productId: product.id, sku: product.sku, name: product.name, priceKopecks: 100_000, quantity: 3 }],
-      user: manager,
-    });
-
-    expect(await stockOf(product.id)).toEqual({ stock: 10, reserved: 0 });
-
-    await changeOrderStatus({ orderId: order.id, to: "AWAITING_PAYMENT", user: manager });
-    expect(await stockOf(product.id)).toEqual({ stock: 10, reserved: 3 });
-
-    await changeOrderStatus({
-      orderId: order.id,
-      to: "CANCELLED",
-      user: manager,
-      cancelReason: "Клиент передумал",
-    });
-    expect(await stockOf(product.id)).toEqual({ stock: 10, reserved: 0 });
-  });
-
-  it("отгрузка списывает товар со склада", async () => {
-    const head = await makeUser("HEAD");
-    const product = await makeProduct({ stock: 10, priceKopecks: 100_000 });
-
-    const order = await createOrder({
-      source: "PHONE",
-      customer: { name: "Клиент" },
-      items: [{ productId: product.id, sku: product.sku, name: product.name, priceKopecks: 100_000, quantity: 4 }],
-      deliveryMethod: "PICKUP",
-      user: head,
-    });
-
-    await changeOrderStatus({ orderId: order.id, to: "ASSEMBLY", user: head });
-    expect(await stockOf(product.id)).toEqual({ stock: 10, reserved: 4 });
-
-    await changeOrderStatus({ orderId: order.id, to: "SHIPPED", user: head });
-    expect(await stockOf(product.id)).toEqual({ stock: 6, reserved: 0 });
-  });
-
-  it("товары «под заказ» не резервируются", async () => {
-    const manager = await makeUser("MANAGER");
-    const product = await makeProduct({ stock: 0, madeToOrder: true, priceKopecks: 100_000 });
-
-    const order = await createOrder({
-      source: "PHONE",
-      customer: { name: "Клиент" },
-      items: [{ productId: product.id, sku: product.sku, name: product.name, priceKopecks: 100_000, quantity: 2 }],
-      user: manager,
-    });
-    await changeOrderStatus({ orderId: order.id, to: "AWAITING_PAYMENT", user: manager });
-
-    expect(await stockOf(product.id)).toEqual({ stock: 0, reserved: 0 });
   });
 
   it("недопустимый переход отклоняется, даже если вызвать сервис напрямую", async () => {
@@ -325,30 +266,6 @@ describeDb("сервис заказов (живая БД)", () => {
     expect(reassigned.managerId).toBe(other.id);
   });
 
-  it("склад не правит состав заказа", async () => {
-    const manager = await makeUser("MANAGER");
-    const warehouse = await makeUser("WAREHOUSE");
-    const product = await makeProduct();
-    const item = {
-      productId: product.id,
-      sku: product.sku,
-      name: product.name,
-      priceKopecks: product.priceKopecks,
-      quantity: 1,
-    };
-
-    const order = await createOrder({
-      source: "PHONE",
-      customer: { name: "Клиент" },
-      items: [item],
-      user: manager,
-    });
-
-    await expect(
-      updateOrderItems({ orderId: order.id, items: [{ ...item, quantity: 5 }], user: warehouse }),
-    ).rejects.toThrow(/Недостаточно прав/);
-  });
-
   it("правка состава пересчитывает итог и пишет событие с прежним составом", async () => {
     const manager = await makeUser("MANAGER");
     const product = await makeProduct({ priceKopecks: 100_000 });
@@ -379,57 +296,6 @@ describeDb("сервис заказов (живая БД)", () => {
     });
     expect(event).not.toBeNull();
     expect(JSON.stringify(event?.payload)).toContain("100000");
-  });
-
-  it("правка состава оплаченного заказа пересчитывает резерв", async () => {
-    const head = await makeUser("HEAD");
-    const product = await makeProduct({ stock: 20, priceKopecks: 100_000 });
-    const item = {
-      productId: product.id,
-      sku: product.sku,
-      name: product.name,
-      priceKopecks: 100_000,
-      quantity: 2,
-    };
-
-    const order = await createOrder({
-      source: "PHONE",
-      customer: { name: "Клиент" },
-      items: [item],
-      user: head,
-    });
-    await changeOrderStatus({ orderId: order.id, to: "AWAITING_PAYMENT", user: head });
-    expect(await stockOf(product.id)).toEqual({ stock: 20, reserved: 2 });
-
-    // Руководитель увеличил количество — резерв должен догнать состав.
-    await updateOrderItems({ orderId: order.id, items: [{ ...item, quantity: 5 }], user: head });
-    expect(await stockOf(product.id)).toEqual({ stock: 20, reserved: 5 });
-
-    // И уменьшиться, когда позиций стало меньше.
-    await updateOrderItems({ orderId: order.id, items: [{ ...item, quantity: 1 }], user: head });
-    expect(await stockOf(product.id)).toEqual({ stock: 20, reserved: 1 });
-  });
-
-  it("правка состава до резерва остатки не трогает", async () => {
-    const manager = await makeUser("MANAGER");
-    const product = await makeProduct({ stock: 20, priceKopecks: 100_000 });
-    const item = {
-      productId: product.id,
-      sku: product.sku,
-      name: product.name,
-      priceKopecks: 100_000,
-      quantity: 2,
-    };
-
-    const order = await createOrder({
-      source: "PHONE",
-      customer: { name: "Клиент" },
-      items: [item],
-      user: manager,
-    });
-
-    await updateOrderItems({ orderId: order.id, items: [{ ...item, quantity: 7 }], user: manager });
-    expect(await stockOf(product.id)).toEqual({ stock: 20, reserved: 0 });
   });
 
   it("каждое действие оставляет след в журнале", async () => {

@@ -10,25 +10,19 @@ describe("canEditItems", () => {
 
   it("после оплаты менеджер состав не правит", () => {
     expect(canEditItems("PAID", "MANAGER")).toBe(false);
-    expect(canEditItems("ASSEMBLY", "MANAGER")).toBe(false);
+    expect(canEditItems("SHIPPING", "MANAGER")).toBe(false);
     expect(canEditItems("SHIPPED", "MANAGER")).toBe(false);
   });
 
   it("после оплаты правит руководитель", () => {
     expect(canEditItems("PAID", "HEAD")).toBe(true);
-    expect(canEditItems("ASSEMBLY", "ADMIN")).toBe(true);
+    expect(canEditItems("SHIPPING", "ADMIN")).toBe(true);
   });
 
   it("в выполненном и отменённом не правит никто", () => {
-    for (const role of ["MANAGER", "WAREHOUSE", "HEAD", "ADMIN"] as const) {
+    for (const role of ["MANAGER", "HEAD", "ADMIN"] as const) {
       expect(canEditItems("COMPLETED", role)).toBe(false);
       expect(canEditItems("CANCELLED", role)).toBe(false);
-    }
-  });
-
-  it("склад не правит состав ни в одном статусе", () => {
-    for (const status of ["NEW", "IN_PROGRESS", "AWAITING_PAYMENT", "PAID", "ASSEMBLY"] as const) {
-      expect(canEditItems(status, "WAREHOUSE")).toBe(false);
     }
   });
 });
@@ -54,9 +48,8 @@ describe("canReassignManager", () => {
     expect(canReassignManager("NEW", "ADMIN")).toBe(true);
   });
 
-  it("менеджер и склад не переназначают", () => {
+  it("менеджер не переназначает", () => {
     expect(canReassignManager("NEW", "MANAGER")).toBe(false);
-    expect(canReassignManager("NEW", "WAREHOUSE")).toBe(false);
   });
 
   it("в финальном статусе не переназначает никто", () => {

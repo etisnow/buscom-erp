@@ -68,8 +68,8 @@ describe("assertDiscountWithinLimit", () => {
     );
   });
 
-  it("складу лимит тоже писан", () => {
-    expect(() => assertDiscountWithinLimit({ items, orderDiscountKopecks: 25_001, role: "WAREHOUSE" })).toThrow(
+  it("менеджеру лимит писан", () => {
+    expect(() => assertDiscountWithinLimit({ items, orderDiscountKopecks: 25_001, role: "MANAGER" })).toThrow(
       DiscountLimitError,
     );
   });

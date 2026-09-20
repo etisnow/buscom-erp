@@ -9,7 +9,7 @@ import { requireUser } from "@/server/session";
 
 export type AdminResult = { ok: true; message?: string } | { ok: false; error: string };
 
-const ROLES = ["MANAGER", "WAREHOUSE", "HEAD", "ADMIN"] as const;
+const ROLES = ["MANAGER", "HEAD", "ADMIN"] as const;
 
 const createSchema = z.object({
   name: z.string().min(1, { error: "Укажите имя" }),

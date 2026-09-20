@@ -1,6 +1,6 @@
 /**
  * Кто и когда может править состав заказа (docs/PRD.md, «Бизнес-правила»).
- * Склад не меняет ни цены, ни позиции — он только собирает и отгружает.
+ * До оплаты состав правит менеджер, дальше по цепочке — только руководитель.
  */
 import type { OrderStatus, UserRole } from "@/generated/prisma/enums";
 import { ORDER_STATUS_LABELS, TERMINAL_STATUSES } from "@/domain/order/status";

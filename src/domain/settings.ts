@@ -26,7 +26,7 @@ const statusKeys = [
   "IN_PROGRESS",
   "AWAITING_PAYMENT",
   "PAID",
-  "ASSEMBLY",
+  "SHIPPING",
   "SHIPPED",
   "COMPLETED",
   "CANCELLED",

@@ -12,7 +12,6 @@ import {
   type OrderWithItems,
 } from "@/server/orders/internal";
 import type { OrderItemDraft } from "@/server/orders/items";
-import { ForbiddenError } from "@/server/errors";
 import { getSettings } from "@/server/settings/service";
 import type { SessionUser } from "@/server/session";
 
@@ -36,9 +35,6 @@ export type CreateOrderInput = {
  * Заказ сразу в IN_PROGRESS с автором в роли менеджера, в журнале — CREATED (PRD).
  */
 export async function createOrder(input: CreateOrderInput): Promise<OrderWithItems> {
-  if (input.user.role === "WAREHOUSE") {
-    throw new ForbiddenError("Склад не создаёт заказы");
-  }
   if (input.items.length === 0) {
     throw new Error("В заказе должна быть хотя бы одна позиция");
   }

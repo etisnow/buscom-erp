@@ -123,8 +123,8 @@ describe("slaState", () => {
     expect(DEFAULT_SLA_MINUTES.CANCELLED).toBeNull();
   });
 
-  it("сборка просрочена после двух рабочих дней", () => {
-    const state = slaState("ASSEMBLY", msk("2026-09-21T09:00"), msk("2026-09-23T10:00"));
+  it("отправка просрочена после двух рабочих дней", () => {
+    const state = slaState("SHIPPING", msk("2026-09-21T09:00"), msk("2026-09-23T10:00"));
     expect(state.slaMinutes).toBe(2 * WORKING_MINUTES_PER_DAY);
     expect(state.isOverdue).toBe(true);
     expect(state.overdueMinutes).toBe(60);

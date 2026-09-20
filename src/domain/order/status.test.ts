@@ -6,13 +6,10 @@ describe("статусная модель заказа", () => {
     expect(canTransition("NEW", "IN_PROGRESS", "MANAGER")).toBe(true);
   });
 
-  it("склад не может брать новые заказы", () => {
-    expect(availableTransitions("NEW", "WAREHOUSE")).toEqual([]);
-  });
-
-  it("отгрузку делает склад, а не менеджер", () => {
-    expect(canTransition("ASSEMBLY", "SHIPPED", "WAREHOUSE")).toBe(true);
-    expect(canTransition("ASSEMBLY", "SHIPPED", "MANAGER")).toBe(false);
+  // Склада в проекте нет: отправку и отгрузку ведёт менеджер.
+  it("менеджер отправляет оплаченный заказ и отгружает его", () => {
+    expect(canTransition("PAID", "SHIPPING", "MANAGER")).toBe(true);
+    expect(canTransition("SHIPPING", "SHIPPED", "MANAGER")).toBe(true);
   });
 
   it("отмена оплаченного заказа — только руководитель", () => {
