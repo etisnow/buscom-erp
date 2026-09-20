@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEnv } from "@/server/env";
+import { parseEnv, pickDevLoginCredentials } from "@/server/env";
 
 /**
  * Пустая строка в окружении — это «не задано». Docker Compose именно так
@@ -60,5 +60,33 @@ describe("parseEnv", () => {
 
   it("обязательная переменная с пустым значением считается отсутствующей", () => {
     expect(() => parseEnv({ ...required, DATABASE_URL: "" })).toThrow();
+  });
+});
+
+describe("pickDevLoginCredentials", () => {
+  const seedAdmin = {
+    SEED_ADMIN_EMAIL: "admin@bus-com.ru",
+    SEED_ADMIN_PASSWORD: "change-me-please",
+  };
+
+  it("подставляет учётные данные в разработке", () => {
+    expect(pickDevLoginCredentials(seedAdmin, "development")).toEqual({
+      email: "admin@bus-com.ru",
+      password: "change-me-please",
+    });
+  });
+
+  /**
+   * Главное в этой функции: пароль уходит в разметку страницы входа, то есть
+   * виден любому, кто её открыл. В бою подстановки не должно быть ни при каких
+   * переменных — решает `NODE_ENV`, а не то, задан пароль или нет.
+   */
+  it("в продакшене не подставляет ничего, даже если переменные заданы", () => {
+    expect(pickDevLoginCredentials(seedAdmin, "production")).toBeNull();
+  });
+
+  it("без email или без пароля подстановки нет", () => {
+    expect(pickDevLoginCredentials({ ...seedAdmin, SEED_ADMIN_PASSWORD: undefined }, "development")).toBeNull();
+    expect(pickDevLoginCredentials({ ...seedAdmin, SEED_ADMIN_EMAIL: undefined }, "development")).toBeNull();
   });
 });

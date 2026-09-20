@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { devLoginCredentials } from "@/server/env";
 import { getSessionUser } from "@/server/session";
 import { LoginForm } from "./login-form";
 
@@ -23,7 +24,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           <CardDescription>Вход для сотрудников. Учётную запись заводит администратор.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <LoginForm next={typeof next === "string" ? next : undefined} />
+          <LoginForm next={typeof next === "string" ? next : undefined} devCredentials={devLoginCredentials} />
           <Link href="/forgot-password" className="text-muted-foreground text-sm hover:underline">
             Забыли пароль?
           </Link>

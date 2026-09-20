@@ -24,6 +24,16 @@ const envSchema = z.object({
   SMTP_PASSWORD: z.string().optional(),
   /** Адрес в поле «От кого» */
   SMTP_FROM: z.string().default("BusCom ERP <noreply@bus-com.ru>"),
+
+  /**
+   * Учётная запись первого администратора — её заводит сид (`prisma/seed.ts`).
+   * Приложению она нужна только в разработке: форма входа подставляет её сама,
+   * чтобы не набирать пароль при каждом перезапуске. В бою эти переменные
+   * получает лишь контейнер миграций (`docker-compose.prod.yml`), до `app`
+   * они не доходят — поэтому здесь они необязательные.
+   */
+  SEED_ADMIN_EMAIL: z.email().optional(),
+  SEED_ADMIN_PASSWORD: z.string().optional(),
 });
 
 type RawEnv = Record<string, string | undefined>;
@@ -47,3 +57,24 @@ export const env = parseEnv();
 
 /** Настроена ли отправка почты. */
 export const mailEnabled = Boolean(env.SMTP_HOST);
+
+/**
+ * Учётные данные, которыми форма входа заполняется сама при `pnpm dev`.
+ *
+ * В продакшене — всегда `null`, и решает это `NODE_ENV`, а не наличие
+ * переменных: пароль уходит в разметку страницы входа, то есть показывается
+ * любому, кто её открыл. Полагаться на то, что в бою переменных «и так нет»,
+ * для такого нельзя — нужна проверка, которую не отменить настройкой.
+ */
+export function pickDevLoginCredentials(
+  parsed: Pick<z.infer<typeof envSchema>, "SEED_ADMIN_EMAIL" | "SEED_ADMIN_PASSWORD">,
+  nodeEnv: string | undefined,
+): DevLoginCredentials | null {
+  if (nodeEnv === "production") return null;
+  if (!parsed.SEED_ADMIN_EMAIL || !parsed.SEED_ADMIN_PASSWORD) return null;
+  return { email: parsed.SEED_ADMIN_EMAIL, password: parsed.SEED_ADMIN_PASSWORD };
+}
+
+export const devLoginCredentials = pickDevLoginCredentials(env, process.env.NODE_ENV);
+
+export type DevLoginCredentials = { email: string; password: string };

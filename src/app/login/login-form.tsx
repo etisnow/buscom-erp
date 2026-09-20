@@ -18,7 +18,17 @@ function SubmitButton() {
   );
 }
 
-export function LoginForm({ next }: { next?: string }) {
+/**
+ * `devCredentials` приходят заполненными только в разработке (см. `devLoginCredentials`
+ * в `src/server/env.ts`) — в бою здесь `null`, и форма открывается пустой.
+ */
+export function LoginForm({
+  next,
+  devCredentials,
+}: {
+  next?: string;
+  devCredentials: { email: string; password: string } | null;
+}) {
   const [state, formAction] = useActionState(signInAction, initialState);
 
   return (
@@ -31,7 +41,7 @@ export function LoginForm({ next }: { next?: string }) {
           name="email"
           type="email"
           autoComplete="username"
-          defaultValue={state.email}
+          defaultValue={state.email ?? devCredentials?.email}
           required
           autoFocus
         />
@@ -39,8 +49,21 @@ export function LoginForm({ next }: { next?: string }) {
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">Пароль</Label>
-        <Input id="password" name="password" type="password" autoComplete="current-password" required />
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          defaultValue={devCredentials?.password}
+          required
+        />
       </div>
+
+      {devCredentials ? (
+        <p className="text-muted-foreground text-xs">
+          Данные подставлены из <code>.env</code> — так работает только локальная разработка.
+        </p>
+      ) : null}
 
       {state.error ? (
         <p role="alert" className="text-destructive text-sm whitespace-pre-line">
