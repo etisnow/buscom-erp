@@ -33,3 +33,13 @@ const rubFormatter = new Intl.NumberFormat("ru-RU", {
 export function formatRub(kopecks: Kopecks): string {
   return rubFormatter.format(kopecks / 100);
 }
+
+/**
+ * 123450 → "1234,50". Без разделителя тысяч и знака валюты: в таком виде Excel
+ * с русской локалью видит в ячейке выгрузки число и умеет его складывать.
+ */
+export function formatRubPlain(kopecks: Kopecks): string {
+  const sign = kopecks < 0 ? "-" : "";
+  const absolute = Math.abs(kopecks);
+  return `${sign}${Math.trunc(absolute / 100)},${String(absolute % 100).padStart(2, "0")}`;
+}

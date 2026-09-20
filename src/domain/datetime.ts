@@ -37,3 +37,15 @@ export function formatPhone(phone: string | null | undefined): string {
   if (!match) return phone;
   return `+7 (${match[1]}) ${match[2]}-${match[3]}-${match[4]}`;
 }
+
+/**
+ * +79161234567 → «8 (916) 123-45-67». Для выгрузок: ячейка, начинающаяся с «+»,
+ * для Excel выглядит формулой, и её приходится обезвреживать апострофом — а он
+ * потом виден в таблице. Восьмёрка — привычная запись того же номера.
+ * Не распознанный номер отдаём как есть.
+ */
+export function formatPhoneLocal(phone: string | null | undefined): string {
+  if (!phone) return "";
+  const formatted = formatPhone(phone);
+  return formatted.startsWith("+7 ") ? `8 ${formatted.slice(3)}` : formatted;
+}

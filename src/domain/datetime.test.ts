@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMoscowDate, formatMoscowDateTime, formatPhone } from "./datetime";
+import { formatMoscowDate, formatMoscowDateTime, formatPhone, formatPhoneLocal } from "./datetime";
 
 describe("формат времени", () => {
   it("показывает UTC-время в московском поясе", () => {
@@ -23,5 +23,19 @@ describe("formatPhone", () => {
 
   it("пустое значение — пустая строка", () => {
     expect(formatPhone(null)).toBe("");
+  });
+});
+
+describe("formatPhoneLocal", () => {
+  it("пишет номер с восьмёрки — в выгрузке «+» Excel принял бы за формулу", () => {
+    expect(formatPhoneLocal("+79161234567")).toBe("8 (916) 123-45-67");
+  });
+
+  it("ненормализованный отдаёт как есть", () => {
+    expect(formatPhoneLocal("доб. 123")).toBe("доб. 123");
+  });
+
+  it("пустое значение — пустая строка", () => {
+    expect(formatPhoneLocal(null)).toBe("");
   });
 });

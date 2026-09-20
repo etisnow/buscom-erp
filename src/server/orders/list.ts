@@ -141,6 +141,14 @@ function baseWhere(filters: OrderListFilters): Prisma.OrderWhereInput {
 
 const ALL_VIEWS: OrderView[] = ["all", "mine", "unassigned", "to-ship", "overdue"];
 
+/**
+ * Условия выборки для текущих фильтров и вида. Общие у списка и у выгрузки в CSV,
+ * чтобы файл содержал ровно то, что человек видит на экране.
+ */
+export function ordersWhere(filters: OrderListFilters, user: SessionUser, now: Date): Prisma.OrderWhereInput {
+  return { AND: [baseWhere(filters), viewWhere(filters.view, user, now)] };
+}
+
 export async function listOrders(filters: OrderListFilters, user: SessionUser): Promise<OrderListResult> {
   const now = new Date();
   const page = Math.max(1, filters.page ?? 1);

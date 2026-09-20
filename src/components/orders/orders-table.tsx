@@ -3,17 +3,10 @@ import { OrderRowLink } from "@/components/orders/order-row-link";
 import { OrderStatusBadge, PaymentBadge } from "@/components/orders/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatMoscowDateTime, formatPhone } from "@/domain/datetime";
+import { ORDER_SOURCE_LABELS } from "@/domain/order/source";
 import { formatRub } from "@/domain/money";
 import { formatWorkingMinutes, workingMinutesBetween } from "@/domain/sla";
 import type { OrderListRow } from "@/server/orders/list";
-
-const SOURCE_LABELS: Record<OrderListRow["source"], string> = {
-  SITE: "Сайт",
-  PHONE: "Телефон",
-  EMAIL: "Почта",
-  MESSENGER: "Мессенджер",
-  OTHER: "Другое",
-};
 
 export function OrdersTable({ rows, now }: { rows: OrderListRow[]; now: Date }) {
   if (rows.length === 0) {
@@ -78,7 +71,7 @@ export function OrdersTable({ rows, now }: { rows: OrderListRow[]; now: Date }) 
                 <TableCell className={order.manager ? undefined : "text-muted-foreground"}>
                   {order.manager?.name ?? "не назначен"}
                 </TableCell>
-                <TableCell className="text-muted-foreground">{SOURCE_LABELS[order.source]}</TableCell>
+                <TableCell className="text-muted-foreground">{ORDER_SOURCE_LABELS[order.source]}</TableCell>
                 <TableCell
                   className={`text-right whitespace-nowrap ${isOverdue ? "text-rose-700 dark:text-rose-400" : "text-muted-foreground"}`}
                   title={isOverdue ? "Просрочен по SLA" : undefined}
