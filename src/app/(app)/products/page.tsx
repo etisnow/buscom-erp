@@ -4,7 +4,7 @@ import { ProductsTable } from "@/components/products/products-table";
 import { ProductsToolbar } from "@/components/products/products-toolbar";
 import { listProducts } from "@/server/products/list";
 import { canEditCatalog, canEditStock } from "@/server/products/service";
-import { requireUser } from "@/server/session";
+import { requirePageUser } from "@/server/session";
 
 export const metadata: Metadata = {
   title: "Товары — BusCom ERP",
@@ -15,7 +15,7 @@ function single(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function ProductsPage({ searchParams }: PageProps<"/products">) {
-  const user = await requireUser();
+  const user = await requirePageUser();
   const params = await searchParams;
 
   const page = Number(single(params.page) ?? "1");

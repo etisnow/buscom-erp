@@ -1,6 +1,6 @@
 import "server-only";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { forbidden, redirect } from "next/navigation";
 import { cache } from "react";
 import type { UserRole } from "@/generated/prisma/enums";
 import { auth } from "@/server/auth";
@@ -33,12 +33,28 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 });
 
 /**
- * Пользователь для защищённого экрана или действия.
- * Без сессии — редирект на `/login`; с недостаточной ролью — `ForbiddenError` (403).
+ * Пользователь для Server Action, route handler или сервиса.
+ * Без сессии — редирект на `/login`; с недостаточной ролью — `ForbiddenError`,
+ * который вызывающий превращает в 403 или в сообщение об ошибке.
  */
 export async function requireUser(roles?: UserRole[]): Promise<SessionUser> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   if (roles && !roles.includes(user.role)) throw new ForbiddenError();
+  return user;
+}
+
+/**
+ * Пользователь для страницы (`page.tsx`).
+ * Без сессии — редирект на `/login`; с недостаточной ролью — `forbidden()`,
+ * то есть экран 403 из `src/app/(app)/forbidden.tsx` и статус 403.
+ *
+ * В Server Action `forbidden()` не годится: там ошибку ловят и показывают тостом,
+ * а `try/catch` глушит этот интеррапт — для действий остаётся `requireUser`.
+ */
+export async function requirePageUser(roles?: UserRole[]): Promise<SessionUser> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  if (roles && !roles.includes(user.role)) forbidden();
   return user;
 }

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { NewOrderForm } from "@/components/orders/new-order-form";
 import { ORDER_CREATE_ROLES } from "@/domain/user/role";
-import { requireUser } from "@/server/session";
+import { requirePageUser } from "@/server/session";
 
 export const metadata: Metadata = {
   title: "Новый заказ — BusCom ERP",
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default async function NewOrderPage() {
   // Склад заказы не создаёт (PRD, «Карта экранов»).
-  await requireUser(ORDER_CREATE_ROLES);
+  await requirePageUser(ORDER_CREATE_ROLES);
 
   return (
     <main className="flex flex-col gap-4">

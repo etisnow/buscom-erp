@@ -8,7 +8,7 @@ import { formatMoscowDate, formatPhone } from "@/domain/datetime";
 import { formatRub } from "@/domain/money";
 import type { CustomerType } from "@/generated/prisma/enums";
 import { listCustomers } from "@/server/customers/list";
-import { requireUser } from "@/server/session";
+import { requirePageUser } from "@/server/session";
 
 export const metadata: Metadata = {
   title: "Клиенты — BusCom ERP",
@@ -24,7 +24,7 @@ function single(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function CustomersPage({ searchParams }: PageProps<"/customers">) {
-  await requireUser();
+  await requirePageUser();
   const params = await searchParams;
 
   const type = single(params.type);

@@ -3,14 +3,14 @@ import { DictionaryEditor } from "@/components/admin/dictionary-editor";
 import { DiscountLimitEditor, RequisitesEditor, SlaEditor } from "@/components/admin/settings-editor";
 import { ADMIN_ROLES } from "@/domain/user/role";
 import { getSettings, listDictionary } from "@/server/settings/service";
-import { requireUser } from "@/server/session";
+import { requirePageUser } from "@/server/session";
 
 export const metadata: Metadata = {
   title: "Справочники и настройки — BusCom ERP",
 };
 
 export default async function AdminDictionariesPage() {
-  await requireUser(ADMIN_ROLES);
+  await requirePageUser(ADMIN_ROLES);
 
   const [settings, cancelReasons, carriers] = await Promise.all([
     getSettings(),

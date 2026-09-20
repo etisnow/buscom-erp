@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BookMarked, PlugZap, Users } from "lucide-react";
-import { requireUser } from "@/server/session";
+import { requirePageUser } from "@/server/session";
 
 export const metadata: Metadata = {
   title: "Администрирование — BusCom ERP",
@@ -33,7 +33,7 @@ const SECTIONS = [
 
 export default async function AdminPage() {
   // Журнал интеграции доступен и руководителю, остальное — только администратору.
-  const user = await requireUser(["ADMIN", "HEAD"]);
+  const user = await requirePageUser(["ADMIN", "HEAD"]);
   const sections = SECTIONS.filter((section) => !section.adminOnly || user.role === "ADMIN");
 
   return (

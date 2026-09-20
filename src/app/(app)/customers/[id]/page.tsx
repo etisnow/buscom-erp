@@ -9,7 +9,7 @@ import { formatMoscowDateTime } from "@/domain/datetime";
 import { formatRub } from "@/domain/money";
 import { findCustomer } from "@/server/customers/list";
 import { canEditCustomers } from "@/server/customers/service";
-import { requireUser } from "@/server/session";
+import { requirePageUser } from "@/server/session";
 
 export const metadata: Metadata = {
   title: "Клиент — BusCom ERP",
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 const PURCHASED_STATUSES = ["SHIPPED", "COMPLETED"];
 
 export default async function CustomerPage({ params }: PageProps<"/customers/[id]">) {
-  const user = await requireUser();
+  const user = await requirePageUser();
   const { id } = await params;
 
   const customer = await findCustomer(id);

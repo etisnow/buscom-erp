@@ -9,7 +9,7 @@ import { OrderViews } from "@/components/orders/order-views";
 import { Button } from "@/components/ui/button";
 import { ORDER_CREATE_ROLES, hasRole } from "@/domain/user/role";
 import { defaultView, listManagers, listOrders } from "@/server/orders/list";
-import { requireUser } from "@/server/session";
+import { requirePageUser } from "@/server/session";
 import { parseOrderListParams, toSearchParams } from "./params";
 
 export const metadata: Metadata = {
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 export default async function OrdersPage({ searchParams }: PageProps<"/orders">) {
-  const user = await requireUser();
+  const user = await requirePageUser();
   const params = await searchParams;
   const filters = parseOrderListParams(params, defaultView(user));
 

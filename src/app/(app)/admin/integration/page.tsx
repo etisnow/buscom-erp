@@ -3,7 +3,7 @@ import Link from "next/link";
 import { InboxTable } from "@/components/admin/inbox-table";
 import type { InboxStatus } from "@/generated/prisma/enums";
 import { listInbox } from "@/server/integrations/inbox";
-import { requireUser } from "@/server/session";
+import { requirePageUser } from "@/server/session";
 
 export const metadata: Metadata = {
   title: "Журнал интеграции — BusCom ERP",
@@ -23,7 +23,7 @@ function parseStatus(value: string | string[] | undefined): InboxStatus | undefi
 
 export default async function AdminIntegrationPage({ searchParams }: PageProps<"/admin/integration">) {
   // Руководителю журнал доступен на чтение (PRD, «Карта экранов»).
-  await requireUser(["ADMIN", "HEAD"]);
+  await requirePageUser(["ADMIN", "HEAD"]);
 
   const params = await searchParams;
   const status = parseStatus(params.status);

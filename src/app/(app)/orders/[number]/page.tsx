@@ -14,7 +14,7 @@ import { TERMINAL_STATUSES } from "@/domain/order/status";
 import { findOrderByNumber } from "@/server/orders/details";
 import { listManagers } from "@/server/orders/list";
 import { getCancelReasons } from "@/server/settings/service";
-import { requireUser } from "@/server/session";
+import { requirePageUser } from "@/server/session";
 
 export async function generateMetadata({ params }: PageProps<"/orders/[number]">): Promise<Metadata> {
   const { number } = await params;
@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: PageProps<"/orders/[number]">
 }
 
 export default async function OrderPage({ params }: PageProps<"/orders/[number]">) {
-  const user = await requireUser();
+  const user = await requirePageUser();
   const { number } = await params;
 
   const orderNumber = Number(number);
