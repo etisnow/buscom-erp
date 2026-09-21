@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ORDER_SOURCES } from "@/domain/order/source";
 import { list, pageNumber, single, type RawParams } from "@/app/(app)/search-params";
 import type { OrderListFilters, OrderView } from "@/server/orders/list";
 
@@ -14,7 +15,7 @@ const statusSchema = z.enum([
   "COMPLETED",
   "CANCELLED",
 ]);
-const sourceSchema = z.enum(["SITE", "PHONE", "EMAIL", "MESSENGER", "OTHER"]);
+const sourceSchema = z.enum(ORDER_SOURCES);
 const paymentSchema = z.enum(["unpaid", "partial", "paid"]);
 
 /** Дата из `<input type="date">` — начало и конец дня по Москве (UTC+3). */

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { formatPhone } from "@/domain/datetime";
+import { ORDER_CREATE_SOURCES, ORDER_SOURCE_LABELS } from "@/domain/order/source";
 import { formatRub, rublesToKopecks } from "@/domain/money";
 import { DEFAULT_DISCOUNT_LIMIT_PERCENT, maxDiscountKopecks } from "@/domain/order/discount";
 import type { CustomerMatch } from "@/server/customers/lookup";
@@ -29,13 +30,7 @@ type Item = {
   discountKopecks: number;
 };
 
-const SOURCES = [
-  { value: "PHONE", label: "Телефон" },
-  { value: "EMAIL", label: "Почта" },
-  { value: "MESSENGER", label: "Мессенджер" },
-  { value: "SITE", label: "Сайт" },
-  { value: "OTHER", label: "Другое" },
-] as const;
+const SOURCES = ORDER_CREATE_SOURCES.map((value) => ({ value, label: ORDER_SOURCE_LABELS[value] }));
 
 const DELIVERY = [
   { value: "PICKUP", label: "Самовывоз" },

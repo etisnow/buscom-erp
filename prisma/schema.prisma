@@ -199,6 +199,8 @@ enum OrderSource {
   EMAIL
   MESSENGER
   OTHER
+  /// Заказ перенесён из прежней ERP скриптом импорта, а не заведён в этой системе
+  LEGACY
 }
 
 enum DeliveryMethod {

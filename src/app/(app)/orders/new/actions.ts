@@ -7,13 +7,14 @@ import { ForbiddenError } from "@/server/errors";
 import { lookupCustomers, type CustomerMatch } from "@/server/customers/lookup";
 import { createOrder } from "@/server/orders/create";
 import { searchProducts, type ProductSuggestion } from "@/server/products/search";
+import { ORDER_CREATE_SOURCES } from "@/domain/order/source";
 import { ORDER_CREATE_ROLES } from "@/domain/user/role";
 import { requireUser } from "@/server/session";
 
 export type CreateResult = { ok: false; error: string };
 
 const createSchema = z.object({
-  source: z.enum(["SITE", "PHONE", "EMAIL", "MESSENGER", "OTHER"]),
+  source: z.enum(ORDER_CREATE_SOURCES),
   customerId: z.string().optional(),
   customer: z
     .object({

@@ -6,18 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ORDER_SOURCE_LABELS, ORDER_SOURCES } from "@/domain/order/source";
 import { ORDER_STATUS_LABELS } from "@/domain/order/status";
 import type { OrderStatus } from "@/generated/prisma/enums";
 
 const STATUSES = Object.keys(ORDER_STATUS_LABELS) as OrderStatus[];
 
-const SOURCES = [
-  { value: "SITE", label: "Сайт" },
-  { value: "PHONE", label: "Телефон" },
-  { value: "EMAIL", label: "Почта" },
-  { value: "MESSENGER", label: "Мессенджер" },
-  { value: "OTHER", label: "Другое" },
-];
+const SOURCES = ORDER_SOURCES.map((value) => ({ value, label: ORDER_SOURCE_LABELS[value] }));
 
 const PAYMENTS = [
   { value: "unpaid", label: "Не оплачен" },

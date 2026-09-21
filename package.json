@@ -19,6 +19,7 @@
     "db:seed": "prisma db seed",
     "db:generate": "prisma generate",
     "import:customers": "tsx --tsconfig tsconfig.scripts.json scripts/import-customers.ts",
+    "import:orders": "tsx --tsconfig tsconfig.scripts.json scripts/import-orders.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },
