@@ -21,7 +21,7 @@ import { listManagers } from "@/server/orders/list";
 import { listCategories } from "@/server/products/categories";
 import { findProductRows } from "@/server/products/list";
 import { canEditCatalog } from "@/server/products/service";
-import { getCancelReasons, getOrderSources, getSettings } from "@/server/settings/service";
+import { getCancelReasons, getCarriers, getOrderSources, getSettings } from "@/server/settings/service";
 import { requirePageUser } from "@/server/session";
 import { listSupplierOptions } from "@/server/suppliers/list";
 
@@ -37,11 +37,12 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
   const orderNumber = Number(number);
   if (!Number.isSafeInteger(orderNumber) || orderNumber <= 0) notFound();
 
-  const [order, managers, cancelReasons, orderSources, settings] = await Promise.all([
+  const [order, managers, cancelReasons, orderSources, carriers, settings] = await Promise.all([
     findOrderByNumber(orderNumber),
     listManagers(),
     getCancelReasons(),
     getOrderSources(),
+    getCarriers(),
     getSettings(),
   ]);
   if (!order) notFound();
@@ -63,6 +64,10 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
       ? [order.sourceItem, ...orderSources]
       : orderSources
     : [];
+
+  // Перевозчик заказа мог быть выключен в справочнике после того, как его выбрали.
+  // В список его всё равно кладём — иначе сохранение доставки молча стёрло бы значение.
+  const carrierOptions = order.carrier && !carriers.includes(order.carrier) ? [order.carrier, ...carriers] : carriers;
 
   return (
     <main className="flex flex-col gap-4">
@@ -213,7 +218,6 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
                     address: order.deliveryAddress,
                   },
                   seller: { name: settings.sellerRequisites.name, phone: settings.sellerRequisites.phone },
-                  manager: order.manager ? { name: order.manager.name, email: order.manager.email } : null,
                 }),
               }))}
             />
@@ -227,6 +231,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
             deliveryAddress={order.deliveryAddress}
             deliveryPriceKopecks={order.deliveryPriceKopecks}
             trackingNumber={order.trackingNumber}
+            carriers={carrierOptions}
             canEdit={!isClosed}
             canEditPrice={!isClosed}
           />

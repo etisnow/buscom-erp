@@ -36,8 +36,6 @@ export type SupplierRequestInput = {
   };
   /** Наша компания — из реквизитов продавца в настройках */
   seller: { name: string; phone: string };
-  /** Менеджер заказа: кому поставщику отвечать. null — заказ ничей */
-  manager: { name: string; email: string } | null;
 };
 
 /** Позиция без закупочной цены: в сумму не идёт, но из текста не пропадает. */
@@ -72,17 +70,12 @@ function deliveryLines(delivery: SupplierRequestInput["delivery"]): string[] {
   return lines;
 }
 
-function contactLines(input: SupplierRequestInput): string[] {
-  const lines: string[] = [];
-
-  const seller = [input.seller.name, input.seller.phone].filter(Boolean).join(", ");
-  if (seller) lines.push(seller);
-
-  if (input.manager) {
-    lines.push(`Менеджер: ${[input.manager.name, input.manager.email].filter(Boolean).join(", ")}`);
-  }
-
-  return lines;
+/**
+ * Подпись — только наша компания. Менеджера в тексте нет: поставщику отвечают
+ * в ту же переписку, из которой пришёл заказ, а лишняя строка в сообщении мешает.
+ */
+function contactLine(input: SupplierRequestInput): string | null {
+  return [input.seller.name, input.seller.phone].filter(Boolean).join(", ") || null;
 }
 
 /**
@@ -106,8 +99,8 @@ export function buildSupplierRequest(input: SupplierRequestInput): string {
   const delivery = deliveryLines(input.delivery);
   if (delivery.length > 0) blocks.push(delivery.join("\n"));
 
-  const contacts = contactLines(input);
-  if (contacts.length > 0) blocks.push(contacts.join("\n"));
+  const contact = contactLine(input);
+  if (contact) blocks.push(contact);
 
   return blocks.join("\n\n");
 }

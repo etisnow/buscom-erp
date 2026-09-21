@@ -21,6 +21,7 @@ export function OrderDelivery({
   deliveryAddress,
   deliveryPriceKopecks,
   trackingNumber,
+  carriers,
   canEdit,
   canEditPrice,
 }: {
@@ -31,6 +32,8 @@ export function OrderDelivery({
   deliveryAddress: string | null;
   deliveryPriceKopecks: number;
   trackingNumber: string | null;
+  /** Справочник перевозчиков; текущий выбор в нём есть всегда — страница его добавляет */
+  carriers: string[];
   canEdit: boolean;
   canEditPrice: boolean;
 }) {
@@ -95,13 +98,19 @@ export function OrderDelivery({
           <Label className="text-xs" htmlFor="delivery-carrier">
             Транспортная компания
           </Label>
-          <Input
-            id="delivery-carrier"
-            value={carrierValue}
-            onChange={(event) => setCarrier(event.target.value)}
-            disabled={!canEdit}
-            className="h-8"
-          />
+          <Select value={carrierValue || NONE} onValueChange={(value) => setCarrier(value === NONE ? "" : value)}>
+            <SelectTrigger id="delivery-carrier" size="sm" disabled={!canEdit}>
+              <SelectValue placeholder="не выбрана" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>Не выбрана</SelectItem>
+              {carriers.map((item) => (
+                <SelectItem key={item} value={item}>
+                  {item}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="flex flex-col gap-1.5 sm:col-span-2">

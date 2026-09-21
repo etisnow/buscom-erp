@@ -17,11 +17,10 @@ const BASE: SupplierRequestInput = {
   ],
   delivery: { method: "CARRIER", carrier: "СДЭК", address: "Ростов-на-Дону, ул. Ленина, 1" },
   seller: { name: "БасКом", phone: "+7 999 000-00-00" },
-  manager: { name: "Иван Петров", email: "ivan@bus-com.ru" },
 };
 
 describe("buildSupplierRequest", () => {
-  it("собирает текст из номера, позиций, итога, доставки и контактов", () => {
+  it("собирает текст из номера, позиций, итога, доставки и подписи без менеджера", () => {
     const text = buildSupplierRequest(BASE);
 
     expect(text).toContain("Заказ №3021 от 21.09.2026");
@@ -31,7 +30,7 @@ describe("buildSupplierRequest", () => {
     expect(text).toContain("Доставка: Транспортная компания СДЭК");
     expect(text).toContain("Адрес: Ростов-на-Дону, ул. Ленина, 1");
     expect(text).toContain("БасКом, +7 999 000-00-00");
-    expect(text).toContain("Менеджер: Иван Петров, ivan@bus-com.ru");
+    expect(text).not.toContain("Менеджер");
   });
 
   it("считает сумму позиции и итог по закупочным ценам", () => {
@@ -84,11 +83,10 @@ describe("buildSupplierRequest", () => {
       ...BASE,
       delivery: { method: null, carrier: null, address: null },
       seller: { name: "", phone: "" },
-      manager: null,
     });
 
     expect(text).not.toContain("Доставка");
-    expect(text).not.toContain("Менеджер");
+    expect(text).not.toContain("БасКом");
     expect(text).not.toMatch(/\n\n\n/);
     expect(text.endsWith("\n")).toBe(false);
   });

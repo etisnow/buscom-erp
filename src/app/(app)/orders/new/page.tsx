@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { NewOrderForm } from "@/components/orders/new-order-form";
 import { ORDER_CREATE_ROLES } from "@/domain/user/role";
-import { getOrderSources } from "@/server/settings/service";
+import { getCarriers, getOrderSources } from "@/server/settings/service";
 import { requirePageUser } from "@/server/session";
 
 export const metadata: Metadata = {
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default async function NewOrderPage() {
   // Склад заказы не создаёт (PRD, «Карта экранов»).
   await requirePageUser(ORDER_CREATE_ROLES);
-  const sources = await getOrderSources();
+  const [sources, carriers] = await Promise.all([getOrderSources(), getCarriers()]);
 
   return (
     <main className="flex flex-col gap-4">
@@ -29,7 +29,7 @@ export default async function NewOrderPage() {
         <p className="text-muted-foreground text-sm">Заказ сразу попадёт в работу, ответственным станете вы.</p>
       </div>
 
-      <NewOrderForm sources={sources} />
+      <NewOrderForm sources={sources} carriers={carriers} />
     </main>
   );
 }

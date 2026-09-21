@@ -41,7 +41,7 @@ export default async function AdminDictionariesPage() {
       <DictionaryEditor
         type="CARRIER"
         title="Транспортные компании"
-        description="Подсказки для поля «Транспортная компания» в доставке."
+        description="Из этого списка выбирается перевозчик в доставке заказа. Выключенная компания пропадает из выбора, но остаётся в старых заказах."
         items={carriers}
       />
 

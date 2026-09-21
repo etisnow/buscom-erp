@@ -54,7 +54,7 @@ function parseRubles(value: string): number {
   }
 }
 
-export function NewOrderForm({ sources }: { sources: { id: string; name: string }[] }) {
+export function NewOrderForm({ sources, carriers }: { sources: { id: string; name: string }[]; carriers: string[] }) {
   // По умолчанию — первый источник справочника: администратор ставит частый наверх.
   const [sourceItemId, setSourceItemId] = useState<string | null>(sources[0]?.id ?? null);
 
@@ -469,12 +469,22 @@ export function NewOrderForm({ sources }: { sources: { id: string; name: string 
             <Label className="text-xs" htmlFor="new-carrier">
               Транспортная компания
             </Label>
-            <Input
-              id="new-carrier"
-              value={carrier}
-              onChange={(event) => setCarrier(event.target.value)}
-              className="h-8"
-            />
+            <Select
+              value={carrier || NO_DELIVERY}
+              onValueChange={(value) => setCarrier(value === NO_DELIVERY ? "" : value)}
+            >
+              <SelectTrigger id="new-carrier" size="sm">
+                <SelectValue placeholder="не выбрана" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_DELIVERY}>Не выбрана</SelectItem>
+                {carriers.map((item) => (
+                  <SelectItem key={item} value={item}>
+                    {item}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex flex-col gap-1.5 sm:col-span-2">
