@@ -30,7 +30,12 @@ export type SiteProduct = {
   manufacturer: string | null;
   /** Опции с выбором варианта (список, радиокнопки). Текстовые поля не переносим */
   options: SiteOptionGroup[];
+  /** Картинки товара, главная — первой. Импортируется пока только она (аватарка) */
+  images: SiteImage[];
 };
+
+/** Картинка товара на сайте: полный размер и готовое превью (у дополнительных превью 74×74 — его не берём). */
+export type SiteImage = { url: string; thumbUrl: string | null };
 
 export type SiteOptionGroup = {
   /** `product_option_id` в OpenCart */
@@ -214,6 +219,7 @@ export function parseProductPage(html: string, url: string): SiteProduct | null 
     isActive: debug?.status === undefined ? true : String(debug.status) === "1",
     manufacturer,
     options: parseProductOptions(html),
+    images: parseProductImages(html),
   };
 }
 
@@ -270,4 +276,26 @@ export function uniqueOptionNames(groups: readonly SiteOptionGroup[]): SiteOptio
     });
   };
   return dedupe(groups).map((group) => ({ ...group, values: dedupe(group.values) }));
+}
+
+/**
+ * Картинки со страницы товара. Разметка OpenCart: `<ul class="thumbnails">`,
+ * первая `a.thumbnail` — главная (полный размер в href, превью 228×228 в img),
+ * дальше `li.image-additional` — дополнительные, у них превью крошечное (74×74),
+ * поэтому для них берём только полный размер.
+ */
+export function parseProductImages(html: string): SiteImage[] {
+  const list = html.match(/<ul class="thumbnails">([\s\S]*?)<\/ul>/)?.[1];
+  if (!list) return [];
+
+  const images: SiteImage[] = [];
+  for (const [item] of list.matchAll(/<li[^>]*>[\s\S]*?<\/li>/g)) {
+    const url = item.match(/<a class="thumbnail" href="([^"]+)"/)?.[1];
+    if (!url) continue;
+    const isMain = images.length === 0 && !/class="image-additional"/.test(item);
+    const thumbUrl = isMain ? (item.match(/<img src="([^"]+)"/)?.[1] ?? null) : null;
+    const image = { url: decodeEntities(url), thumbUrl: thumbUrl ? decodeEntities(thumbUrl) : null };
+    if (!images.some((known) => known.url === image.url)) images.push(image);
+  }
+  return images;
 }

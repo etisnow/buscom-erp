@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ForbiddenError } from "@/server/errors";
+import { deleteMainImage, uploadMainImage } from "@/server/products/images";
 import { createProduct, updateProduct } from "@/server/products/service";
 import { requireUser } from "@/server/session";
 
@@ -73,4 +74,22 @@ export async function toggleProductAction(id: string, isActive: boolean): Promis
     () => updateProduct(id, { isActive }, user),
     isActive ? "Товар снова в каталоге" : "Товар скрыт из каталога",
   );
+}
+
+/**
+ * Загрузка аватарки товара. Файл приходит в FormData; тип и размер проверяет
+ * сервер по содержимому — расширению и типу из браузера не доверяем.
+ */
+export async function uploadProductImageAction(productId: string, form: FormData): Promise<ProductResult> {
+  const user = await requireUser();
+  const file = form.get("file");
+  if (!(file instanceof File)) return { ok: false, error: "Выберите файл картинки" };
+
+  const data = new Uint8Array(await file.arrayBuffer());
+  return run(() => uploadMainImage(productId, data, user), "Картинка сохранена");
+}
+
+export async function deleteProductImageAction(productId: string): Promise<ProductResult> {
+  const user = await requireUser();
+  return run(() => deleteMainImage(productId, user), "Картинка удалена");
 }

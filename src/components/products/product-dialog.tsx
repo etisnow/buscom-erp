@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { rublesToKopecks } from "@/domain/money";
+import { ProductImageEditor } from "@/components/products/product-image";
 import {
   ProductOptionsEditor,
   toOptionDrafts,
@@ -123,6 +124,12 @@ export function ProductDialog({
             Позиции уже оформленных заказов не изменятся: они хранят снимок названия и цены.
           </DialogDescription>
         </DialogHeader>
+
+        {product ? (
+          <ProductImageEditor productId={product.id} imageId={product.images[0]?.id ?? null} name={product.name} />
+        ) : (
+          <p className="text-muted-foreground text-xs">Картинку можно будет добавить после сохранения товара.</p>
+        )}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">

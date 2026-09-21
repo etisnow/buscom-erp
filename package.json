@@ -22,6 +22,7 @@
     "import:orders": "tsx --tsconfig tsconfig.scripts.json scripts/import-orders.ts",
     "fetch:site-products": "tsx --tsconfig tsconfig.scripts.json scripts/fetch-site-products.ts",
     "import:site-products": "tsx --tsconfig tsconfig.scripts.json scripts/import-site-products.ts",
+    "import:site-images": "tsx --tsconfig tsconfig.scripts.json scripts/import-site-images.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },

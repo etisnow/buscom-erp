@@ -176,6 +176,30 @@ model Product {
   orderItems OrderItem[]
   suppliers  ProductSupplier[]
   options    ProductOption[]
+  images     ProductImage[]
+}
+
+/// Картинка товара. Сейчас у товара одна — аватарка, но хранение сразу
+/// множественное: первая по `sortOrder` и есть аватарка (docs/DECISIONS.md, «Картинки товара»).
+/// Файлы лежат в базе: бэкапы и перенос в бой идут тем же путём, что и данные.
+/// Байты выбирать только явно — в списках их не тянуть.
+model ProductImage {
+  id               String   @id @default(cuid())
+  productId        String
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  /// Порядок в галерее; наименьший — аватарка
+  sortOrder        Int      @default(0)
+  contentType      String
+  data             Bytes
+  byteSize         Int
+  /// Уменьшенная копия для списков. Нет — показывается полная
+  thumbData        Bytes?
+  thumbContentType String?
+  /// Откуда взята (адрес на bus-com.ru) — ключ повторного импорта; у загруженных руками пусто
+  sourceUrl        String?
+  createdAt        DateTime @default(now())
+
+  @@index([productId, sortOrder])
 }
 
 /// Группа опций товара: «Опора», «Ремень», «Выбор стекла». Покупатель выбирает

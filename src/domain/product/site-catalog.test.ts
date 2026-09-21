@@ -3,6 +3,7 @@ import {
   assignSkus,
   parseCatalogMenu,
   parseCategoryProductKeys,
+  parseProductImages,
   parseProductOptions,
   parseProductPage,
   parseSitemapProductUrls,
@@ -99,6 +100,7 @@ describe("страница товара", () => {
       isActive: true,
       manufacturer: "Россия",
       options: [],
+      images: [],
     });
   });
 
@@ -211,5 +213,25 @@ describe("опции товара на сайте", () => {
       },
     ]);
     expect(group.values.map((value) => value.name)).toEqual(["Серый", "серый (2)"]);
+  });
+});
+
+describe("картинки товара на сайте", () => {
+  it("главная — первой, с превью 228×228; у дополнительных только полный размер", () => {
+    const html = `<ul class="thumbnails">
+      <li><a class="thumbnail" href="https://bus-com.ru/image/cache/a-1000x1000-product_popup.jpg" title="А"><img src="https://bus-com.ru/image/cache/a-228x228-product_thumb.jpg" /></a></li>
+      <li class="image-additional"><a class="thumbnail" href="https://bus-com.ru/image/cache/b-1000x1000-product_popup.jpg" title="А"> <img src="https://bus-com.ru/image/cache/b-74x74-product_popup.jpg" /></a></li>
+    </ul>`;
+    expect(parseProductImages(html)).toEqual([
+      {
+        url: "https://bus-com.ru/image/cache/a-1000x1000-product_popup.jpg",
+        thumbUrl: "https://bus-com.ru/image/cache/a-228x228-product_thumb.jpg",
+      },
+      { url: "https://bus-com.ru/image/cache/b-1000x1000-product_popup.jpg", thumbUrl: null },
+    ]);
+  });
+
+  it("без блока картинок — пусто", () => {
+    expect(parseProductImages("<h1>Клей</h1>")).toEqual([]);
   });
 });

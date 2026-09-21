@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { ProductDialog } from "@/components/products/product-dialog";
+import { ProductThumb } from "@/components/products/product-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -46,6 +47,7 @@ export function ProductsTable({
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-14" />
               <TableHead className="w-32">Артикул</TableHead>
               <TableHead>Название</TableHead>
               <TableHead className="w-36">Категория</TableHead>
@@ -58,6 +60,9 @@ export function ProductsTable({
           <TableBody>
             {rows.map((product) => (
               <TableRow key={product.id} className={product.isActive ? undefined : "opacity-60"}>
+                <TableCell>
+                  <ProductThumb imageId={product.images[0]?.id ?? null} name={product.name} />
+                </TableCell>
                 <TableCell className="font-mono text-xs">{product.sku}</TableCell>
                 <TableCell>
                   <div className="flex flex-col">
@@ -128,7 +133,8 @@ export function ProductsTable({
 
       {editingProduct ? (
         <ProductDialog
-          product={editingProduct}
+          // Строка из свежего списка: после загрузки картинки диалог видит новую, а не снимок на момент открытия.
+          product={rows.find((row) => row.id === editingProduct.id) ?? editingProduct}
           suppliers={suppliers}
           open
           onOpenChange={(open) => {

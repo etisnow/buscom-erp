@@ -24,6 +24,8 @@ export const siteProductRowSchema = z.object({
   category: z.string().nullable(),
   // Файлы, выгруженные до переноса опций, их не содержат — считаем, что опций нет.
   options: z.array(siteOptionGroupSchema).default([]),
+  // Картинки (главная первой); в ранних выгрузках их нет.
+  images: z.array(z.object({ url: z.string().url(), thumbUrl: z.string().url().nullable() })).default([]),
 });
 
 export type SiteProductRow = z.input<typeof siteProductRowSchema>;

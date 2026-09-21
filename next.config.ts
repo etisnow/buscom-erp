@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
   experimental: {
     // Нужен для forbidden() и экрана 403 (src/app/(app)/forbidden.tsx).
     authInterrupts: true,
+    serverActions: {
+      // Картинка товара уходит в Server Action целиком. Сама картинка — до 5 МБ
+      // (MAX_IMAGE_BYTES в src/domain/product/images.ts), сверху запас на обёртку формы.
+      bodySizeLimit: "6mb",
+    },
   },
 };
 
