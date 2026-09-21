@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ExternalLink, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,7 +27,7 @@ import {
 import type { ProductRow } from "@/server/products/list";
 import type { CategoryRow } from "@/server/products/categories";
 import type { SupplierOption } from "@/server/suppliers/list";
-import { createProductAction, updateProductAction } from "@/app/(app)/products/actions";
+import { createProductAction, fetchSupplierPriceAction, updateProductAction } from "@/app/(app)/products/actions";
 
 /** Поставщик товара в форме: закупочная цена — строкой, как её вводят. */
 type SupplierDraft = { supplierId: string; price: string; url: string };
@@ -61,6 +61,31 @@ export function ProductDialog({
   );
   const [optionGroups, setOptionGroups] = useState<OptionGroupForm[]>(toOptionForms(product?.options ?? []));
   const [pending, startTransition] = useTransition();
+  /** Индекс строки, для которой сейчас тянется цена; null — ничего не тянется. */
+  const [fetching, setFetching] = useState<number | null>(null);
+
+  /**
+   * Подставляет закупочную цену со страницы поставщика. Значение только
+   * попадает в поле — сохранит его человек кнопкой «Сохранить».
+   */
+  async function pullPrice(index: number): Promise<void> {
+    const url = links[index]?.url.trim();
+    if (!url) return;
+
+    setFetching(index);
+    try {
+      const result = await fetchSupplierPriceAction(url);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      const price = (result.priceKopecks / 100).toFixed(2);
+      setLinks((current) => current.map((row, i) => (i === index ? { ...row, price } : row)));
+      toast.success(`Цена подтянута: ${price} ₽`);
+    } finally {
+      setFetching(null);
+    }
+  }
 
   function submit() {
     let priceKopecks: number;
@@ -123,7 +148,7 @@ export function ProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-x-hidden overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{product ? "Товар" : "Новый товар"}</DialogTitle>
           <DialogDescription>
@@ -265,9 +290,9 @@ export function ProductDialog({
                 </Button>
               </div>
 
-              <div className="flex flex-col gap-1.5">
+              <div className="flex min-w-0 flex-col gap-1.5">
                 <Label className="text-xs">Ссылка на товар у поставщика</Label>
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 items-center gap-2">
                   <Input
                     type="url"
                     inputMode="url"
@@ -278,7 +303,7 @@ export function ProductDialog({
                         current.map((row, i) => (i === index ? { ...row, url: event.target.value } : row)),
                       )
                     }
-                    className="h-8"
+                    className="h-8 min-w-0"
                   />
                   {/* Открывается в новой вкладке: карточка товара при этом не теряется */}
                   {link.url.trim() ? (
@@ -288,6 +313,16 @@ export function ProductDialog({
                       </a>
                     </Button>
                   ) : null}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 shrink-0"
+                    disabled={fetching !== null || !link.url.trim()}
+                    onClick={() => pullPrice(index)}
+                  >
+                    <RefreshCw className={fetching === index ? "animate-spin" : undefined} />
+                    Подтянуть цену
+                  </Button>
                 </div>
               </div>
             </div>

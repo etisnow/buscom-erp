@@ -1,13 +1,13 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ORDER_STATUS_LABELS } from "@/domain/order/status";
+import { SAVED_FILTERS_COOKIE, SAVED_FILTERS_MAX_AGE } from "@/app/(app)/orders/saved-filters";
 import type { OrderStatus } from "@/generated/prisma/enums";
 
 const STATUSES = Object.keys(ORDER_STATUS_LABELS) as OrderStatus[];
@@ -21,27 +21,16 @@ const PAYMENTS = [
 const ANY = "__any__";
 
 /**
- * Где запоминается набор фильтров. Хранилище браузера, а не БД: набор личный и
- * у каждой машины свой, а состояние списка и так живёт в адресе (docs/DECISIONS.md).
- * Доступ к `localStorage` обёрнут — в приватном окне он бросает исключение.
+ * Память фильтров. Cookie, а не `localStorage`: подставляет запомненный набор
+ * сервер, до отрисовки страницы (`src/app/(app)/orders/saved-filters.ts`).
+ * Клиентское восстановление давало мигание — список успевал показаться без
+ * фильтров. Браузер здесь только пишет и чистит.
  */
-const STORAGE_KEY = "buscom:orders:filters";
-
-function readSaved(): string | null {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
-
 function writeSaved(value: string | null): void {
-  try {
-    if (value) window.localStorage.setItem(STORAGE_KEY, value);
-    else window.localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Не смогли запомнить — список всё равно работает, просто без памяти
-  }
+  const base = `${SAVED_FILTERS_COOKIE}=`;
+  document.cookie = value
+    ? `${base}${encodeURIComponent(value)}; path=/; max-age=${SAVED_FILTERS_MAX_AGE}; samesite=lax`
+    : `${base}; path=/; max-age=0; samesite=lax`;
 }
 
 export function OrderFilters({
@@ -54,27 +43,6 @@ export function OrderFilters({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const restored = useRef(false);
-
-  const query = searchParams.toString();
-
-  /**
-   * Возврат запомненного набора. Работает только на голом `/orders`: пришли по
-   * ссылке с параметрами — уважаем ссылку. `replace`, а не `push`: подстановка
-   * не должна попадать в историю, иначе «назад» возвращало бы на пустой список.
-   *
-   * Запоминание живёт не здесь, а в `apply` и в кнопках видов: эффект на первом
-   * клиентском рендере видит пустые параметры (`useSearchParams` ещё не знает
-   * адреса), и класть в память отсюда означало бы гонку с гидратацией.
-   */
-  useEffect(() => {
-    if (restored.current) return;
-    restored.current = true;
-    if (window.location.search !== "") return;
-
-    const saved = readSaved();
-    if (saved) router.replace(`/orders?${saved}`);
-  }, [router]);
 
   /** Сохранить набор фильтров, кроме номера страницы: он к фильтрам не относится. */
   function remember(params: URLSearchParams): void {

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Download, Plus } from "lucide-react";
 import { OrderFilters } from "@/components/orders/order-filters";
 import { ListPagination } from "@/components/layout/list-pagination";
@@ -13,6 +15,7 @@ import { listDictionary } from "@/server/settings/service";
 import { requirePageUser } from "@/server/session";
 import { toSearchParams } from "@/app/(app)/search-params";
 import { parseOrderListParams } from "./params";
+import { SAVED_FILTERS_COOKIE, parseSavedFilters } from "./saved-filters";
 
 export const metadata: Metadata = {
   title: "Заказы — BusCom ERP",
@@ -21,6 +24,15 @@ export const metadata: Metadata = {
 export default async function OrdersPage({ searchParams }: PageProps<"/orders">) {
   const user = await requirePageUser();
   const params = await searchParams;
+
+  // Пришли на голый /orders — подставляем запомненный набор фильтров до отрисовки.
+  // Клиентское восстановление давало мигание: список показывался без фильтров.
+  // Адрес с параметрами не трогаем: по ссылке открывают то, что в ссылке.
+  if (Object.keys(params).length === 0) {
+    const saved = parseSavedFilters((await cookies()).get(SAVED_FILTERS_COOKIE)?.value);
+    if (saved) redirect(`/orders?${saved}`);
+  }
+
   const filters = parseOrderListParams(params, defaultView());
 
   const [result, managers, sources] = await Promise.all([

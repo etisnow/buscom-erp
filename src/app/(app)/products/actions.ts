@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ForbiddenError } from "@/server/errors";
+import { fetchAvitoPrice } from "@/server/products/avito-price";
 import { deleteMainImage, uploadMainImage } from "@/server/products/images";
 import { createProduct, updateProduct } from "@/server/products/service";
 import { requireUser } from "@/server/session";
@@ -96,4 +97,24 @@ export async function uploadProductImageAction(productId: string, form: FormData
 export async function deleteProductImageAction(productId: string): Promise<ProductResult> {
   const user = await requireUser();
   return run(() => deleteMainImage(productId, user), "Картинка удалена");
+}
+
+export type FetchedPrice = { ok: true; priceKopecks: number } | { ok: false; error: string };
+
+/**
+ * Цена со страницы объявления на avito.ru — кнопка «Подтянуть цену» в карточке
+ * товара. Ходит в сеть сервер, а не браузер: у Авито нет заголовков CORS,
+ * и запрос из страницы всё равно не дошёл бы.
+ *
+ * Ничего не сохраняет: подставляет значение в поле, сохранять его или нет —
+ * решает человек. Неудача — обычный ответ с текстом, кнопка не должна
+ * превращаться в источник ошибок.
+ */
+export async function fetchSupplierPriceAction(url: string): Promise<FetchedPrice> {
+  await requireUser();
+
+  const parsed = z.string().min(1, { error: "Сначала вставьте ссылку" }).safeParse(url);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+
+  return fetchAvitoPrice(parsed.data.trim());
 }
