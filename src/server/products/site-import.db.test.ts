@@ -64,4 +64,31 @@ describeDb("перенос каталога сайта (живая БД)", () =>
     expect(report.создано).toBe(1);
     expect(await testDb.product.count()).toBe(0);
   });
+
+  it("переносит опции и при повторном прогоне правит их на месте, по id сайта", async () => {
+    const options = [
+      {
+        externalId: "360",
+        name: "Выбор стекла",
+        required: true,
+        values: [
+          { externalId: "731", name: "Левое", priceDeltaKopecks: 1_225_000 },
+          { externalId: "732", name: "Правое", priceDeltaKopecks: 475_000 },
+        ],
+      },
+    ];
+    await importSiteProducts([row({ externalId: "340", priceKopecks: 0, options })]);
+    const before = await testDb.productOptionValue.findFirstOrThrow({ where: { externalId: "731" } });
+
+    const again = await importSiteProducts([row({ externalId: "340", priceKopecks: 0, options })]);
+    expect(again).toMatchObject({ безИзменений: 1, сОпциями: 0 });
+
+    options[0].values[0].priceDeltaKopecks = 1_300_000;
+    const changed = await importSiteProducts([row({ externalId: "340", priceKopecks: 0, options })]);
+    expect(changed).toMatchObject({ обновлено: 1, сОпциями: 1 });
+
+    const after = await testDb.productOptionValue.findFirstOrThrow({ where: { externalId: "731" } });
+    expect(after.id).toBe(before.id);
+    expect(after.priceDeltaKopecks).toBe(1_300_000);
+  });
 });

@@ -1,4 +1,5 @@
 import "server-only";
+import type { OptionGroup } from "@/domain/product/options";
 import { db } from "@/server/db";
 
 export type ProductSupplierOption = {
@@ -14,6 +15,8 @@ export type ProductSuggestion = {
   priceKopecks: number;
   /** Поставщики товара, самый дешёвый первым — его форма и подставляет */
   suppliers: ProductSupplierOption[];
+  /** Группы опций товара — менеджер выбирает варианты при добавлении позиции */
+  options: OptionGroup[];
 };
 
 /** Подбор товара по артикулу или названию — для добавления позиции в заказ. */
@@ -35,6 +38,15 @@ export async function searchProducts(query: string): Promise<ProductSuggestion[]
         orderBy: { purchasePriceKopecks: "asc" },
         select: { purchasePriceKopecks: true, supplier: { select: { id: true, name: true } } },
       },
+      options: {
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          name: true,
+          required: true,
+          values: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true, priceDeltaKopecks: true } },
+        },
+      },
     },
     orderBy: { name: "asc" },
     take: 10,
@@ -50,5 +62,6 @@ export async function searchProducts(query: string): Promise<ProductSuggestion[]
       name: link.supplier.name,
       purchasePriceKopecks: link.purchasePriceKopecks,
     })),
+    options: product.options,
   }));
 }

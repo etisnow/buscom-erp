@@ -5,6 +5,7 @@ import { z } from "zod";
 import { DiscountLimitError } from "@/domain/order/discount";
 import { OrderEditError } from "@/domain/order/editing";
 import { OrderTransitionError } from "@/domain/order/status";
+import { ProductOptionError } from "@/domain/product/options";
 import { SupplierStageError } from "@/domain/supplier/stages";
 import { ForbiddenError } from "@/server/errors";
 import { assignManager, takeOrder } from "@/server/orders/assignment";
@@ -47,6 +48,7 @@ async function run(orderNumber: number, action: () => Promise<unknown>): Promise
     if (
       error instanceof OrderTransitionError ||
       error instanceof SupplierStageError ||
+      error instanceof ProductOptionError ||
       error instanceof OrderEditError ||
       error instanceof DiscountLimitError ||
       error instanceof OrderConflictError ||
@@ -126,6 +128,7 @@ const itemsSchema = z.object({
         quantity: z.number().int().positive({ error: "Количество должно быть больше нуля" }),
         discountKopecks: z.number().int().min(0),
         supplierId: z.string().nullable().optional(),
+        optionValueIds: z.array(z.string().min(1)).optional(),
       }),
     )
     .min(1, { error: "В заказе должна остаться хотя бы одна позиция" }),

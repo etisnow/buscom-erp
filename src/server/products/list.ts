@@ -24,6 +24,15 @@ const listSelect = {
     orderBy: { purchasePriceKopecks: "asc" },
     select: { supplierId: true, purchasePriceKopecks: true, supplier: { select: { name: true } } },
   },
+  options: {
+    orderBy: { sortOrder: "asc" },
+    select: {
+      id: true,
+      name: true,
+      required: true,
+      values: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true, priceDeltaKopecks: true } },
+    },
+  },
 } satisfies Prisma.ProductSelect;
 
 export type ProductRow = Prisma.ProductGetPayload<{ select: typeof listSelect }>;

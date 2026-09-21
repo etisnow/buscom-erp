@@ -4,7 +4,9 @@ import { useState, useTransition } from "react";
 import { Trash2, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { ItemSupplierCell } from "@/components/orders/item-supplier";
+import { ProductOptionsChooser, type OptionsSelection } from "@/components/orders/product-options-chooser";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatPhone } from "@/domain/datetime";
 import { formatRub, rublesToKopecks } from "@/domain/money";
 import { DEFAULT_DISCOUNT_LIMIT_PERCENT, maxDiscountKopecks } from "@/domain/order/discount";
+import { describeOptions, type OrderItemOption } from "@/domain/product/options";
 import type { CustomerMatch } from "@/server/customers/lookup";
 import type { ProductSuggestion, ProductSupplierOption } from "@/server/products/search";
 import {
@@ -31,6 +34,8 @@ type Item = {
   supplierId: string | null;
   supplierName: string | null;
   supplierOptions: ProductSupplierOption[];
+  optionValueIds: string[];
+  options: OrderItemOption[];
 };
 
 const DELIVERY = [
@@ -65,6 +70,31 @@ export function NewOrderForm({ sources }: { sources: { id: string; name: string 
   const [productQuery, setProductQuery] = useState("");
   const [suggestions, setSuggestions] = useState<ProductSuggestion[]>([]);
   const [items, setItems] = useState<Item[]>([]);
+  // Товар с опциями: перед добавлением — диалог выбора вариантов.
+  const [configuring, setConfiguring] = useState<ProductSuggestion | null>(null);
+
+  function addProduct(product: ProductSuggestion, selection: OptionsSelection | null) {
+    setItems((current) => [
+      ...current,
+      {
+        productId: product.id,
+        sku: product.sku,
+        name: product.name,
+        priceKopecks: selection?.priceKopecks ?? product.priceKopecks,
+        quantity: 1,
+        discountKopecks: 0,
+        // Самый дешёвый поставщик — первым в списке, его и подставляем.
+        supplierId: product.suppliers[0]?.id ?? null,
+        supplierName: product.suppliers[0]?.name ?? null,
+        supplierOptions: product.suppliers,
+        optionValueIds: selection?.optionValueIds ?? [],
+        options: selection?.options ?? [],
+      },
+    ]);
+    setProductQuery("");
+    setSuggestions([]);
+    setConfiguring(null);
+  }
 
   const [discount, setDiscount] = useState("0.00");
   const [deliveryMethod, setDeliveryMethod] = useState<string>(NO_DELIVERY);
@@ -114,6 +144,7 @@ export function NewOrderForm({ sources }: { sources: { id: string; name: string 
           quantity: item.quantity,
           discountKopecks: item.discountKopecks,
           supplierId: item.supplierId,
+          optionValueIds: item.optionValueIds,
         })),
         discountKopecks,
         deliveryMethod: deliveryMethod === NO_DELIVERY ? null : (deliveryMethod as "PICKUP"),
@@ -131,6 +162,22 @@ export function NewOrderForm({ sources }: { sources: { id: string; name: string 
 
   return (
     <div className="flex flex-col gap-4">
+      <Dialog open={configuring !== null} onOpenChange={(open) => !open && setConfiguring(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Опции товара</DialogTitle>
+            <DialogDescription>Выберите варианты — цена позиции посчитается с надбавками.</DialogDescription>
+          </DialogHeader>
+          {configuring ? (
+            <ProductOptionsChooser
+              product={configuring}
+              onConfirm={(selection) => addProduct(configuring, selection)}
+              onBack={() => setConfiguring(null)}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
       <section className="flex flex-col gap-3 rounded-lg border p-4">
         <h2 className="font-heading font-medium">Откуда заказ</h2>
         {sources.length === 0 ? (
@@ -291,28 +338,13 @@ export function NewOrderForm({ sources }: { sources: { id: string; name: string 
                 <button
                   type="button"
                   className="hover:bg-accent flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm"
-                  onClick={() => {
-                    setItems((current) => [
-                      ...current,
-                      {
-                        productId: product.id,
-                        sku: product.sku,
-                        name: product.name,
-                        priceKopecks: product.priceKopecks,
-                        quantity: 1,
-                        discountKopecks: 0,
-                        // Самый дешёвый поставщик — первым в списке, его и подставляем.
-                        supplierId: product.suppliers[0]?.id ?? null,
-                        supplierName: product.suppliers[0]?.name ?? null,
-                        supplierOptions: product.suppliers,
-                      },
-                    ]);
-                    setProductQuery("");
-                    setSuggestions([]);
-                  }}
+                  onClick={() => (product.options.length > 0 ? setConfiguring(product) : addProduct(product, null))}
                 >
                   <span>{product.name}</span>
-                  <span className="text-muted-foreground text-xs">{product.sku}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {product.sku}
+                    {product.options.length > 0 ? ` · опции: ${product.options.length}` : ""}
+                  </span>
                   <span className="ml-auto">{formatRub(product.priceKopecks)}</span>
                 </button>
               </li>
@@ -339,7 +371,12 @@ export function NewOrderForm({ sources }: { sources: { id: string; name: string 
                 {items.map((item, index) => (
                   <TableRow key={`${item.sku}-${index}`}>
                     <TableCell>{item.sku}</TableCell>
-                    <TableCell>{item.name}</TableCell>
+                    <TableCell>
+                      {item.name}
+                      {item.options.length > 0 ? (
+                        <p className="text-muted-foreground mt-1 text-xs">{describeOptions(item.options)}</p>
+                      ) : null}
+                    </TableCell>
                     <TableCell>
                       <ItemSupplierCell
                         item={{ ...item, purchasePriceKopecks: null }}

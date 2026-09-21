@@ -10,6 +10,7 @@ import {
   writeOrderEvent,
   type OrderWithItems,
 } from "@/server/orders/internal";
+import { resolveItemOptions } from "@/server/orders/options";
 import { resolveItemSuppliers, syncSupplierTracks } from "@/server/orders/suppliers";
 import { getSettings } from "@/server/settings/service";
 import type { SessionUser } from "@/server/session";
@@ -24,6 +25,8 @@ export type OrderItemDraft = {
   discountKopecks?: Kopecks;
   /** У кого берём позицию: только из поставщиков, привязанных к товару */
   supplierId?: string | null;
+  /** Выбранные варианты опций товара; снимок соберёт сервер */
+  optionValueIds?: string[];
 };
 
 export type UpdateItemsInput = {
@@ -68,6 +71,7 @@ export async function updateOrderItems(input: UpdateItemsInput): Promise<OrderWi
     }));
 
     const suppliers = await resolveItemSuppliers(tx, input.items, order.items);
+    const options = await resolveItemOptions(tx, input.items, order.items);
 
     await tx.orderItem.deleteMany({ where: { orderId: order.id } });
     await tx.orderItem.createMany({
@@ -81,6 +85,7 @@ export async function updateOrderItems(input: UpdateItemsInput): Promise<OrderWi
         discountKopecks: item.discountKopecks ?? 0,
         sortOrder: index,
         ...suppliers[index],
+        options: options[index],
       })),
     });
     await syncSupplierTracks(tx, order.id);

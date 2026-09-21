@@ -16,6 +16,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { rublesToKopecks } from "@/domain/money";
+import {
+  ProductOptionsEditor,
+  toOptionDrafts,
+  toOptionForms,
+  type OptionGroupForm,
+} from "@/components/products/product-options-editor";
 import type { ProductRow } from "@/server/products/list";
 import type { SupplierOption } from "@/server/suppliers/list";
 import { createProductAction, updateProductAction } from "@/app/(app)/products/actions";
@@ -47,6 +53,7 @@ export function ProductDialog({
       price: (link.purchasePriceKopecks / 100).toFixed(2),
     })),
   );
+  const [optionGroups, setOptionGroups] = useState<OptionGroupForm[]>(toOptionForms(product?.options ?? []));
   const [pending, startTransition] = useTransition();
 
   function submit() {
@@ -75,6 +82,14 @@ export function ProductDialog({
       }
     }
 
+    let options;
+    try {
+      options = toOptionDrafts(optionGroups);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Некорректные опции");
+      return;
+    }
+
     const payload = {
       sku,
       name,
@@ -85,6 +100,7 @@ export function ProductDialog({
         .map((item) => item.trim())
         .filter(Boolean),
       suppliers: supplierLinks,
+      options,
     };
 
     startTransition(async () => {
@@ -100,7 +116,7 @@ export function ProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{product ? "Товар" : "Новый товар"}</DialogTitle>
           <DialogDescription>
@@ -232,6 +248,11 @@ export function ProductDialog({
               </Button>
             </div>
           ))}
+        </div>
+
+        <div className="flex flex-col gap-2 border-t pt-3">
+          <span className="text-sm font-medium">Опции</span>
+          <ProductOptionsEditor groups={optionGroups} onChange={setOptionGroups} />
         </div>
 
         <DialogFooter>

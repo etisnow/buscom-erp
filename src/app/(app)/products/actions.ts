@@ -24,6 +24,18 @@ const draftSchema = z.object({
       }),
     )
     .optional(),
+  options: z
+    .array(
+      z.object({
+        id: z.string().min(1).optional(),
+        name: z.string(),
+        required: z.boolean(),
+        values: z.array(
+          z.object({ id: z.string().min(1).optional(), name: z.string(), priceDeltaKopecks: z.number().int() }),
+        ),
+      }),
+    )
+    .optional(),
 });
 
 async function run(action: () => Promise<unknown>, message: string): Promise<ProductResult> {

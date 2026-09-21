@@ -89,6 +89,7 @@ async function main(): Promise<void> {
   console.log(`  без артикула:    ${rows.filter((row) => !row.sku).length}`);
   console.log(`  с ценой 0:       ${rows.filter((row) => row.priceKopecks === 0).length}`);
   console.log(`  выключены:       ${rows.filter((row) => !row.isActive).length}`);
+  console.log(`  с опциями:       ${rows.filter((row) => row.options.length > 0).length}`);
   if (failed.length > 0) {
     console.log(`  не прочитано:    ${failed.length}`);
     for (const line of failed) console.log(`    ${line}`);

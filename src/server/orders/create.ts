@@ -14,6 +14,7 @@ import {
 } from "@/server/orders/internal";
 import type { OrderItemDraft } from "@/server/orders/items";
 import { assertManualSource } from "@/server/orders/source";
+import { resolveItemOptions } from "@/server/orders/options";
 import { resolveItemSuppliers, syncSupplierTracks } from "@/server/orders/suppliers";
 import { getSettings } from "@/server/settings/service";
 import type { SessionUser } from "@/server/session";
@@ -63,6 +64,7 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderWithIte
     const customerId = input.customerId ?? (await findOrCreateCustomer(tx, requireCustomer(input))).id;
     const sourceItem = input.sourceItemId ? await assertManualSource(tx, input.sourceItemId) : null;
     const suppliers = await resolveItemSuppliers(tx, input.items);
+    const options = await resolveItemOptions(tx, input.items);
 
     const order = await tx.order.create({
       data: {
@@ -88,6 +90,7 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderWithIte
             discountKopecks: item.discountKopecks ?? 0,
             sortOrder: index,
             ...suppliers[index],
+            options: options[index],
           })),
         },
       },

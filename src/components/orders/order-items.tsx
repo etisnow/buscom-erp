@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatRub, rublesToKopecks } from "@/domain/money";
 import { DEFAULT_DISCOUNT_LIMIT_PERCENT, maxDiscountKopecks } from "@/domain/order/discount";
 import { calculateOrderTotals } from "@/domain/order/totals";
+import { describeOptions, type OrderItemOption } from "@/domain/product/options";
 import { updateItemsAction } from "@/app/(app)/orders/[number]/actions";
 import type { ProductSupplierOption } from "@/server/products/search";
 
@@ -29,6 +30,9 @@ export type ItemRow = {
   purchasePriceKopecks: number | null;
   /** Из кого выбирать: поставщики товара по каталогу */
   supplierOptions: ProductSupplierOption[];
+  /** Выбранные варианты опций и их снимок — для показа под названием */
+  optionValueIds: string[];
+  options: OrderItemOption[];
 };
 
 /** Рубли в поле ввода: показываем с копейками, обратно переводим через rublesToKopecks. */
@@ -91,6 +95,7 @@ export function OrderItems({
           quantity: item.quantity,
           discountKopecks: item.discountKopecks,
           supplierId: item.supplierId,
+          optionValueIds: item.optionValueIds,
         })),
       });
       if (result.ok) toast.success("Состав заказа сохранён");
@@ -104,14 +109,14 @@ export function OrderItems({
         <h2 className="font-heading font-medium">Позиции</h2>
         {editable ? (
           <ProductPicker
-            onPick={(product) =>
+            onPick={(product, selection) =>
               setItems((current) => [
                 ...current,
                 {
                   productId: product.id,
                   sku: product.sku,
                   name: product.name,
-                  priceKopecks: product.priceKopecks,
+                  priceKopecks: selection?.priceKopecks ?? product.priceKopecks,
                   quantity: 1,
                   discountKopecks: 0,
                   // Самый дешёвый поставщик — первым в списке, его и подставляем.
@@ -119,6 +124,8 @@ export function OrderItems({
                   supplierName: product.suppliers[0]?.name ?? null,
                   purchasePriceKopecks: null,
                   supplierOptions: product.suppliers,
+                  optionValueIds: selection?.optionValueIds ?? [],
+                  options: selection?.options ?? [],
                 },
               ])
             }
@@ -136,6 +143,8 @@ export function OrderItems({
                   supplierName: null,
                   purchasePriceKopecks: null,
                   supplierOptions: [],
+                  optionValueIds: [],
+                  options: [],
                 },
               ])
             }
@@ -181,6 +190,9 @@ export function OrderItems({
                   ) : (
                     item.name
                   )}
+                  {item.options.length > 0 ? (
+                    <p className="text-muted-foreground mt-1 text-xs">{describeOptions(item.options)}</p>
+                  ) : null}
                 </TableCell>
                 <TableCell>
                   <ItemSupplierCell
@@ -352,7 +364,8 @@ function hasChanges(
       item.priceKopecks !== initial.priceKopecks ||
       item.quantity !== initial.quantity ||
       item.discountKopecks !== initial.discountKopecks ||
-      item.supplierId !== initial.supplierId
+      item.supplierId !== initial.supplierId ||
+      item.optionValueIds.join() !== initial.optionValueIds.join()
     );
   });
 }

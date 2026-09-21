@@ -62,6 +62,11 @@ export function ProductsTable({
                 <TableCell>
                   <div className="flex flex-col">
                     <span>{product.name}</span>
+                    {product.options.length > 0 ? (
+                      <span className="text-muted-foreground text-xs">
+                        опции: {product.options.map((option) => option.name).join(", ")}
+                      </span>
+                    ) : null}
                     {!product.isActive ? (
                       <span className="text-muted-foreground text-xs">скрыт из каталога</span>
                     ) : null}

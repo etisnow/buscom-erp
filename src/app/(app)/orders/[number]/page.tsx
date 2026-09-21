@@ -13,6 +13,7 @@ import { SupplierTracks } from "@/components/orders/supplier-tracks";
 import { canEditItems, canReassignManager } from "@/domain/order/editing";
 import { canChangeOrderSource, orderSourceLabel } from "@/domain/order/source";
 import { TERMINAL_STATUSES } from "@/domain/order/status";
+import { parseOrderItemOptions } from "@/domain/product/options";
 import { canMoveStages } from "@/domain/supplier/stages";
 import { findOrderByNumber } from "@/server/orders/details";
 import { listManagers } from "@/server/orders/list";
@@ -110,22 +111,27 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
           <OrderItems
             orderId={order.id}
             orderNumber={order.number}
-            initialItems={order.items.map((item) => ({
-              productId: item.productId,
-              sku: item.sku,
-              name: item.name,
-              priceKopecks: item.priceKopecks,
-              quantity: item.quantity,
-              discountKopecks: item.discountKopecks,
-              supplierId: item.supplierId,
-              supplierName: item.supplier?.name ?? null,
-              purchasePriceKopecks: item.purchasePriceKopecks,
-              supplierOptions: (item.product?.suppliers ?? []).map((link) => ({
-                id: link.supplier.id,
-                name: link.supplier.name,
-                purchasePriceKopecks: link.purchasePriceKopecks,
-              })),
-            }))}
+            initialItems={order.items.map((item) => {
+              const options = parseOrderItemOptions(item.options);
+              return {
+                productId: item.productId,
+                sku: item.sku,
+                name: item.name,
+                priceKopecks: item.priceKopecks,
+                quantity: item.quantity,
+                discountKopecks: item.discountKopecks,
+                supplierId: item.supplierId,
+                supplierName: item.supplier?.name ?? null,
+                purchasePriceKopecks: item.purchasePriceKopecks,
+                supplierOptions: (item.product?.suppliers ?? []).map((link) => ({
+                  id: link.supplier.id,
+                  name: link.supplier.name,
+                  purchasePriceKopecks: link.purchasePriceKopecks,
+                })),
+                optionValueIds: options.map((option) => option.valueId),
+                options,
+              };
+            })}
             initialDiscountKopecks={order.discountKopecks}
             deliveryPriceKopecks={order.deliveryPriceKopecks}
             editable={editable}

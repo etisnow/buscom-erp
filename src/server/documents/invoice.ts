@@ -3,6 +3,7 @@ import type { Alignment, TableCell, TDocumentDefinitions } from "pdfmake/interfa
 import { formatMoscowDate } from "@/domain/datetime";
 import { formatRub } from "@/domain/money";
 import { kopecksToWords } from "@/domain/money-words";
+import { describeOptions, parseOrderItemOptions } from "@/domain/product/options";
 import type { SellerRequisites } from "@/domain/settings";
 import type { OrderDetails } from "@/server/orders/details";
 
@@ -22,7 +23,8 @@ export function buildInvoice(order: OrderDetails, seller: SellerRequisites): TDo
     ...order.items.map((item, index) => [
       { text: String(index + 1) },
       { text: item.sku },
-      { text: item.name },
+      // Опции — частью наименования: в счёте покупатель должен видеть, что именно он оплачивает.
+      { text: optionsSuffix(item.name, item.options) },
       { text: String(item.quantity), alignment: right },
       { text: formatRub(item.priceKopecks), alignment: right },
       {
@@ -123,4 +125,9 @@ export function buildInvoice(order: OrderDetails, seller: SellerRequisites): TDo
       small: { fontSize: 8, color: "#444444" },
     },
   };
+}
+
+function optionsSuffix(name: string, options: unknown): string {
+  const description = describeOptions(parseOrderItemOptions(options));
+  return description ? `${name} (${description})` : name;
 }

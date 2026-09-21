@@ -3,10 +3,12 @@ import {
   assignSkus,
   parseCatalogMenu,
   parseCategoryProductKeys,
+  parseProductOptions,
   parseProductPage,
   parseSitemapProductUrls,
   pickCategory,
   productKeyFromUrl,
+  uniqueOptionNames,
 } from "./site-catalog";
 
 describe("sitemap сайта", () => {
@@ -96,6 +98,7 @@ describe("страница товара", () => {
       priceKopecks: 179_000,
       isActive: true,
       manufacturer: "Россия",
+      options: [],
     });
   });
 
@@ -137,5 +140,76 @@ describe("артикулы для ERP", () => {
   it("артикул, занятый в ERP другим товаром, тоже получает суффикс", () => {
     const skus = assignSkus([{ externalId: "7", sku: "ST-3M-GAZ" }], new Set(["ST-3M-GAZ"]));
     expect(skus.get("7")).toBe("ST-3M-GAZ-7");
+  });
+});
+
+describe("опции товара на сайте", () => {
+  const html = `<h3>Доступные опции</h3>
+    <div class="options form-group required" style="width:100%">
+      <label class="control-label" for="input-option360">Выбор стекла Ford Transit LWB</label>
+      <select name="option[360]" id="input-option360" class="form-control">
+        <option value=""> --- Пожалуйста, выберите --- </option>
+        <option value="731 " price="12 250 руб." >1) Боковое переднее левое (с форточкой) 1428х630     (+12 250 руб.)
+        </option>
+        <option value="732 " price="4 750 руб." >2) Боковое переднее левое 1428х630     (+4 750 руб.)
+        </option>
+      </select>
+    </div>
+    <div class="options form-group" quantity="1" option_name="Ремень">
+      <label class="control-label">Ремень</label>
+      <div class="radio"><label>
+        <input type="radio" priceRaw="0" price="" name="option[339]" value="582"  checked />
+        Нет      </label></div>
+      <div class="radio"><label>
+        <input type="radio" priceRaw="1750" price="1 750 руб." name="option[339]" value="584"  />
+        Трехточечный      (+1 750 руб.)
+      </label></div>
+    </div>
+    <div class="options form-group">
+      <label class="control-label" for="input-option274">Номер цвета</label>
+      <input type="text" name="option[274]" value="" class="form-control" />
+    </div>
+    <button type="button" id="button-cart">В корзину</button>`;
+
+  it("список и радиокнопки — группы с надбавками, текстовое поле пропускается", () => {
+    expect(parseProductOptions(html)).toEqual([
+      {
+        externalId: "360",
+        name: "Выбор стекла Ford Transit LWB",
+        required: true,
+        values: [
+          { externalId: "731", name: "1) Боковое переднее левое (с форточкой) 1428х630", priceDeltaKopecks: 1_225_000 },
+          { externalId: "732", name: "2) Боковое переднее левое 1428х630", priceDeltaKopecks: 475_000 },
+        ],
+      },
+      {
+        externalId: "339",
+        name: "Ремень",
+        required: false,
+        values: [
+          { externalId: "582", name: "Нет", priceDeltaKopecks: 0 },
+          { externalId: "584", name: "Трехточечный", priceDeltaKopecks: 175_000 },
+        ],
+      },
+    ]);
+  });
+
+  it("у товара без блока опций — пусто", () => {
+    expect(parseProductOptions("<h1>Клей</h1>")).toEqual([]);
+  });
+
+  it("повторы названий получают номер, иначе ERP отклонила бы товар", () => {
+    const [group] = uniqueOptionNames([
+      {
+        externalId: "1",
+        name: "Цвет",
+        required: false,
+        values: [
+          { externalId: "a", name: "Серый", priceDeltaKopecks: 0 },
+          { externalId: "b", name: "серый", priceDeltaKopecks: 0 },
+        ],
+      },
+    ]);
+    expect(group.values.map((value) => value.name)).toEqual(["Серый", "серый (2)"]);
   });
 });

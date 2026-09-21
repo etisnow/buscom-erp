@@ -28,6 +28,16 @@ export type SiteProduct = {
   isActive: boolean;
   /** «Производитель» на сайте — там страна или марка («Россия», «Webasto») */
   manufacturer: string | null;
+  /** Опции с выбором варианта (список, радиокнопки). Текстовые поля не переносим */
+  options: SiteOptionGroup[];
+};
+
+export type SiteOptionGroup = {
+  /** `product_option_id` в OpenCart */
+  externalId: string;
+  name: string;
+  required: boolean;
+  values: { externalId: string; name: string; priceDeltaKopecks: Kopecks }[];
 };
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'", nbsp: " " };
@@ -123,6 +133,57 @@ function priceFromMarkup(html: string): Kopecks {
   return digits ? rublesToKopecks(digits) : 0;
 }
 
+/** «+12 250 руб.» → 1 225 000 копеек; «-500 руб.» → −50 000. Нет суммы — надбавки нет. */
+function deltaFromText(text: string): Kopecks {
+  const match = text.match(/\(([+-])\s*(\d[\d\s]*(?:[.,]\d{1,2})?)\s*руб/);
+  if (!match) return 0;
+  const kopecks = rublesToKopecks(match[2].replace(/\s/g, "").replace(",", "."));
+  return match[1] === "-" ? -kopecks : kopecks;
+}
+
+/** Название варианта без хвоста с надбавкой: «Трехточечный (+1 750 руб.)» → «Трехточечный». */
+function valueName(text: string): string {
+  return clean(text.replace(/\([+-]\s*[\d\s.,]*руб\.?\)/, ""));
+}
+
+/**
+ * Опции со страницы товара. Разметка OpenCart: блок `div.options.form-group`
+ * (класс `required` — обязательная), внутри либо `<select name="option[ID]">`,
+ * либо радиокнопки `name="option[ID]"`. Текстовые поля («Номер цвета») — не выбор
+ * варианта, их пропускаем; флажков (выбор нескольких) на сайте нет.
+ */
+export function parseProductOptions(html: string): SiteOptionGroup[] {
+  const area = html.match(/Доступные опции<\/h3>([\s\S]*?)id="button-cart"/)?.[1];
+  if (!area) return [];
+
+  const groups: SiteOptionGroup[] = [];
+  for (const block of area.split(/<div class="options form-group/).slice(1)) {
+    const externalId = block.match(/name="option\[(\d+)\]"/)?.[1];
+    if (!externalId) continue;
+
+    const name = clean(
+      block.match(/option_name="([^"]*)"/)?.[1] ?? block.match(/<label class="control-label"[^>]*>([^<]*)</)?.[1] ?? "",
+    );
+    const required = /^[^>]*required/.test(block);
+    let values: SiteOptionGroup["values"] = [];
+
+    if (/<select name="option\[/.test(block)) {
+      values = [...block.matchAll(/<option value="(\d+)\s*"[^>]*>([\s\S]*?)<\/option>/g)].map(([, id, text]) => ({
+        externalId: id,
+        name: valueName(text),
+        priceDeltaKopecks: deltaFromText(text),
+      }));
+    } else if (/type="radio" [^>]*name="option\[/.test(block)) {
+      values = [...block.matchAll(/<input type="radio"[^>]*value="(\d+)"[^>]*\/>([\s\S]*?)<\/label>/g)].map(
+        ([, id, text]) => ({ externalId: id, name: valueName(text), priceDeltaKopecks: deltaFromText(text) }),
+      );
+    }
+
+    if (name && values.length > 0) groups.push({ externalId, name, required, values });
+  }
+  return groups;
+}
+
 /**
  * Карточка товара со страницы. null — это не страница товара (снят с продажи,
  * отдаёт заглушку «Товар не найден»).
@@ -152,6 +213,7 @@ export function parseProductPage(html: string, url: string): SiteProduct | null 
     priceKopecks,
     isActive: debug?.status === undefined ? true : String(debug.status) === "1",
     manufacturer,
+    options: parseProductOptions(html),
   };
 }
 
@@ -190,4 +252,22 @@ export function pickCategory(
 ): string | null {
   const found = listings.filter((listing) => listing.keys.includes(productKey)).map((listing) => listing.category);
   return (found.find((category) => category.parentUrl !== null) ?? found[0])?.name ?? null;
+}
+
+/**
+ * Названия для ERP, где в товаре не бывает двух одинаковых групп, а в группе —
+ * двух одинаковых вариантов. На сайте повторы возможны; второму и следующим
+ * дописываем номер — «Серый (2)», иначе сохранение отклонило бы весь товар.
+ */
+export function uniqueOptionNames(groups: readonly SiteOptionGroup[]): SiteOptionGroup[] {
+  const dedupe = <T extends { name: string }>(items: readonly T[]): T[] => {
+    const counts = new Map<string, number>();
+    return items.map((item) => {
+      const key = item.name.toLocaleLowerCase("ru");
+      const count = (counts.get(key) ?? 0) + 1;
+      counts.set(key, count);
+      return count === 1 ? item : { ...item, name: `${item.name} (${count})` };
+    });
+  };
+  return dedupe(groups).map((group) => ({ ...group, values: dedupe(group.values) }));
 }

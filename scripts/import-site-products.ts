@@ -30,6 +30,7 @@ async function main(): Promise<void> {
   console.log(`  создано:           ${report.создано}`);
   console.log(`  обновлено:         ${report.обновлено}`);
   console.log(`  без изменений:     ${report.безИзменений}`);
+  console.log(`  опции записаны у:  ${report.сОпциями}`);
   console.log(`  артикул с суффиксом (на сайте повторяется): ${report.артикулИзменён.length}`);
   for (const item of report.артикулИзменён) console.log(`    ${item.sku} — ${item.name}`);
 

@@ -1,5 +1,6 @@
 import "server-only";
 import type { Kopecks } from "@/domain/money";
+import { normalizeOptionGroups, type OptionGroupDraft } from "@/domain/product/options";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import type { Tx } from "@/server/orders/internal";
@@ -23,6 +24,8 @@ export type ProductDraft = {
   isActive?: boolean;
   /** Полный список поставщиков товара; не задан — привязки не трогаем */
   suppliers?: ProductSupplierDraft[];
+  /** Полный список групп опций; не задан — опции не трогаем */
+  options?: OptionGroupDraft[];
 };
 
 export async function createProduct(draft: ProductDraft, user: SessionUser): Promise<{ id: string }> {
@@ -47,6 +50,7 @@ export async function createProduct(draft: ProductDraft, user: SessionUser): Pro
       select: { id: true },
     });
     if (draft.suppliers) await replaceProductSuppliers(tx, product.id, draft.suppliers);
+    if (draft.options) await replaceProductOptions(tx, product.id, draft.options);
     return product;
   });
 }
@@ -69,6 +73,7 @@ export async function updateProduct(id: string, draft: Partial<ProductDraft>, us
       },
     });
     if (draft.suppliers) await replaceProductSuppliers(tx, id, draft.suppliers);
+    if (draft.options) await replaceProductOptions(tx, id, draft.options);
   });
 }
 
@@ -96,4 +101,54 @@ async function replaceProductSuppliers(tx: Tx, productId: string, suppliers: Pro
 
 export function canEditCatalog(role: SessionUser["role"]): boolean {
   return CATALOG_ROLES.includes(role as (typeof CATALOG_ROLES)[number]);
+}
+
+/**
+ * Опции товара заменяются целиком, но по id: существующие группы и варианты
+ * правятся на месте, чтобы не терять их `externalId` с сайта. Заказы ссылаются
+ * на варианты снимком, поэтому удаление вариантов старые заказы не задевает.
+ */
+export async function replaceProductOptions(tx: Tx, productId: string, drafts: OptionGroupDraft[]): Promise<void> {
+  const groups = normalizeOptionGroups(drafts);
+
+  const existing = await tx.productOption.findMany({
+    where: { productId },
+    select: { id: true, values: { select: { id: true } } },
+  });
+  const existingGroupIds = new Set(existing.map((group) => group.id));
+  const keptGroupIds = new Set(groups.map((group) => group.id).filter((id): id is string => Boolean(id)));
+  for (const id of keptGroupIds) {
+    if (!existingGroupIds.has(id)) throw new Error("Группа опций не принадлежит этому товару — обновите страницу");
+  }
+  await tx.productOption.deleteMany({ where: { productId, id: { notIn: [...keptGroupIds] } } });
+
+  for (const [groupIndex, group] of groups.entries()) {
+    const data = {
+      name: group.name,
+      required: group.required,
+      sortOrder: groupIndex,
+      ...(group.externalId !== undefined ? { externalId: group.externalId } : {}),
+    };
+    const optionId = group.id
+      ? (await tx.productOption.update({ where: { id: group.id }, data, select: { id: true } })).id
+      : (await tx.productOption.create({ data: { ...data, productId }, select: { id: true } })).id;
+
+    const ownValueIds = new Set(existing.find((item) => item.id === optionId)?.values.map((value) => value.id));
+    const keptValueIds = group.values.map((value) => value.id).filter((id): id is string => Boolean(id));
+    for (const id of keptValueIds) {
+      if (!ownValueIds.has(id)) throw new Error("Вариант опции не принадлежит этой группе — обновите страницу");
+    }
+    await tx.productOptionValue.deleteMany({ where: { optionId, id: { notIn: keptValueIds } } });
+
+    for (const [valueIndex, value] of group.values.entries()) {
+      const valueData = {
+        name: value.name,
+        priceDeltaKopecks: value.priceDeltaKopecks,
+        sortOrder: valueIndex,
+        ...(value.externalId !== undefined ? { externalId: value.externalId } : {}),
+      };
+      if (value.id) await tx.productOptionValue.update({ where: { id: value.id }, data: valueData });
+      else await tx.productOptionValue.create({ data: { ...valueData, optionId } });
+    }
+  }
 }

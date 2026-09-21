@@ -175,6 +175,40 @@ model Product {
 
   orderItems OrderItem[]
   suppliers  ProductSupplier[]
+  options    ProductOption[]
+}
+
+/// Группа опций товара: «Опора», «Ремень», «Выбор стекла». Покупатель выбирает
+/// в группе один вариант, его надбавка прибавляется к цене товара. Правила — src/domain/product/options.ts
+model ProductOption {
+  id         String               @id @default(cuid())
+  productId  String
+  product    Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name       String
+  /// Без выбора в этой группе позицию в заказ не добавить
+  required   Boolean              @default(false)
+  sortOrder  Int                  @default(0)
+  /// ID опции товара на сайте (product_option_id) — ключ повторного импорта
+  externalId String?
+  values     ProductOptionValue[]
+
+  @@index([productId])
+}
+
+/// Вариант в группе опций. Надбавка — в копейках, прибавляется к цене товара.
+/// Заказ ссылается на вариант снимком (`OrderItem.options`), а не ключом: правка
+/// и удаление вариантов старые заказы не задевают.
+model ProductOptionValue {
+  id                String        @id @default(cuid())
+  optionId          String
+  option            ProductOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  name              String
+  priceDeltaKopecks Int           @default(0)
+  sortOrder         Int           @default(0)
+  /// ID варианта на сайте (product_option_value_id)
+  externalId        String?
+
+  @@index([optionId])
 }
 
 // ---------------------------------------------------------------------------
@@ -349,6 +383,9 @@ model OrderItem {
   supplier             Supplier? @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   /// Снимок закупочной цены на момент выбора поставщика — как и цена продажи выше
   purchasePriceKopecks Int?
+  /// Снимок выбранных опций: [{ optionName, valueName, priceDeltaKopecks, valueId }].
+  /// Форма — `OrderItemOption` в src/domain/product/options.ts
+  options              Json?
 
   @@index([orderId])
   @@index([supplierId])
