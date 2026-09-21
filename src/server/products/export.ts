@@ -1,4 +1,5 @@
 import "server-only";
+import { categoryPath } from "@/domain/product/categories";
 import { csvFileName, EXPORT_LIMIT, toCsv } from "@/domain/csv";
 import { formatRubPlain } from "@/domain/money";
 import { db } from "@/server/db";
@@ -23,12 +24,14 @@ export type ProductsCsv = {
 export async function exportProductsCsv(filters: ProductFilters): Promise<ProductsCsv> {
   const now = new Date();
 
+  // Путь категории («Климат / Люки») собирается из справочника — он маленький, берём целиком.
+  const categories = await db.productCategory.findMany({ select: { id: true, name: true, parentId: true } });
   const products = await db.product.findMany({
     where: productsWhere(filters),
     select: {
       sku: true,
       name: true,
-      category: true,
+      category: { select: { id: true } },
       priceKopecks: true,
       compatibility: true,
       isActive: true,
@@ -45,7 +48,7 @@ export async function exportProductsCsv(filters: ProductFilters): Promise<Produc
     ...rows.map((product) => [
       product.sku,
       product.name,
-      product.category ?? "",
+      categoryPath(product.category?.id, categories),
       formatRubPlain(product.priceKopecks),
       // Совместимость — массив моделей; точку с запятой внутри ячейки экранирует toCsv.
       product.compatibility.join(", "),

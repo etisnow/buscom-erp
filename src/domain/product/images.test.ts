@@ -24,4 +24,3 @@ describe("тип картинки по содержимому", () => {
     expect(() => assertProductImage(big)).toThrow(/МБ/);
   });
 });
-

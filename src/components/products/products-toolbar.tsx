@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { CategorySelect } from "@/components/products/category-select";
 import { ProductDialog } from "@/components/products/product-dialog";
+import type { CategoryRow } from "@/server/products/categories";
 import type { SupplierOption } from "@/server/suppliers/list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const ANY = "__any__";
 
@@ -17,7 +18,7 @@ export function ProductsToolbar({
   canEditCatalog,
   suppliers,
 }: {
-  categories: string[];
+  categories: CategoryRow[];
   canEditCatalog: boolean;
   suppliers: SupplierOption[];
 }) {
@@ -55,19 +56,13 @@ export function ProductsToolbar({
         />
       </form>
 
-      <Select value={searchParams.get("category") ?? ANY} onValueChange={(value) => apply({ category: value })}>
-        <SelectTrigger size="sm" className="w-48">
-          <SelectValue placeholder="Все категории" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ANY}>Все категории</SelectItem>
-          {categories.map((category) => (
-            <SelectItem key={category} value={category}>
-              {category}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <CategorySelect
+        categories={categories}
+        value={searchParams.get("category")}
+        onChange={(value) => apply({ category: value })}
+        emptyLabel="Все категории"
+        className="w-56"
+      />
 
       <Button
         variant={searchParams.has("inactive") ? "default" : "outline"}
@@ -83,7 +78,7 @@ export function ProductsToolbar({
             <Plus />
             Новый товар
           </Button>
-          <ProductDialog open={createOpen} onOpenChange={setCreateOpen} suppliers={suppliers} />
+          <ProductDialog open={createOpen} onOpenChange={setCreateOpen} suppliers={suppliers} categories={categories} />
         </>
       ) : null}
     </div>

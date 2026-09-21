@@ -248,16 +248,19 @@ export function assignSkus(
 }
 
 /**
- * Категория товара для ERP: одна строка. Берём подкатегорию — «Люки» понятнее,
- * чем «Климат»; товар без подкатегории получает раздел. Если товар в нескольких,
- * побеждает первая по порядку меню — так же его видит покупатель.
+ * Путь категории товара для справочника ERP: `["Климат", "Люки"]`. Берём самую
+ * глубокую — подкатегорию с её разделом; товар без подкатегории получает только
+ * раздел. Если товар в нескольких, побеждает первая по порядку меню — так же его
+ * видит покупатель. Не нашёлся ни в одном листинге — пустой путь.
  */
-export function pickCategory(
-  productKey: string,
-  listings: { category: SiteCategory; keys: string[] }[],
-): string | null {
+export function pickCategoryPath(productKey: string, listings: { category: SiteCategory; keys: string[] }[]): string[] {
   const found = listings.filter((listing) => listing.keys.includes(productKey)).map((listing) => listing.category);
-  return (found.find((category) => category.parentUrl !== null) ?? found[0])?.name ?? null;
+  const leaf = found.find((category) => category.parentUrl !== null) ?? found[0];
+  if (!leaf) return [];
+  const parent = leaf.parentUrl
+    ? listings.find((listing) => listing.category.url === leaf.parentUrl)?.category
+    : undefined;
+  return parent ? [parent.name, leaf.name] : [leaf.name];
 }
 
 /**

@@ -7,7 +7,7 @@ import {
   parseProductOptions,
   parseProductPage,
   parseSitemapProductUrls,
-  pickCategory,
+  pickCategoryPath,
   productKeyFromUrl,
   uniqueOptionNames,
 } from "./site-catalog";
@@ -65,16 +65,16 @@ describe("меню и листинги категорий", () => {
     expect(parseCategoryProductKeys(html)).toEqual(["polka-1", "id:357"]);
   });
 
-  it("категория — подкатегория, а без неё — раздел; иначе пусто", () => {
+  it("путь категории — раздел и подкатегория, без подкатегории — только раздел; иначе пусто", () => {
     const root = { url: "r", name: "Детали салона", parentUrl: null };
     const child = { url: "r/p", name: "Полки", parentUrl: "r" };
     const listings = [
       { category: root, keys: ["polka-1", "kovrik"] },
       { category: child, keys: ["polka-1"] },
     ];
-    expect(pickCategory("polka-1", listings)).toBe("Полки");
-    expect(pickCategory("kovrik", listings)).toBe("Детали салона");
-    expect(pickCategory("podium", listings)).toBeNull();
+    expect(pickCategoryPath("polka-1", listings)).toEqual(["Детали салона", "Полки"]);
+    expect(pickCategoryPath("kovrik", listings)).toEqual(["Детали салона"]);
+    expect(pickCategoryPath("podium", listings)).toEqual([]);
   });
 });
 

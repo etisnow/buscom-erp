@@ -29,7 +29,6 @@ describeDb("выгрузка каталога в CSV (живая БД)", () => {
       data: {
         sku: "A-1",
         name: "Фара левая",
-        category: "Оптика",
         priceKopecks: 123_450,
         compatibility: ["ГАЗель Next", "Соболь"],
       },
@@ -52,13 +51,18 @@ describeDb("выгрузка каталога в CSV (живая БД)", () => {
   });
 
   it("выгружается тот же список, что на экране: фильтры учитываются", async () => {
-    await testDb.product.create({ data: { sku: "A-1", name: "Фара левая", category: "Оптика", priceKopecks: 1 } });
-    await testDb.product.create({ data: { sku: "B-1", name: "Коврик", category: "Салон", priceKopecks: 1 } });
+    const light = await testDb.productCategory.create({ data: { name: "Свет" } });
+    const optics = await testDb.productCategory.create({ data: { name: "Оптика", parentId: light.id } });
+    const salon = await testDb.productCategory.create({ data: { name: "Салон" } });
+    await testDb.product.create({ data: { sku: "A-1", name: "Фара левая", categoryId: optics.id, priceKopecks: 1 } });
+    await testDb.product.create({ data: { sku: "B-1", name: "Коврик", categoryId: salon.id, priceKopecks: 1 } });
 
-    const optics = await exportProductsCsv({ category: "Оптика" });
-    expect(lines(optics.csv)).toHaveLength(2);
-    expect(optics.csv).toContain("Фара левая");
-    expect(optics.csv).not.toContain("Коврик");
+    // Фильтр по разделу захватывает и подкатегории; в файле — путь категории.
+    const byLight = await exportProductsCsv({ categoryId: light.id });
+    expect(lines(byLight.csv)).toHaveLength(2);
+    expect(byLight.csv).toContain("Фара левая");
+    expect(byLight.csv).toContain("Свет / Оптика");
+    expect(byLight.csv).not.toContain("Коврик");
 
     const search = await exportProductsCsv({ query: "коврик" });
     expect(lines(search.csv)).toHaveLength(2);

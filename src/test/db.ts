@@ -41,6 +41,7 @@ const TABLES = [
   '"CustomerAddress"',
   '"Customer"',
   '"Product"',
+  '"ProductCategory"',
   '"DictionaryItem"',
   '"Setting"',
   '"FailedLogin"',

@@ -43,4 +43,3 @@ export function assertProductImage(bytes: Uint8Array): ImageContentType {
   if (!type) throw new ProductImageError("Это не картинка: подойдут JPEG, PNG, WebP или GIF");
   return type;
 }
-

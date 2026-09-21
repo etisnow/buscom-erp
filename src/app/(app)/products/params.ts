@@ -4,7 +4,7 @@ import type { ProductFilters } from "@/server/products/list";
 export function parseProductListParams(params: RawParams): ProductFilters {
   return {
     query: single(params.q),
-    category: single(params.category),
+    categoryId: single(params.category),
     onlyInactive: single(params.inactive) === "1",
     page: pageNumber(params.page),
   };

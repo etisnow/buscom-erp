@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatRub } from "@/domain/money";
 import type { ProductRow } from "@/server/products/list";
+import { categoryPath } from "@/domain/product/categories";
+import type { CategoryRow } from "@/server/products/categories";
 import type { SupplierOption } from "@/server/suppliers/list";
 import { toggleProductAction, type ProductResult } from "@/app/(app)/products/actions";
 
@@ -17,10 +19,12 @@ export function ProductsTable({
   rows,
   canEditCatalog,
   suppliers,
+  categories,
 }: {
   rows: ProductRow[];
   canEditCatalog: boolean;
   suppliers: SupplierOption[];
+  categories: CategoryRow[];
 }) {
   const [pending, startTransition] = useTransition();
   const [editingProduct, setEditingProduct] = useState<ProductRow | null>(null);
@@ -77,7 +81,9 @@ export function ProductsTable({
                     ) : null}
                   </div>
                 </TableCell>
-                <TableCell className="text-muted-foreground">{product.category ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {categoryPath(product.categoryId, categories) || "—"}
+                </TableCell>
                 <TableCell className="text-right whitespace-nowrap">{formatRub(product.priceKopecks)}</TableCell>
                 <TableCell>
                   {product.suppliers.length === 0 ? (
@@ -136,6 +142,7 @@ export function ProductsTable({
           // Строка из свежего списка: после загрузки картинки диалог видит новую, а не снимок на момент открытия.
           product={rows.find((row) => row.id === editingProduct.id) ?? editingProduct}
           suppliers={suppliers}
+          categories={categories}
           open
           onOpenChange={(open) => {
             if (!open) setEditingProduct(null);

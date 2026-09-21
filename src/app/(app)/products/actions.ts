@@ -12,7 +12,7 @@ export type ProductResult = { ok: true; message: string } | { ok: false; error: 
 const draftSchema = z.object({
   sku: z.string().min(1, { error: "Укажите артикул" }),
   name: z.string().min(1, { error: "Укажите название" }),
-  category: z.string().optional(),
+  categoryId: z.string().min(1).nullable().optional(),
   priceKopecks: z.number().int().min(0, { error: "Цена не может быть отрицательной" }),
   /** Совместимые модели авто вводятся через запятую */
   compatibility: z.array(z.string().min(1)).optional(),

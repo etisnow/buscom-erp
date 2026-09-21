@@ -4,7 +4,8 @@ import { db } from "@/server/db";
 
 export type ProductFilters = {
   query?: string;
-  category?: string;
+  /** Категория вместе с подкатегориями */
+  categoryId?: string;
   onlyInactive?: boolean;
   page?: number;
 };
@@ -15,7 +16,7 @@ const listSelect = {
   id: true,
   sku: true,
   name: true,
-  category: true,
+  categoryId: true,
   priceKopecks: true,
   compatibility: true,
   isActive: true,
@@ -44,7 +45,6 @@ export type ProductListResult = {
   total: number;
   page: number;
   pageCount: number;
-  categories: string[];
 };
 
 /** Условия выборки общие со списком: выгрузка обязана повторять видимое на экране. */
@@ -63,7 +63,16 @@ export function productsWhere(filters: ProductFilters): Prisma.ProductWhereInput
       ],
     });
   }
-  if (filters.category) and.push({ category: filters.category });
+  // Раздел показывает и товары подкатегорий. Глубина дерева ограничена
+  // (CATEGORY_MAX_DEPTH = 4), поэтому хватает цепочки родителей без рекурсии в SQL.
+  if (filters.categoryId) {
+    const id = filters.categoryId;
+    and.push({
+      category: {
+        OR: [{ id }, { parentId: id }, { parent: { parentId: id } }, { parent: { parent: { parentId: id } } }],
+      },
+    });
+  }
   if (filters.onlyInactive) and.push({ isActive: false });
 
   return and.length > 0 ? { AND: and } : {};
@@ -73,7 +82,7 @@ export async function listProducts(filters: ProductFilters): Promise<ProductList
   const page = Math.max(1, filters.page ?? 1);
   const productWhere = productsWhere(filters);
 
-  const [rows, total, categories] = await Promise.all([
+  const [rows, total] = await Promise.all([
     db.product.findMany({
       where: productWhere,
       select: listSelect,
@@ -82,12 +91,6 @@ export async function listProducts(filters: ProductFilters): Promise<ProductList
       take: PRODUCTS_PAGE_SIZE,
     }),
     db.product.count({ where: productWhere }),
-    db.product.findMany({
-      where: { category: { not: null } },
-      select: { category: true },
-      distinct: ["category"],
-      orderBy: { category: "asc" },
-    }),
   ]);
 
   return {
@@ -95,6 +98,5 @@ export async function listProducts(filters: ProductFilters): Promise<ProductList
     total,
     page,
     pageCount: Math.max(1, Math.ceil(total / PRODUCTS_PAGE_SIZE)),
-    categories: categories.map((row) => row.category).filter((value): value is string => value !== null),
   };
 }

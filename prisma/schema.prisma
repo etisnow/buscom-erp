@@ -163,7 +163,9 @@ model Product {
   id            String   @id @default(cuid())
   sku           String   @unique
   name          String
-  category      String?
+  /// Категория из справочника (docs/DECISIONS.md, «Справочник категорий»)
+  categoryId    String?
+  category      ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   priceKopecks  Int
   /// Совместимые модели авто: ["ГАЗель Next", "Ford Transit", ...]
   compatibility String[]
@@ -177,6 +179,26 @@ model Product {
   suppliers  ProductSupplier[]
   options    ProductOption[]
   images     ProductImage[]
+
+  @@index([categoryId])
+}
+
+/// Категория товаров. Дерево: у подкатегории есть родитель («Климат» → «Люки»).
+/// Правила — src/domain/product/categories.ts. Категорию с товарами или
+/// подкатегориями не удалить — её сначала освобождают.
+model ProductCategory {
+  id        String            @id @default(cuid())
+  name      String
+  parentId  String?
+  parent    ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  ProductCategory[] @relation("CategoryTree")
+  sortOrder Int               @default(0)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  products Product[]
+
+  @@index([parentId])
 }
 
 /// Картинка товара. Сейчас у товара одна — аватарка, но хранение сразу

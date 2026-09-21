@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { rublesToKopecks } from "@/domain/money";
+import { CategorySelect } from "@/components/products/category-select";
 import { ProductImageEditor } from "@/components/products/product-image";
 import {
   ProductOptionsEditor,
@@ -24,6 +25,7 @@ import {
   type OptionGroupForm,
 } from "@/components/products/product-options-editor";
 import type { ProductRow } from "@/server/products/list";
+import type { CategoryRow } from "@/server/products/categories";
 import type { SupplierOption } from "@/server/suppliers/list";
 import { createProductAction, updateProductAction } from "@/app/(app)/products/actions";
 
@@ -34,17 +36,19 @@ type SupplierDraft = { supplierId: string; price: string };
 export function ProductDialog({
   product,
   suppliers,
+  categories,
   open,
   onOpenChange,
 }: {
   product?: ProductRow;
   suppliers: SupplierOption[];
+  categories: CategoryRow[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const [sku, setSku] = useState(product?.sku ?? "");
   const [name, setName] = useState(product?.name ?? "");
-  const [category, setCategory] = useState(product?.category ?? "");
+  const [categoryId, setCategoryId] = useState<string | null>(product?.categoryId ?? null);
   const [price, setPrice] = useState(((product?.priceKopecks ?? 0) / 100).toFixed(2));
   // Совместимые модели вводятся через запятую — так быстрее, чем тегами.
   const [compatibility, setCompatibility] = useState((product?.compatibility ?? []).join(", "));
@@ -94,7 +98,7 @@ export function ProductDialog({
     const payload = {
       sku,
       name,
-      category,
+      categoryId,
       priceKopecks,
       compatibility: compatibility
         .split(",")
@@ -142,11 +146,13 @@ export function ProductDialog({
             <Label className="text-xs" htmlFor="product-category">
               Категория
             </Label>
-            <Input
+            <CategorySelect
               id="product-category"
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              className="h-8"
+              categories={categories}
+              value={categoryId}
+              onChange={setCategoryId}
+              emptyLabel="Без категории"
+              className="w-full"
             />
           </div>
           <div className="flex flex-col gap-1.5 sm:col-span-2">

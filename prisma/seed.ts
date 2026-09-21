@@ -95,10 +95,18 @@ const DEMO_PRODUCTS = [
 
 async function seedProducts(): Promise<void> {
   for (const product of DEMO_PRODUCTS) {
+    const { category, ...data } = product;
+    // Категория демо-товара — верхнего уровня в справочнике; заводим, если её ещё нет.
+    const found = await db.productCategory.findFirst({
+      where: { name: category, parentId: null },
+      select: { id: true },
+    });
+    const categoryId =
+      found?.id ?? (await db.productCategory.create({ data: { name: category }, select: { id: true } })).id;
     await db.product.upsert({
       where: { sku: product.sku },
       update: {},
-      create: { ...product, compatibility: [...product.compatibility] },
+      create: { ...data, categoryId, compatibility: [...product.compatibility] },
     });
   }
   console.log(`✓ Демо-товары: ${DEMO_PRODUCTS.length} позиций`);

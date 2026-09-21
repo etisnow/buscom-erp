@@ -1,8 +1,10 @@
 import "server-only";
 import { z } from "zod";
 import type { OptionGroupDraft } from "@/domain/product/options";
+import { categoryPath } from "@/domain/product/categories";
 import { assignSkus, uniqueOptionNames, type SiteOptionGroup } from "@/domain/product/site-catalog";
 import { db } from "@/server/db";
+import { resolveCategoryPath } from "@/server/products/categories";
 import { replaceProductOptions } from "@/server/products/service";
 
 const siteOptionGroupSchema = z.object({
@@ -21,7 +23,10 @@ export const siteProductRowSchema = z.object({
   priceKopecks: z.number().int().min(0),
   isActive: z.boolean(),
   manufacturer: z.string().nullable(),
-  category: z.string().nullable(),
+  // Путь в справочнике категорий: ["Климат", "Люки"]. В ранних выгрузках вместо него
+  // была одна строка `category` — она читается как путь из одного уровня.
+  categoryPath: z.array(z.string()).optional(),
+  category: z.string().nullable().optional(),
   // Файлы, выгруженные до переноса опций, их не содержат — считаем, что опций нет.
   options: z.array(siteOptionGroupSchema).default([]),
   // Картинки (главная первой); в ранних выгрузках их нет.
@@ -121,7 +126,7 @@ export async function importSiteProducts(
       sku: true,
       externalId: true,
       name: true,
-      category: true,
+      categoryId: true,
       priceKopecks: true,
       isActive: true,
       options: {
@@ -147,14 +152,19 @@ export async function importSiteProducts(
   );
   const skus = assignSkus(rows, taken);
 
+  // Справочник категорий меняется по ходу импорта (заводятся и переносятся разделы) —
+  // после каждой записи перечитываем: он маленький.
+  const loadCategories = () => db.productCategory.findMany({ select: { id: true, name: true, parentId: true } });
+  let categories = await loadCategories();
+
   for (const row of rows) {
     const sku = skus.get(row.externalId) as string;
     if (sku !== row.sku) report.артикулИзменён.push({ externalId: row.externalId, name: row.name, sku });
 
+    const path = row.categoryPath ?? (row.category ? [row.category] : []);
     const data = {
       sku,
       name: row.name,
-      category: row.category,
       priceKopecks: row.priceKopecks,
       isActive: row.isActive,
     };
@@ -165,22 +175,27 @@ export async function importSiteProducts(
       if (row.options.length > 0) report.сОпциями += 1;
       if (!options.dryRun) {
         await db.$transaction(async (tx) => {
+          const categoryId = await resolveCategoryPath(tx, path);
           const created = await tx.product.create({
-            data: { ...data, externalId: row.externalId, compatibility: [] },
+            data: { ...data, categoryId, externalId: row.externalId, compatibility: [] },
             select: { id: true },
           });
           if (row.options.length > 0) await replaceProductOptions(tx, created.id, toDrafts(row.options, []));
         });
+        categories = await loadCategories();
       }
       continue;
     }
 
     const optionsChanged = !sameOptions(row.options, current.options);
+    // Категории сравниваются путём без учёта регистра — так же их и находит resolveCategoryPath.
+    const pathKey = (value: string) => value.replace(/\s+/g, " ").trim().toLocaleLowerCase("ru");
+    const categoryChanged = pathKey(path.join(" / ")) !== pathKey(categoryPath(current.categoryId, categories));
     const changed =
       optionsChanged ||
+      categoryChanged ||
       current.sku !== data.sku ||
       current.name !== data.name ||
-      current.category !== data.category ||
       current.priceKopecks !== data.priceKopecks ||
       current.isActive !== data.isActive;
     if (!changed) {
@@ -192,9 +207,11 @@ export async function importSiteProducts(
     if (optionsChanged) report.сОпциями += 1;
     if (!options.dryRun) {
       await db.$transaction(async (tx) => {
-        await tx.product.update({ where: { id: current.id }, data });
+        const categoryId = categoryChanged ? await resolveCategoryPath(tx, path) : current.categoryId;
+        await tx.product.update({ where: { id: current.id }, data: { ...data, categoryId } });
         if (optionsChanged) await replaceProductOptions(tx, current.id, toDrafts(row.options, current.options));
       });
+      if (categoryChanged) categories = await loadCategories();
     }
   }
 

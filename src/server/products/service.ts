@@ -18,7 +18,7 @@ export type ProductSupplierDraft = {
 export type ProductDraft = {
   sku: string;
   name: string;
-  category?: string | null;
+  categoryId?: string | null;
   priceKopecks: Kopecks;
   compatibility?: string[];
   isActive?: boolean;
@@ -42,7 +42,7 @@ export async function createProduct(draft: ProductDraft, user: SessionUser): Pro
       data: {
         sku,
         name: draft.name.trim(),
-        category: draft.category?.trim() || null,
+        categoryId: draft.categoryId || null,
         priceKopecks: draft.priceKopecks,
         compatibility: draft.compatibility ?? [],
         isActive: draft.isActive ?? true,
@@ -66,7 +66,7 @@ export async function updateProduct(id: string, draft: Partial<ProductDraft>, us
       data: {
         ...(draft.sku !== undefined ? { sku: draft.sku.trim() } : {}),
         ...(draft.name !== undefined ? { name: draft.name.trim() } : {}),
-        ...(draft.category !== undefined ? { category: draft.category?.trim() || null } : {}),
+        ...(draft.categoryId !== undefined ? { categoryId: draft.categoryId || null } : {}),
         ...(draft.priceKopecks !== undefined ? { priceKopecks: draft.priceKopecks } : {}),
         ...(draft.compatibility !== undefined ? { compatibility: draft.compatibility } : {}),
         ...(draft.isActive !== undefined ? { isActive: draft.isActive } : {}),

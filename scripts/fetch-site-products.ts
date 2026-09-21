@@ -19,7 +19,7 @@ import {
   parseCategoryProductKeys,
   parseProductPage,
   parseSitemapProductUrls,
-  pickCategory,
+  pickCategoryPath,
   productKeyFromUrl,
   type SiteCategory,
   type SiteProduct,
@@ -37,7 +37,7 @@ async function fetchText(url: string): Promise<string> {
   return response.text();
 }
 
-export type SiteProductRow = SiteProduct & { category: string | null };
+export type SiteProductRow = SiteProduct & { categoryPath: string[] };
 
 async function main(): Promise<void> {
   console.log(`Сайт: ${SITE}`);
@@ -69,7 +69,7 @@ async function main(): Promise<void> {
       const product = parseProductPage(await fetchText(url), url);
       // Разные адреса могут оказаться одним товаром — сводим по product_id.
       if (product && !products.has(product.externalId)) {
-        products.set(product.externalId, { ...product, category: pickCategory(key, listings) });
+        products.set(product.externalId, { ...product, categoryPath: pickCategoryPath(key, listings) });
       }
       if (!product) failed.push(`${url} — не страница товара`);
     } catch (error) {
@@ -85,7 +85,7 @@ async function main(): Promise<void> {
 
   console.log("");
   console.log(`Товаров: ${rows.length} → ${out}`);
-  console.log(`  без категории:   ${rows.filter((row) => !row.category).length}`);
+  console.log(`  без категории:   ${rows.filter((row) => row.categoryPath.length === 0).length}`);
   console.log(`  без артикула:    ${rows.filter((row) => !row.sku).length}`);
   console.log(`  с ценой 0:       ${rows.filter((row) => row.priceKopecks === 0).length}`);
   console.log(`  выключены:       ${rows.filter((row) => !row.isActive).length}`);
