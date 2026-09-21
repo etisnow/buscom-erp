@@ -10,7 +10,8 @@ const detailsInclude = {
       _count: { select: { orders: { where: { deletedAt: null } } } },
     },
   },
-  manager: { select: { id: true, name: true } },
+  // email менеджера — контакт в заказе поставщику (`buildSupplierRequest`)
+  manager: { select: { id: true, name: true, email: true } },
   sourceItem: { select: { id: true, name: true } },
   items: {
     orderBy: { sortOrder: "asc" },

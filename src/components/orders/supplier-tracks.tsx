@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { SupplierRequestDialog } from "@/components/orders/supplier-request-dialog";
 import { cn } from "@/lib/utils";
 import { changeSupplierStageAction } from "@/app/(app)/orders/[number]/actions";
 
@@ -12,6 +13,8 @@ export type SupplierTrackView = {
   supplierName: string;
   stageId: string | null;
   stages: { id: string; name: string }[];
+  /** Готовый текст заказа этому поставщику — собран на сервере */
+  requestText: string;
 };
 
 /**
@@ -99,25 +102,30 @@ export function SupplierTracks({
                 </ol>
               ) : null}
 
-              {canMove && track.stages.length > 0 ? (
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={pending || index === -1}
-                    onClick={() => move(track, previous)}
-                  >
-                    <ChevronLeft />
-                    Назад
-                  </Button>
-                  {next ? (
-                    <Button size="sm" variant="outline" disabled={pending} onClick={() => move(track, next)}>
-                      {track.stages[index + 1].name}
-                      <ChevronRight />
+              {/* Текст заказа доступен всегда — даже у поставщика без цепочки этапов */}
+              <div className="flex flex-wrap items-center gap-2">
+                <SupplierRequestDialog supplierName={track.supplierName} text={track.requestText} />
+
+                {canMove && track.stages.length > 0 ? (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={pending || index === -1}
+                      onClick={() => move(track, previous)}
+                    >
+                      <ChevronLeft />
+                      Назад
                     </Button>
-                  ) : null}
-                </div>
-              ) : null}
+                    {next ? (
+                      <Button size="sm" variant="outline" disabled={pending} onClick={() => move(track, next)}>
+                        {track.stages[index + 1].name}
+                        <ChevronRight />
+                      </Button>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
             </li>
           );
         })}

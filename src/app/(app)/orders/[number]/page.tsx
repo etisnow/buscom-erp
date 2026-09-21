@@ -13,6 +13,7 @@ import { SupplierTracks } from "@/components/orders/supplier-tracks";
 import { canEditItems, canReassignManager } from "@/domain/order/editing";
 import { canChangeOrderSource, orderSourceLabel } from "@/domain/order/source";
 import { TERMINAL_STATUSES } from "@/domain/order/status";
+import { buildSupplierRequest } from "@/domain/order/supplier-request";
 import { parseOrderItemOptions } from "@/domain/product/options";
 import { canMoveStages } from "@/domain/supplier/stages";
 import { findOrderByNumber } from "@/server/orders/details";
@@ -20,7 +21,7 @@ import { listManagers } from "@/server/orders/list";
 import { listCategories } from "@/server/products/categories";
 import { findProductRows } from "@/server/products/list";
 import { canEditCatalog } from "@/server/products/service";
-import { getCancelReasons, getOrderSources } from "@/server/settings/service";
+import { getCancelReasons, getOrderSources, getSettings } from "@/server/settings/service";
 import { requirePageUser } from "@/server/session";
 import { listSupplierOptions } from "@/server/suppliers/list";
 
@@ -36,11 +37,12 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
   const orderNumber = Number(number);
   if (!Number.isSafeInteger(orderNumber) || orderNumber <= 0) notFound();
 
-  const [order, managers, cancelReasons, orderSources] = await Promise.all([
+  const [order, managers, cancelReasons, orderSources, settings] = await Promise.all([
     findOrderByNumber(orderNumber),
     listManagers(),
     getCancelReasons(),
     getOrderSources(),
+    getSettings(),
   ]);
   if (!order) notFound();
 
@@ -193,6 +195,26 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
                 supplierName: track.supplier.name,
                 stageId: track.stageId,
                 stages: track.supplier.stages,
+                // Текст собирается на сервере: формат один на всех и покрыт тестами
+                requestText: buildSupplierRequest({
+                  orderNumber: order.number,
+                  orderCreatedAt: order.createdAt,
+                  items: order.items
+                    .filter((item) => item.supplierId === track.supplier.id)
+                    .map((item) => ({
+                      name: item.name,
+                      quantity: item.quantity,
+                      purchasePriceKopecks: item.purchasePriceKopecks,
+                      options: parseOrderItemOptions(item.options),
+                    })),
+                  delivery: {
+                    method: order.deliveryMethod,
+                    carrier: order.carrier,
+                    address: order.deliveryAddress,
+                  },
+                  seller: { name: settings.sellerRequisites.name, phone: settings.sellerRequisites.phone },
+                  manager: order.manager ? { name: order.manager.name, email: order.manager.email } : null,
+                }),
               }))}
             />
           ) : null}

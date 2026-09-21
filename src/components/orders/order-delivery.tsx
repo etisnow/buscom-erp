@@ -7,14 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { rublesToKopecks } from "@/domain/money";
+import { DELIVERY_METHOD_LABELS as METHOD_LABELS } from "@/domain/order/delivery";
 import type { DeliveryMethod } from "@/generated/prisma/enums";
 import { updateDeliveryAction } from "@/app/(app)/orders/[number]/actions";
-
-const METHOD_LABELS: Record<DeliveryMethod, string> = {
-  PICKUP: "Самовывоз",
-  CARRIER: "Транспортная компания",
-  COURIER: "Своя доставка",
-};
 
 const NONE = "__none__";
 
