@@ -15,6 +15,7 @@ import {
   saveRequisitesAction,
   saveSlaAction,
   saveSmtpAction,
+  sendTestMailAction,
   type SettingsResult,
 } from "@/app/(app)/admin/dictionaries/actions";
 
@@ -203,7 +204,16 @@ const SMTP_FIELDS: { key: "host" | "user" | "from"; label: string; hint: string 
  * пустым, а `hasPassword` говорит, задан ли он. Пустое поле при сохранении
  * означает «оставить прежний».
  */
-export function SmtpEditor({ smtp, hasPassword }: { smtp: SmtpSettings; hasPassword: boolean }) {
+export function SmtpEditor({
+  smtp,
+  hasPassword,
+  testRecipient,
+}: {
+  smtp: SmtpSettings;
+  hasPassword: boolean;
+  /** Куда уйдёт проверочное письмо — адрес текущего администратора */
+  testRecipient: string;
+}) {
   const [values, setValues] = useState<SmtpSettings>(smtp);
   const { pending, handle } = useSettingsAction();
 
@@ -287,10 +297,16 @@ export function SmtpEditor({ smtp, hasPassword }: { smtp: SmtpSettings; hasPassw
         </div>
       </div>
 
-      <div>
+      <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="outline" disabled={pending} onClick={() => handle(saveSmtpAction(values))}>
           Сохранить настройки почты
         </Button>
+        <Button size="sm" variant="ghost" disabled={pending} onClick={() => handle(sendTestMailAction(values))}>
+          Отправить тестовое письмо
+        </Button>
+        <span className="text-muted-foreground text-xs">
+          Проверяется то, что сейчас в полях, — сохранять перед этим не нужно. Письмо уйдёт на {testRecipient}
+        </span>
       </div>
     </section>
   );

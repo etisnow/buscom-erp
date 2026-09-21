@@ -37,6 +37,23 @@ async function resolveSmtp(): Promise<SmtpSettings | null> {
   return null;
 }
 
+/**
+ * Таймауты обязательны: при несовпадении порта и шифрования (465 без TLS или
+ * 587 с ним) соединение не отвергается, а молча висит. Без них запрос на смену
+ * пароля завис бы вместе с ним.
+ */
+const TIMEOUTS = { connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000 };
+
+function buildTransport(smtp: SmtpSettings): Transporter {
+  return nodemailer.createTransport({
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
+    ...(smtp.user ? { auth: { user: smtp.user, pass: smtp.password } } : {}),
+    ...TIMEOUTS,
+  });
+}
+
 let cached: { key: string; transporter: Transporter } | null = null;
 
 /**
@@ -46,15 +63,7 @@ let cached: { key: string; transporter: Transporter } | null = null;
 function getTransporter(smtp: SmtpSettings): Transporter {
   const key = JSON.stringify(smtp);
   if (cached?.key !== key) {
-    cached = {
-      key,
-      transporter: nodemailer.createTransport({
-        host: smtp.host,
-        port: smtp.port,
-        secure: smtp.secure,
-        ...(smtp.user ? { auth: { user: smtp.user, pass: smtp.password } } : {}),
-      }),
-    };
+    cached = { key, transporter: buildTransport(smtp) };
   }
   return cached.transporter;
 }
@@ -95,4 +104,31 @@ export function passwordResetLetter(to: string, url: string): Letter {
       "Ссылка действует один час. Если вы не запрашивали смену пароля, просто не открывайте её.",
     ].join("\n"),
   };
+}
+
+/**
+ * Проверочная отправка заданными настройками — в том числе ещё не сохранёнными.
+ * Соединение разовое и не попадает в кеш: проверяют часто и заведомо неверное,
+ * и такая попытка не должна влиять на настоящую отправку писем.
+ *
+ * Ошибку не глушит: вызывающий показывает её администратору.
+ */
+export async function sendTestLetter(smtp: SmtpSettings, to: string): Promise<void> {
+  const transporter = buildTransport(smtp);
+  try {
+    await transporter.sendMail({
+      from: smtp.from || env.SMTP_FROM,
+      to,
+      subject: "BusCom ERP: проверка почты",
+      text: [
+        "Это проверочное письмо из BusCom ERP.",
+        "",
+        `Сервер: ${smtp.host}:${smtp.port}, шифрование: ${smtp.secure ? "TLS сразу" : "STARTTLS"}.`,
+        "",
+        "Раз письмо дошло, ссылки на смену пароля сотрудникам тоже будут доходить.",
+      ].join("\n"),
+    });
+  } finally {
+    transporter.close();
+  }
 }

@@ -10,7 +10,8 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminDictionariesPage() {
-  await requirePageUser(ADMIN_ROLES);
+  // Адрес администратора нужен разделу почты: проверочное письмо уходит ему
+  const user = await requirePageUser(ADMIN_ROLES);
 
   const [settings, orderSources, cancelReasons, carriers] = await Promise.all([
     getSettings(),
@@ -49,7 +50,11 @@ export default async function AdminDictionariesPage() {
       <SlaEditor slaMinutes={settings.slaMinutes} />
       <RequisitesEditor requisites={settings.sellerRequisites} />
       {/* Пароль в браузер не отдаём — только признак, что он задан. */}
-      <SmtpEditor smtp={{ ...settings.smtp, password: "" }} hasPassword={settings.smtp.password.length > 0} />
+      <SmtpEditor
+        smtp={{ ...settings.smtp, password: "" }}
+        hasPassword={settings.smtp.password.length > 0}
+        testRecipient={user.email}
+      />
     </main>
   );
 }

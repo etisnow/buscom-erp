@@ -7,6 +7,7 @@ import {
   mergeSmtpSettings,
   sellerRequisitesSchema,
   slaMinutesSchema,
+  smtpConfigured,
   smtpSettingsSchema,
 } from "@/domain/settings";
 import { ADMIN_ROLES } from "@/domain/user/role";
@@ -21,6 +22,7 @@ import {
   saveSmtpSettings,
   setDictionaryItemActive,
 } from "@/server/settings/service";
+import { sendTestLetter } from "@/server/mail";
 import { requireUser } from "@/server/session";
 
 export type SettingsResult = { ok: true; message: string } | { ok: false; error: string };
@@ -102,4 +104,32 @@ export async function saveSmtpAction(settings: z.input<typeof smtpSettingsSchema
     () => saveSmtpSettings(merged, user.id),
     merged.host ? "Настройки почты сохранены" : "Почта выключена — письма будут писаться в лог сервера",
   );
+}
+
+/**
+ * Проверочное письмо — на адрес того, кто нажал. Проверяются настройки из формы,
+ * а не сохранённые: смысл кнопки в том, чтобы убедиться до сохранения. Пароль,
+ * как и при сохранении, берётся прежний, если поле не трогали.
+ *
+ * Ничего не сохраняет и `revalidatePath` не делает.
+ */
+export async function sendTestMailAction(settings: z.input<typeof smtpSettingsSchema>): Promise<SettingsResult> {
+  const user = await requireUser(ADMIN_ROLES);
+  const parsed = smtpSettingsSchema.safeParse(settings);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+
+  const current = await readSettings();
+  const merged = mergeSmtpSettings(current.smtp, parsed.data);
+  if (!smtpConfigured(merged)) {
+    return { ok: false, error: "Сначала укажите сервер — проверять нечего" };
+  }
+
+  try {
+    await sendTestLetter(merged, user.email);
+    return { ok: true, message: `Письмо отправлено на ${user.email}` };
+  } catch (error) {
+    // Текст ошибки nodemailer показываем как есть: без него непонятно, что чинить
+    const reason = error instanceof Error ? error.message : "неизвестная ошибка";
+    return { ok: false, error: `Не удалось отправить: ${reason}` };
+  }
 }
