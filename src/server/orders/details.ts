@@ -11,6 +11,7 @@ const detailsInclude = {
     },
   },
   manager: { select: { id: true, name: true } },
+  sourceItem: { select: { id: true, name: true } },
   items: {
     orderBy: { sortOrder: "asc" },
     include: {

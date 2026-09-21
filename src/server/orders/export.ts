@@ -3,7 +3,7 @@ import { csvDateTime, csvFileName, EXPORT_LIMIT, toCsv } from "@/domain/csv";
 import { formatPhoneLocal } from "@/domain/datetime";
 import { formatRubPlain } from "@/domain/money";
 import { PAYMENT_STATUS_LABELS, paymentStatus } from "@/domain/order/payment-status";
-import { ORDER_SOURCE_LABELS } from "@/domain/order/source";
+import { orderSourceLabel } from "@/domain/order/source";
 import { ORDER_STATUS_LABELS } from "@/domain/order/status";
 import { db } from "@/server/db";
 import { ordersWhere, type OrderListFilters } from "@/server/orders/list";
@@ -51,6 +51,7 @@ export async function exportOrdersCsv(filters: OrderListFilters, user: SessionUs
       createdAt: true,
       status: true,
       source: true,
+      sourceItem: { select: { name: true } },
       slaDueAt: true,
       totalKopecks: true,
       paidKopecks: true,
@@ -77,7 +78,7 @@ export async function exportOrdersCsv(filters: OrderListFilters, user: SessionUs
       formatRubPlain(order.paidKopecks),
       PAYMENT_STATUS_LABELS[paymentStatus(order.totalKopecks, order.paidKopecks)],
       order.manager?.name ?? "не назначен",
-      ORDER_SOURCE_LABELS[order.source],
+      orderSourceLabel(order.source, order.sourceItem?.name),
       order.slaDueAt !== null && order.slaDueAt < now ? "да" : "",
     ]),
   ];

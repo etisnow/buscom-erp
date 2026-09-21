@@ -6,13 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ORDER_SOURCE_LABELS, ORDER_SOURCES } from "@/domain/order/source";
 import { ORDER_STATUS_LABELS } from "@/domain/order/status";
 import type { OrderStatus } from "@/generated/prisma/enums";
 
 const STATUSES = Object.keys(ORDER_STATUS_LABELS) as OrderStatus[];
-
-const SOURCES = ORDER_SOURCES.map((value) => ({ value, label: ORDER_SOURCE_LABELS[value] }));
 
 const PAYMENTS = [
   { value: "unpaid", label: "Не оплачен" },
@@ -22,7 +19,14 @@ const PAYMENTS = [
 
 const ANY = "__any__";
 
-export function OrderFilters({ managers }: { managers: { id: string; name: string }[] }) {
+export function OrderFilters({
+  managers,
+  sources,
+}: {
+  managers: { id: string; name: string }[];
+  /** Все источники справочника, включая выключенные: по ним тоже ищут старые заказы */
+  sources: { id: string; name: string }[];
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -104,9 +108,9 @@ export function OrderFilters({ managers }: { managers: { id: string; name: strin
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ANY}>Любой</SelectItem>
-              {SOURCES.map((source) => (
-                <SelectItem key={source.value} value={source.value}>
-                  {source.label}
+              {sources.map((source) => (
+                <SelectItem key={source.id} value={source.id}>
+                  {source.name}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -14,6 +14,7 @@ import { OrderConflictError, OrderNotFoundError } from "@/server/orders/internal
 import { updateOrderItems } from "@/server/orders/items";
 import { addPayment } from "@/server/orders/payments";
 import { changeOrderStatus } from "@/server/orders/status";
+import { changeOrderSource } from "@/server/orders/source";
 import { changeSupplierStage } from "@/server/orders/suppliers";
 import { searchProducts, type ProductSuggestion } from "@/server/products/search";
 import { getCancelReasons } from "@/server/settings/service";
@@ -246,4 +247,15 @@ export async function changeSupplierStageAction(input: z.input<typeof stageSchem
       user,
     }),
   );
+}
+
+/** Смена источника заказа из справочника — только у заказов, заведённых руками. */
+export async function changeSourceAction(
+  orderId: string,
+  orderNumber: number,
+  sourceItemId: string,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!sourceItemId) return { ok: false, error: "Выберите источник" };
+  return run(orderNumber, () => changeOrderSource(orderId, sourceItemId, user));
 }

@@ -9,6 +9,7 @@ import { OrderViews } from "@/components/orders/order-views";
 import { Button } from "@/components/ui/button";
 import { ORDER_CREATE_ROLES, hasRole } from "@/domain/user/role";
 import { defaultView, listManagers, listOrders } from "@/server/orders/list";
+import { listDictionary } from "@/server/settings/service";
 import { requirePageUser } from "@/server/session";
 import { toSearchParams } from "@/app/(app)/search-params";
 import { parseOrderListParams } from "./params";
@@ -22,7 +23,11 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
   const params = await searchParams;
   const filters = parseOrderListParams(params, defaultView());
 
-  const [result, managers] = await Promise.all([listOrders(filters, user), listManagers()]);
+  const [result, managers, sources] = await Promise.all([
+    listOrders(filters, user),
+    listManagers(),
+    listDictionary("ORDER_SOURCE"),
+  ]);
   const urlParams = toSearchParams(params);
   const now = new Date();
 
@@ -52,7 +57,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
       <OrderViews current={filters.view} counts={result.counts} params={urlParams} />
 
       <Suspense fallback={null}>
-        <OrderFilters managers={managers} />
+        <OrderFilters managers={managers} sources={sources.map((item) => ({ id: item.id, name: item.name }))} />
       </Suspense>
 
       <OrdersTable rows={result.rows} now={now} />

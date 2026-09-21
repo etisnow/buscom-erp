@@ -1,7 +1,7 @@
 import "server-only";
 import { normalizePhone } from "@/domain/customer/phone";
 import type { Prisma } from "@/generated/prisma/client";
-import type { OrderSource, OrderStatus } from "@/generated/prisma/enums";
+import type { OrderStatus } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
 import type { SessionUser } from "@/server/session";
 
@@ -31,7 +31,8 @@ export type OrderListFilters = {
   query?: string;
   statuses?: OrderStatus[];
   managerId?: string;
-  sources?: OrderSource[];
+  /** id пунктов справочника источников */
+  sourceItemIds?: string[];
   createdFrom?: Date;
   createdTo?: Date;
   payment?: PaymentFilter;
@@ -45,6 +46,7 @@ const listSelect = {
   number: true,
   externalId: true,
   source: true,
+  sourceItem: { select: { name: true } },
   status: true,
   createdAt: true,
   statusChangedAt: true,
@@ -131,7 +133,7 @@ function baseWhere(filters: OrderListFilters): Prisma.OrderWhereInput {
   if (search) and.push(search);
   if (filters.statuses?.length) and.push({ status: { in: filters.statuses } });
   if (filters.managerId) and.push({ managerId: filters.managerId });
-  if (filters.sources?.length) and.push({ source: { in: filters.sources } });
+  if (filters.sourceItemIds?.length) and.push({ sourceItemId: { in: filters.sourceItemIds } });
   if (filters.createdFrom) and.push({ createdAt: { gte: filters.createdFrom } });
   if (filters.createdTo) and.push({ createdAt: { lte: filters.createdTo } });
   if (filters.payment) and.push(paymentWhere(filters.payment));

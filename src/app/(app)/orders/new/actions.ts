@@ -8,14 +8,13 @@ import { ForbiddenError } from "@/server/errors";
 import { lookupCustomers, type CustomerMatch } from "@/server/customers/lookup";
 import { createOrder } from "@/server/orders/create";
 import { searchProducts, type ProductSuggestion } from "@/server/products/search";
-import { ORDER_CREATE_SOURCES } from "@/domain/order/source";
 import { ORDER_CREATE_ROLES } from "@/domain/user/role";
 import { requireUser } from "@/server/session";
 
 export type CreateResult = { ok: false; error: string };
 
 const createSchema = z.object({
-  source: z.enum(ORDER_CREATE_SOURCES),
+  sourceItemId: z.string().min(1).nullable(),
   customerId: z.string().optional(),
   customer: z
     .object({
@@ -65,7 +64,7 @@ export async function createOrderAction(input: z.input<typeof createSchema>): Pr
   let orderNumber: number;
   try {
     const order = await createOrder({
-      source: data.source,
+      sourceItemId: data.sourceItemId,
       customerId: data.customerId,
       customer: data.customer,
       items: data.items,

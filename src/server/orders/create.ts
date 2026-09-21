@@ -1,5 +1,6 @@
 import "server-only";
 import { assertDiscountWithinLimit } from "@/domain/order/discount";
+import { ORDER_SOURCE_LABELS } from "@/domain/order/source";
 import type { Kopecks } from "@/domain/money";
 import type { DeliveryMethod, OrderSource } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
@@ -12,12 +13,16 @@ import {
   type OrderWithItems,
 } from "@/server/orders/internal";
 import type { OrderItemDraft } from "@/server/orders/items";
+import { assertManualSource } from "@/server/orders/source";
 import { resolveItemSuppliers, syncSupplierTracks } from "@/server/orders/suppliers";
 import { getSettings } from "@/server/settings/service";
 import type { SessionUser } from "@/server/session";
 
 export type CreateOrderInput = {
-  source: OrderSource;
+  /** Источник из справочника — что выбрал менеджер в форме */
+  sourceItemId?: string | null;
+  /** Технический канал; у заказа, заведённого руками, по умолчанию `OTHER` */
+  source?: OrderSource;
   /** Существующий клиент или данные для поиска и создания нового */
   customerId?: string;
   customer?: CustomerDraft;
@@ -56,11 +61,13 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderWithIte
 
   return db.$transaction(async (tx) => {
     const customerId = input.customerId ?? (await findOrCreateCustomer(tx, requireCustomer(input))).id;
+    const sourceItem = input.sourceItemId ? await assertManualSource(tx, input.sourceItemId) : null;
     const suppliers = await resolveItemSuppliers(tx, input.items);
 
     const order = await tx.order.create({
       data: {
-        source: input.source,
+        source: input.source ?? "OTHER",
+        sourceItemId: sourceItem?.id ?? null,
         status: "IN_PROGRESS",
         slaDueAt: slaDueAtFor("IN_PROGRESS", new Date(), slaMinutes),
         customerId,
@@ -94,7 +101,7 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderWithIte
       user: input.user,
       type: "CREATED",
       toStatus: "IN_PROGRESS",
-      comment: `Заказ создан вручную (${input.source})`,
+      comment: `Заказ создан вручную (${sourceItem?.name ?? ORDER_SOURCE_LABELS[input.source ?? "OTHER"]})`,
     });
 
     return tx.order.findUniqueOrThrow({ where: { id: order.id }, include: orderInclude });

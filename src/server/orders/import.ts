@@ -1,6 +1,7 @@
 import "server-only";
 import { LEGACY_ITEM_SKU, parseLegacyOrder, type LegacyOrder } from "@/domain/order/legacy-import";
 import { db } from "@/server/db";
+import { resolveSystemSource } from "@/server/orders/source";
 
 /**
  * Импорт заказов из прежней ERP (docs/STATUS.md, «Выгрузка заказов»).
@@ -127,6 +128,9 @@ export async function importLegacyOrders(
     }
   }
 
+  // Пункт справочника «Прежняя ERP»; в режиме проверки в базу не пишем ничего, даже его.
+  const sourceItemId = options.dryRun ? null : await resolveSystemSource(db, "LEGACY");
+
   for (const [index, draft] of drafts.entries()) {
     const number = index + 1;
 
@@ -165,6 +169,7 @@ export async function importLegacyOrders(
       data: {
         number,
         source: "LEGACY",
+        sourceItemId,
         externalId: draft.externalId,
         status: "COMPLETED",
         customerId,

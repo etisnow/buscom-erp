@@ -9,7 +9,7 @@ import {
   type SellerRequisites,
 } from "@/domain/settings";
 import type { Prisma } from "@/generated/prisma/client";
-import type { DictionaryType, OrderStatus } from "@/generated/prisma/enums";
+import type { DictionaryType, OrderSource, OrderStatus } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
 
 /**
@@ -61,12 +61,14 @@ export type DictionaryEntry = {
   name: string;
   sortOrder: number;
   isActive: boolean;
+  /** Системный источник заказа (SITE, LEGACY): переименовать можно, выключить нельзя */
+  systemCode: OrderSource | null;
 };
 
 export async function listDictionary(type: DictionaryType, onlyActive = false): Promise<DictionaryEntry[]> {
   return db.dictionaryItem.findMany({
     where: { type, ...(onlyActive ? { isActive: true } : {}) },
-    select: { id: true, name: true, sortOrder: true, isActive: true },
+    select: { id: true, name: true, sortOrder: true, isActive: true, systemCode: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
 }
@@ -91,6 +93,9 @@ export async function addDictionaryItem(type: DictionaryType, name: string): Pro
  * Выключенная позиция перестаёт предлагаться в новых формах.
  */
 export async function setDictionaryItemActive(id: string, isActive: boolean): Promise<void> {
+  const item = await db.dictionaryItem.findUniqueOrThrow({ where: { id }, select: { systemCode: true } });
+  // Без системного пункта интеграции и импорту некуда было бы относить заказы.
+  if (item.systemCode && !isActive) throw new Error("Системный источник выключить нельзя — его ставит сама система");
   await db.dictionaryItem.update({ where: { id }, data: { isActive } });
 }
 
@@ -114,4 +119,15 @@ export async function getCancelReasons(): Promise<string[]> {
 export async function getCarriers(): Promise<string[]> {
   const items = await listDictionary("CARRIER", true);
   return items.map((item) => item.name);
+}
+
+export type OrderSourceOption = { id: string; name: string };
+
+/**
+ * Источники, которые менеджер выбирает сам: включённые и не системные —
+ * «Сайт» и «Прежнюю ERP» ставят интеграция и импорт.
+ */
+export async function getOrderSources(): Promise<OrderSourceOption[]> {
+  const items = await listDictionary("ORDER_SOURCE", true);
+  return items.filter((item) => item.systemCode === null).map((item) => ({ id: item.id, name: item.name }));
 }

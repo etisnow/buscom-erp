@@ -5,6 +5,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/server/db";
 import { findOrCreateCustomer } from "@/server/customers/match";
 import { recalculateOrderTotals, slaDueAtFor, writeOrderEvent, type Tx } from "@/server/orders/internal";
+import { resolveSystemSource } from "@/server/orders/source";
 import { getSettings } from "@/server/settings/service";
 
 export const SITE_SOURCE = "site";
@@ -106,11 +107,13 @@ async function createOrderFromPayload(payload: SiteOrderPayload, inboxId: string
     });
 
     const items = await matchItems(tx, payload);
+    const sourceItemId = await resolveSystemSource(tx, "SITE");
     const createdAt = payload.createdAt ? new Date(payload.createdAt) : new Date();
 
     const order = await tx.order.create({
       data: {
         source: "SITE",
+        sourceItemId,
         externalId: payload.externalId,
         status: "NEW",
         statusChangedAt: createdAt,

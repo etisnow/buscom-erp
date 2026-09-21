@@ -16,7 +16,7 @@ import { requireUser } from "@/server/session";
 
 export type SettingsResult = { ok: true; message: string } | { ok: false; error: string };
 
-const dictionaryTypeSchema = z.enum(["CANCEL_REASON", "CARRIER"]);
+const dictionaryTypeSchema = z.enum(["CANCEL_REASON", "CARRIER", "ORDER_SOURCE"]);
 
 async function run(action: () => Promise<unknown>, message: string): Promise<SettingsResult> {
   try {

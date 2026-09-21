@@ -12,8 +12,9 @@ export const metadata: Metadata = {
 export default async function AdminDictionariesPage() {
   await requirePageUser(ADMIN_ROLES);
 
-  const [settings, cancelReasons, carriers] = await Promise.all([
+  const [settings, orderSources, cancelReasons, carriers] = await Promise.all([
     getSettings(),
+    listDictionary("ORDER_SOURCE"),
     listDictionary("CANCEL_REASON"),
     listDictionary("CARRIER"),
   ]);
@@ -21,6 +22,13 @@ export default async function AdminDictionariesPage() {
   return (
     <main className="flex flex-col gap-4">
       <h1 className="font-heading text-xl font-semibold">Справочники и настройки</h1>
+
+      <DictionaryEditor
+        type="ORDER_SOURCE"
+        title="Источники заказов"
+        description="Откуда пришёл заказ: выбирается при заведении заказа и в его карточке, по нему фильтруется список. «Сайт» и «Прежнюю ERP» ставит сама система — их можно только переименовать. Выключенный источник пропадёт из форм, но останется у старых заказов."
+        items={orderSources}
+      />
 
       <DictionaryEditor
         type="CANCEL_REASON"

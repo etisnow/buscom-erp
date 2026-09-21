@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { formatPhone } from "@/domain/datetime";
-import { ORDER_CREATE_SOURCES, ORDER_SOURCE_LABELS } from "@/domain/order/source";
 import { formatRub, rublesToKopecks } from "@/domain/money";
 import { DEFAULT_DISCOUNT_LIMIT_PERCENT, maxDiscountKopecks } from "@/domain/order/discount";
 import type { CustomerMatch } from "@/server/customers/lookup";
@@ -34,8 +33,6 @@ type Item = {
   supplierOptions: ProductSupplierOption[];
 };
 
-const SOURCES = ORDER_CREATE_SOURCES.map((value) => ({ value, label: ORDER_SOURCE_LABELS[value] }));
-
 const DELIVERY = [
   { value: "PICKUP", label: "Самовывоз" },
   { value: "CARRIER", label: "Транспортная компания" },
@@ -52,8 +49,9 @@ function parseRubles(value: string): number {
   }
 }
 
-export function NewOrderForm() {
-  const [source, setSource] = useState<string>("PHONE");
+export function NewOrderForm({ sources }: { sources: { id: string; name: string }[] }) {
+  // По умолчанию — первый источник справочника: администратор ставит частый наверх.
+  const [sourceItemId, setSourceItemId] = useState<string | null>(sources[0]?.id ?? null);
 
   const [customerQuery, setCustomerQuery] = useState("");
   const [matches, setMatches] = useState<CustomerMatch[]>([]);
@@ -105,7 +103,7 @@ export function NewOrderForm() {
   function submit() {
     startTransition(async () => {
       const result = await createOrderAction({
-        source: source as "PHONE",
+        sourceItemId,
         customerId: picked?.id,
         customer: picked ? undefined : { type: customerType, name, phone, email, inn },
         items: items.map((item) => ({
@@ -135,20 +133,27 @@ export function NewOrderForm() {
     <div className="flex flex-col gap-4">
       <section className="flex flex-col gap-3 rounded-lg border p-4">
         <h2 className="font-heading font-medium">Откуда заказ</h2>
-        <div className="w-56">
-          <Select value={source} onValueChange={setSource}>
-            <SelectTrigger size="sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SOURCES.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {sources.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Источников в справочнике нет — заказ сохранится с источником «Другое». Список правит администратор в
+            «Справочниках и настройках».
+          </p>
+        ) : (
+          <div className="w-56">
+            <Select value={sourceItemId ?? undefined} onValueChange={setSourceItemId}>
+              <SelectTrigger size="sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {sources.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </section>
 
       <section className="flex flex-col gap-3 rounded-lg border p-4">

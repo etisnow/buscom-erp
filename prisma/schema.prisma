@@ -276,7 +276,11 @@ model Order {
   id         String      @id @default(cuid())
   /// Человекочитаемый номер заказа (последовательность)
   number     Int         @unique @default(autoincrement())
+  /// Технический канал: по нему идемпотентность интеграции `(source, externalId)`.
+  /// Что видит пользователь — `sourceItem` из справочника источников
   source     OrderSource @default(SITE)
+  sourceItemId String?
+  sourceItem   DictionaryItem? @relation(fields: [sourceItemId], references: [id], onDelete: Restrict)
   /// Номер/ID заказа во внешней системе (на сайте)
   externalId String?
   status     OrderStatus @default(NEW)
@@ -321,6 +325,7 @@ model Order {
   @@unique([source, externalId])
   @@index([status])
   @@index([managerId])
+  @@index([sourceItemId])
   @@index([customerId])
   @@index([createdAt])
   @@index([slaDueAt])
@@ -428,6 +433,8 @@ enum DictionaryType {
   CANCEL_REASON
   /// Транспортные компании
   CARRIER
+  /// Источники заказов: откуда пришёл заказ (телефон, Авито, выставка…)
+  ORDER_SOURCE
 }
 
 /// Простые списки, которые редактирует администратор. Позиции не удаляются
@@ -438,10 +445,16 @@ model DictionaryItem {
   name      String
   sortOrder Int            @default(0)
   isActive  Boolean        @default(true)
+  /// Системный источник заказа: его ставит интеграция (SITE) или импорт (LEGACY).
+  /// Такой пункт можно переименовать, но нельзя выключить или выбрать руками
+  systemCode OrderSource?
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
+  orders Order[]
+
   @@unique([type, name])
+  @@unique([type, systemCode])
   @@index([type, isActive])
 }
 

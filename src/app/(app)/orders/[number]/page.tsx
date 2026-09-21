@@ -11,11 +11,12 @@ import { OrderItems } from "@/components/orders/order-items";
 import { OrderPayments } from "@/components/orders/order-payments";
 import { SupplierTracks } from "@/components/orders/supplier-tracks";
 import { canEditItems, canReassignManager } from "@/domain/order/editing";
+import { canChangeOrderSource, orderSourceLabel } from "@/domain/order/source";
 import { TERMINAL_STATUSES } from "@/domain/order/status";
 import { canMoveStages } from "@/domain/supplier/stages";
 import { findOrderByNumber } from "@/server/orders/details";
 import { listManagers } from "@/server/orders/list";
-import { getCancelReasons } from "@/server/settings/service";
+import { getCancelReasons, getOrderSources } from "@/server/settings/service";
 import { requirePageUser } from "@/server/session";
 
 export async function generateMetadata({ params }: PageProps<"/orders/[number]">): Promise<Metadata> {
@@ -30,16 +31,25 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
   const orderNumber = Number(number);
   if (!Number.isSafeInteger(orderNumber) || orderNumber <= 0) notFound();
 
-  const [order, managers, cancelReasons] = await Promise.all([
+  const [order, managers, cancelReasons, orderSources] = await Promise.all([
     findOrderByNumber(orderNumber),
     listManagers(),
     getCancelReasons(),
+    getOrderSources(),
   ]);
   if (!order) notFound();
 
   // Склад видит карточку, но не правит состав и цены (PRD).
   const editable = canEditItems(order.status, user.role);
   const isClosed = TERMINAL_STATUSES.includes(order.status);
+
+  // Источник меняется только у заказа, заведённого руками. Если его пункт выключили,
+  // он всё равно нужен в списке — иначе выпадающий список показал бы пустоту.
+  const sourceOptions = canChangeOrderSource(order.source)
+    ? order.sourceItem && !orderSources.some((item) => item.id === order.sourceItem?.id)
+      ? [order.sourceItem, ...orderSources]
+      : orderSources
+    : [];
 
   return (
     <main className="flex flex-col gap-4">
@@ -73,6 +83,9 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
         role={user.role}
         canReassign={canReassignManager(order.status, user.role)}
         cancelReasons={cancelReasons}
+        sourceLabel={orderSourceLabel(order.source, order.sourceItem?.name)}
+        sourceItemId={order.sourceItemId}
+        sources={sourceOptions}
       />
 
       <OrderCustomer

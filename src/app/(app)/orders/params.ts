@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { ORDER_SOURCES } from "@/domain/order/source";
 import { list, pageNumber, single, type RawParams } from "@/app/(app)/search-params";
 import type { OrderListFilters, OrderView } from "@/server/orders/list";
 
@@ -15,7 +14,6 @@ const statusSchema = z.enum([
   "COMPLETED",
   "CANCELLED",
 ]);
-const sourceSchema = z.enum(ORDER_SOURCES);
 const paymentSchema = z.enum(["unpaid", "partial", "paid"]);
 
 /** Дата из `<input type="date">` — начало и конец дня по Москве (UTC+3). */
@@ -42,9 +40,8 @@ export function parseOrderListParams(params: RawParams, fallbackView: OrderView)
       (value) => statusSchema.safeParse(value).success,
     ) as OrderListFilters["statuses"],
     managerId: single(params.manager),
-    sources: list(params.source).filter(
-      (value) => sourceSchema.safeParse(value).success,
-    ) as OrderListFilters["sources"],
+    // id пунктов справочника: чужой id просто ничего не найдёт, разбирать его незачем.
+    sourceItemIds: list(params.source).filter((value) => value.length > 0),
     createdFrom: dayStart(single(params.from)),
     createdTo: dayEnd(single(params.to)),
     payment: payment.success ? payment.data : undefined,

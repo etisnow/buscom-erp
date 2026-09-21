@@ -11,6 +11,7 @@ import { formatMoscowDateTime } from "@/domain/datetime";
 import type { OrderStatus, UserRole } from "@/generated/prisma/enums";
 import {
   assignManagerAction,
+  changeSourceAction,
   changeStatusAction,
   takeOrderAction,
   type ActionResult,
@@ -29,6 +30,11 @@ export type OrderHeaderProps = {
   role: UserRole;
   canReassign: boolean;
   cancelReasons: string[];
+  /** Подпись источника — из справочника или запасная по каналу */
+  sourceLabel: string;
+  sourceItemId: string | null;
+  /** Из чего выбирать; пусто — источник не меняется (заказ с сайта или архивный) */
+  sources: { id: string; name: string }[];
 };
 
 export function OrderHeader(props: OrderHeaderProps) {
@@ -85,6 +91,30 @@ export function OrderHeader(props: OrderHeaderProps) {
           <span className={props.manager ? "text-sm" : "text-muted-foreground text-sm"}>
             {props.manager?.name ?? "не назначен"}
           </span>
+        )}
+
+        <span className="text-muted-foreground ml-4 text-sm">Источник:</span>
+        {props.sources.length > 0 ? (
+          <Select
+            value={props.sourceItemId ?? undefined}
+            disabled={pending}
+            onValueChange={(sourceItemId) =>
+              handle(changeSourceAction(props.orderId, props.orderNumber, sourceItemId), "Источник изменён")
+            }
+          >
+            <SelectTrigger className="w-48" size="sm">
+              <SelectValue placeholder={props.sourceLabel} />
+            </SelectTrigger>
+            <SelectContent>
+              {props.sources.map((source) => (
+                <SelectItem key={source.id} value={source.id}>
+                  {source.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <span className="text-sm">{props.sourceLabel}</span>
         )}
 
         {canTake ? (
