@@ -3,7 +3,13 @@ import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/server/db";
 
 const detailsInclude = {
-  customer: true,
+  customer: {
+    include: {
+      // Адрес по умолчанию — первым: карточка показывает его как основной.
+      addresses: { orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] },
+      _count: { select: { orders: { where: { deletedAt: null } } } },
+    },
+  },
   manager: { select: { id: true, name: true } },
   items: {
     orderBy: { sortOrder: "asc" },

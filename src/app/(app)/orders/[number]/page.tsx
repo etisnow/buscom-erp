@@ -3,13 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { OrderCustomer } from "@/components/orders/order-customer";
 import { OrderDelivery } from "@/components/orders/order-delivery";
 import { OrderHeader } from "@/components/orders/order-header";
 import { OrderHistory } from "@/components/orders/order-history";
 import { OrderItems } from "@/components/orders/order-items";
 import { OrderPayments } from "@/components/orders/order-payments";
 import { SupplierTracks } from "@/components/orders/supplier-tracks";
-import { formatMoscowDate, formatPhone } from "@/domain/datetime";
 import { canEditItems, canReassignManager } from "@/domain/order/editing";
 import { TERMINAL_STATUSES } from "@/domain/order/status";
 import { canMoveStages } from "@/domain/supplier/stages";
@@ -73,6 +73,23 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
         role={user.role}
         canReassign={canReassignManager(order.status, user.role)}
         cancelReasons={cancelReasons}
+      />
+
+      <OrderCustomer
+        customer={{
+          id: order.customer.id,
+          type: order.customer.type,
+          name: order.customer.name,
+          phone: order.customer.phone,
+          email: order.customer.email,
+          inn: order.customer.inn,
+          kpp: order.customer.kpp,
+          contactPerson: order.customer.contactPerson,
+          comment: order.customer.comment,
+          createdAt: order.customer.createdAt,
+          addresses: order.customer.addresses.map((item) => ({ address: item.address, isDefault: item.isDefault })),
+          ordersCount: order.customer._count.orders,
+        }}
       />
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
@@ -146,38 +163,6 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
               }))}
             />
           ) : null}
-
-          <section className="flex flex-col gap-2 rounded-lg border p-4">
-            <h2 className="font-heading font-medium">Клиент</h2>
-            <dl className="flex flex-col gap-1 text-sm">
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Имя</dt>
-                <dd className="text-right">{order.customer.name}</dd>
-              </div>
-              {order.customer.phone ? (
-                <div className="flex justify-between gap-3">
-                  <dt className="text-muted-foreground">Телефон</dt>
-                  <dd className="text-right">{formatPhone(order.customer.phone)}</dd>
-                </div>
-              ) : null}
-              {order.customer.email ? (
-                <div className="flex justify-between gap-3">
-                  <dt className="text-muted-foreground">Email</dt>
-                  <dd className="text-right break-all">{order.customer.email}</dd>
-                </div>
-              ) : null}
-              {order.customer.inn ? (
-                <div className="flex justify-between gap-3">
-                  <dt className="text-muted-foreground">ИНН</dt>
-                  <dd className="text-right">{order.customer.inn}</dd>
-                </div>
-              ) : null}
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Клиент с</dt>
-                <dd className="text-right">{formatMoscowDate(order.customer.createdAt)}</dd>
-              </div>
-            </dl>
-          </section>
 
           <OrderDelivery
             orderId={order.id}
