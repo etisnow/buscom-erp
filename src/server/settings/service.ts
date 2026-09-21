@@ -89,14 +89,34 @@ export async function addDictionaryItem(type: DictionaryType, name: string): Pro
 }
 
 /**
- * Позиции справочника не удаляются: на них ссылаются старые заказы текстом.
- * Выключенная позиция перестаёт предлагаться в новых формах.
+ * Выключенная позиция перестаёт предлагаться в новых формах, но остаётся у
+ * заказов, где уже стоит. Для источника это единственный путь убрать его из
+ * форм, если он есть в заказах, — удалить такой нельзя.
  */
 export async function setDictionaryItemActive(id: string, isActive: boolean): Promise<void> {
   const item = await db.dictionaryItem.findUniqueOrThrow({ where: { id }, select: { systemCode: true } });
   // Без системного пункта интеграции и импорту некуда было бы относить заказы.
   if (item.systemCode && !isActive) throw new Error("Системный источник выключить нельзя — его ставит сама система");
   await db.dictionaryItem.update({ where: { id }, data: { isActive } });
+}
+
+/**
+ * Удаление позиции справочника. Причины отмены и ТК заказ хранит текстом —
+ * их удаление старые заказы не задевает. Источник заказ хранит ссылкой, поэтому
+ * источник, который уже стоит в заказах (включая удалённые), удалить нельзя —
+ * только выключить. Системные источники не удаляются вовсе.
+ */
+export async function deleteDictionaryItem(id: string): Promise<void> {
+  const item = await db.dictionaryItem.findUniqueOrThrow({
+    where: { id },
+    select: { systemCode: true, _count: { select: { orders: true } } },
+  });
+  if (item.systemCode) throw new Error("Системный источник удалить нельзя — его ставит сама система");
+  if (item._count.orders > 0) {
+    throw new Error(`Источник стоит в заказах (${item._count.orders}) — удалить нельзя, его можно выключить`);
+  }
+
+  await db.dictionaryItem.delete({ where: { id } });
 }
 
 export async function renameDictionaryItem(id: string, name: string): Promise<void> {

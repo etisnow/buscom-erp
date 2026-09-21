@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Pencil, Plus, X } from "lucide-react";
+import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,15 +9,17 @@ import { Input } from "@/components/ui/input";
 import type { DictionaryEntry } from "@/server/settings/service";
 import {
   addDictionaryItemAction,
+  deleteDictionaryItemAction,
   renameDictionaryItemAction,
   toggleDictionaryItemAction,
   type SettingsResult,
 } from "@/app/(app)/admin/dictionaries/actions";
 
 /**
- * Редактор простого списка: добавить, переименовать, выключить, включить.
- * Удаления нет — см. комментарий в сервисе. Системные пункты (источники «Сайт»
- * и «Прежняя ERP») только переименовываются.
+ * Редактор простого списка: добавить, переименовать, выключить, включить, удалить.
+ * Удаление необратимо — подтверждается прямо в строке. Источник, который стоит
+ * в заказах, сервер удалить не даст и объяснит почему. Системные пункты
+ * (источники «Сайт» и «Прежняя ERP») только переименовываются.
  */
 export function DictionaryEditor({
   type,
@@ -34,6 +36,7 @@ export function DictionaryEditor({
 }) {
   const [value, setValue] = useState("");
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function handle(action: Promise<SettingsResult>, onSuccess?: () => void) {
@@ -131,6 +134,41 @@ export function DictionaryEditor({
                     onClick={() => handle(toggleDictionaryItemAction(item.id, !item.isActive))}
                   >
                     {item.isActive ? "Выключить" : "Включить"}
+                  </Button>
+                )}
+                {item.systemCode ? (
+                  <Button variant="ghost" size="icon" className="size-8" aria-label="Удалить" disabled>
+                    <Trash2 className="size-4" />
+                  </Button>
+                ) : confirmDelete === item.id ? (
+                  <span className="flex items-center gap-1">
+                    <span className="text-muted-foreground text-xs">Удалить?</span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={pending}
+                      onClick={() => {
+                        // Подтверждение закрываем при любом исходе: ошибку покажет уведомление.
+                        handle(deleteDictionaryItemAction(item.id));
+                        setConfirmDelete(null);
+                      }}
+                    >
+                      Да
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(null)}>
+                      Нет
+                    </Button>
+                  </span>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    aria-label="Удалить"
+                    disabled={pending}
+                    onClick={() => setConfirmDelete(item.id)}
+                  >
+                    <Trash2 className="size-4" />
                   </Button>
                 )}
               </>

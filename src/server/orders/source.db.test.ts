@@ -3,7 +3,7 @@ import { OrderEditError } from "@/domain/order/editing";
 import { createOrder } from "@/server/orders/create";
 import { changeOrderSource, resolveSystemSource } from "@/server/orders/source";
 import type { SessionUser } from "@/server/session";
-import { getOrderSources, setDictionaryItemActive } from "@/server/settings/service";
+import { deleteDictionaryItem, getOrderSources, setDictionaryItemActive } from "@/server/settings/service";
 import { describeDb, resetDb, testDb } from "@/test/db";
 import { makeProduct, makeUser } from "@/test/fixtures";
 
@@ -77,5 +77,29 @@ describeDb("источники заказов из справочника (жи�
     await expect(setDictionaryItemActive(legacy, false)).rejects.toThrow(/Системный/);
     const item = await testDb.dictionaryItem.findUniqueOrThrow({ where: { id: legacy } });
     expect(item).toMatchObject({ name: "Прежняя ERP", systemCode: "LEGACY", isActive: true });
+  });
+
+  it("удаляется только источник, которого нет в заказах; системный — никогда", async () => {
+    const used = await source("Телефон");
+    const unused = await source("Опечатка");
+    await newOrder(used.id);
+    const site = await resolveSystemSource(testDb, "SITE");
+
+    await expect(deleteDictionaryItem(used.id)).rejects.toThrow(/стоит в заказах/);
+    await expect(deleteDictionaryItem(site)).rejects.toThrow(/Системный/);
+    await deleteDictionaryItem(unused.id);
+
+    expect(await testDb.dictionaryItem.count({ where: { id: unused.id } })).toBe(0);
+  });
+
+  it("причину отмены можно удалить, даже если она стоит в заказах: там она текстом", async () => {
+    const reason = await testDb.dictionaryItem.create({ data: { type: "CANCEL_REASON", name: "Дубль" } });
+    const order = await newOrder(null);
+    await testDb.order.update({ where: { id: order.id }, data: { cancelReason: "Дубль" } });
+
+    await deleteDictionaryItem(reason.id);
+
+    const fresh = await testDb.order.findUniqueOrThrow({ where: { id: order.id } });
+    expect(fresh.cancelReason).toBe("Дубль");
   });
 });

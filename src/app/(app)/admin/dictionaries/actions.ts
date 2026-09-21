@@ -6,6 +6,7 @@ import { discountLimitSchema, sellerRequisitesSchema, slaMinutesSchema } from "@
 import { ADMIN_ROLES } from "@/domain/user/role";
 import {
   addDictionaryItem,
+  deleteDictionaryItem,
   renameDictionaryItem,
   saveDiscountLimit,
   saveSellerRequisites,
@@ -39,6 +40,11 @@ export async function addDictionaryItemAction(type: string, name: string): Promi
 export async function toggleDictionaryItemAction(id: string, isActive: boolean): Promise<SettingsResult> {
   await requireUser(ADMIN_ROLES);
   return run(() => setDictionaryItemActive(id, isActive), isActive ? "Включено" : "Выключено");
+}
+
+export async function deleteDictionaryItemAction(id: string): Promise<SettingsResult> {
+  await requireUser(ADMIN_ROLES);
+  return run(() => deleteDictionaryItem(id), "Удалено");
 }
 
 export async function renameDictionaryItemAction(id: string, name: string): Promise<SettingsResult> {
