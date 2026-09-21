@@ -111,9 +111,8 @@ describeDb("сервис заказов (живая БД)", () => {
       user: manager,
     });
 
-    await expect(changeOrderStatus({ orderId: order.id, to: "COMPLETED", user: manager })).rejects.toThrow(
-      /не предусмотрен/,
-    );
+    // Заказ в работе обратно в «Создан» не возвращается.
+    await expect(changeOrderStatus({ orderId: order.id, to: "NEW", user: manager })).rejects.toThrow(/не предусмотрен/);
 
     const fresh = await testDb.order.findUniqueOrThrow({ where: { id: order.id } });
     expect(fresh.status).toBe("IN_PROGRESS");
