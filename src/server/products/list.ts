@@ -23,7 +23,7 @@ const listSelect = {
   updatedAt: true,
   suppliers: {
     orderBy: { purchasePriceKopecks: "asc" },
-    select: { supplierId: true, purchasePriceKopecks: true, supplier: { select: { name: true } } },
+    select: { supplierId: true, purchasePriceKopecks: true, url: true, supplier: { select: { name: true } } },
   },
   // Только id аватарки: байты картинок в список не тянем.
   images: { orderBy: { sortOrder: "asc" }, take: 1, select: { id: true } },

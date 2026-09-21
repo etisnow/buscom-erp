@@ -13,6 +13,8 @@ const CATALOG_ROLES = ["MANAGER", "HEAD", "ADMIN"] as const;
 export type ProductSupplierDraft = {
   supplierId: string;
   purchasePriceKopecks: Kopecks;
+  /** Страница товара у поставщика; пустая строка равносильна «нет ссылки» */
+  url?: string | null;
 };
 
 export type ProductDraft = {
@@ -94,6 +96,7 @@ async function replaceProductSuppliers(tx: Tx, productId: string, suppliers: Pro
         productId,
         supplierId: item.supplierId,
         purchasePriceKopecks: item.purchasePriceKopecks,
+        url: item.url?.trim() || null,
       })),
     });
   }

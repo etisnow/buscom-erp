@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,30 @@ const PAYMENTS = [
 
 const ANY = "__any__";
 
+/**
+ * Где запоминается набор фильтров. Хранилище браузера, а не БД: набор личный и
+ * у каждой машины свой, а состояние списка и так живёт в адресе (docs/DECISIONS.md).
+ * Доступ к `localStorage` обёрнут — в приватном окне он бросает исключение.
+ */
+const STORAGE_KEY = "buscom:orders:filters";
+
+function readSaved(): string | null {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeSaved(value: string | null): void {
+  try {
+    if (value) window.localStorage.setItem(STORAGE_KEY, value);
+    else window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Не смогли запомнить — список всё равно работает, просто без памяти
+  }
+}
+
 export function OrderFilters({
   managers,
   sources,
@@ -29,6 +54,34 @@ export function OrderFilters({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const restored = useRef(false);
+
+  const query = searchParams.toString();
+
+  /**
+   * Возврат запомненного набора. Работает только на голом `/orders`: пришли по
+   * ссылке с параметрами — уважаем ссылку. `replace`, а не `push`: подстановка
+   * не должна попадать в историю, иначе «назад» возвращало бы на пустой список.
+   *
+   * Запоминание живёт не здесь, а в `apply` и в кнопках видов: эффект на первом
+   * клиентском рендере видит пустые параметры (`useSearchParams` ещё не знает
+   * адреса), и класть в память отсюда означало бы гонку с гидратацией.
+   */
+  useEffect(() => {
+    if (restored.current) return;
+    restored.current = true;
+    if (window.location.search !== "") return;
+
+    const saved = readSaved();
+    if (saved) router.replace(`/orders?${saved}`);
+  }, [router]);
+
+  /** Сохранить набор фильтров, кроме номера страницы: он к фильтрам не относится. */
+  function remember(params: URLSearchParams): void {
+    const next = new URLSearchParams(params);
+    next.delete("page");
+    writeSaved(next.toString() || null);
+  }
 
   /** Любое изменение фильтра переписывает URL — состояние живёт только там. */
   function apply(changes: Record<string, string | string[] | null>) {
@@ -42,6 +95,10 @@ export function OrderFilters({
       }
     }
     next.delete("page");
+
+    // Запоминаем здесь, а не в эффекте: нажатие — заведомо клиентский контекст,
+    // и набор фильтров уже собран целиком.
+    remember(next);
     router.push(`/orders?${next.toString()}`);
   }
 
@@ -163,7 +220,15 @@ export function OrderFilters({
         </div>
 
         {hasFilters ? (
-          <Button variant="ghost" size="sm" onClick={() => router.push("/orders")}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              // Сброс чистит и память — иначе фильтры вернулись бы на следующем заходе
+              writeSaved(null);
+              router.push("/orders");
+            }}
+          >
             <X />
             Сбросить
           </Button>

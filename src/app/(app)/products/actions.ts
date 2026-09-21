@@ -22,6 +22,8 @@ const draftSchema = z.object({
       z.object({
         supplierId: z.string().min(1, { error: "Выберите поставщика" }),
         purchasePriceKopecks: z.number().int().min(0, { error: "Закупочная цена не может быть отрицательной" }),
+        // Адрес проверяем схемой: неверная ссылка в карточке бесполезна, а ошибку лучше показать сразу
+        url: z.union([z.literal(""), z.url({ error: "Ссылка должна начинаться с http:// или https://" })]).optional(),
       }),
     )
     .optional(),

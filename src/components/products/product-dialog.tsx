@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +30,7 @@ import type { SupplierOption } from "@/server/suppliers/list";
 import { createProductAction, updateProductAction } from "@/app/(app)/products/actions";
 
 /** Поставщик товара в форме: закупочная цена — строкой, как её вводят. */
-type SupplierDraft = { supplierId: string; price: string };
+type SupplierDraft = { supplierId: string; price: string; url: string };
 
 /** Заведение и правка товара. `product` не задан — создаём новый. */
 export function ProductDialog({
@@ -56,6 +56,7 @@ export function ProductDialog({
     (product?.suppliers ?? []).map((link) => ({
       supplierId: link.supplierId,
       price: (link.purchasePriceKopecks / 100).toFixed(2),
+      url: link.url ?? "",
     })),
   );
   const [optionGroups, setOptionGroups] = useState<OptionGroupForm[]>(toOptionForms(product?.options ?? []));
@@ -70,7 +71,7 @@ export function ProductDialog({
       return;
     }
 
-    const supplierLinks: { supplierId: string; purchasePriceKopecks: number }[] = [];
+    const supplierLinks: { supplierId: string; purchasePriceKopecks: number; url: string }[] = [];
     for (const link of links) {
       if (!link.supplierId) {
         toast.error("Выберите поставщика в каждой строке или уберите пустую");
@@ -79,6 +80,7 @@ export function ProductDialog({
       try {
         supplierLinks.push({
           supplierId: link.supplierId,
+          url: link.url.trim(),
           purchasePriceKopecks: rublesToKopecks(link.price === "" ? "0" : link.price),
         });
       } catch {
@@ -195,7 +197,7 @@ export function ProductDialog({
               size="sm"
               // Каждого поставщика — один раз: свободных не осталось, добавлять некого.
               disabled={links.length >= suppliers.length}
-              onClick={() => setLinks((current) => [...current, { supplierId: "", price: "0.00" }])}
+              onClick={() => setLinks((current) => [...current, { supplierId: "", price: "0.00", url: "" }])}
             >
               <Plus />
               Добавить поставщика
@@ -212,53 +214,82 @@ export function ProductDialog({
 
           {links.map((link, index) => (
             // Строки без своего id: порядок не меняется, удаление сдвигает хвост целиком.
-            <div key={index} className="flex items-end gap-2">
-              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                <Label className="text-xs">Поставщик</Label>
-                <Select
-                  value={link.supplierId}
-                  onValueChange={(supplierId) =>
-                    setLinks((current) => current.map((row, i) => (i === index ? { ...row, supplierId } : row)))
-                  }
-                >
-                  <SelectTrigger size="sm" className="w-full">
-                    <SelectValue placeholder="Выберите" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {suppliers
-                      .filter(
-                        (option) => option.id === link.supplierId || !links.some((row) => row.supplierId === option.id),
+            <div key={index} className="flex flex-col gap-2 rounded-md border p-2">
+              <div className="flex items-end gap-2">
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <Label className="text-xs">Поставщик</Label>
+                  <Select
+                    value={link.supplierId}
+                    onValueChange={(supplierId) =>
+                      setLinks((current) => current.map((row, i) => (i === index ? { ...row, supplierId } : row)))
+                    }
+                  >
+                    <SelectTrigger size="sm" className="w-full">
+                      <SelectValue placeholder="Выберите" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {suppliers
+                        .filter(
+                          (option) =>
+                            option.id === link.supplierId || !links.some((row) => row.supplierId === option.id),
+                        )
+                        .map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            {option.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex w-32 flex-col gap-1.5">
+                  <Label className="text-xs">Закупка, ₽</Label>
+                  <Input
+                    inputMode="decimal"
+                    value={link.price}
+                    onChange={(event) =>
+                      setLinks((current) =>
+                        current.map((row, i) => (i === index ? { ...row, price: event.target.value } : row)),
                       )
-                      .map((option) => (
-                        <SelectItem key={option.id} value={option.id}>
-                          {option.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                    }
+                    className="h-8 text-right"
+                  />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  aria-label="Убрать поставщика"
+                  onClick={() => setLinks((current) => current.filter((_, i) => i !== index))}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
               </div>
-              <div className="flex w-32 flex-col gap-1.5">
-                <Label className="text-xs">Закупка, ₽</Label>
-                <Input
-                  inputMode="decimal"
-                  value={link.price}
-                  onChange={(event) =>
-                    setLinks((current) =>
-                      current.map((row, i) => (i === index ? { ...row, price: event.target.value } : row)),
-                    )
-                  }
-                  className="h-8 text-right"
-                />
+
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs">Ссылка на товар у поставщика</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="url"
+                    inputMode="url"
+                    placeholder="https://"
+                    value={link.url}
+                    onChange={(event) =>
+                      setLinks((current) =>
+                        current.map((row, i) => (i === index ? { ...row, url: event.target.value } : row)),
+                      )
+                    }
+                    className="h-8"
+                  />
+                  {/* Открывается в новой вкладке: карточка товара при этом не теряется */}
+                  {link.url.trim() ? (
+                    <Button variant="ghost" size="icon" className="size-8 shrink-0" asChild>
+                      <a href={link.url} target="_blank" rel="noopener noreferrer" aria-label="Открыть у поставщика">
+                        <ExternalLink className="size-4" />
+                      </a>
+                    </Button>
+                  ) : null}
+                </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                aria-label="Убрать поставщика"
-                onClick={() => setLinks((current) => current.filter((_, i) => i !== index))}
-              >
-                <Trash2 className="size-4" />
-              </Button>
             </div>
           ))}
         </div>

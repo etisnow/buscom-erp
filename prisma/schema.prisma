@@ -313,6 +313,9 @@ model ProductSupplier {
   supplierId           String
   supplier             Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   purchasePriceKopecks Int
+  /// Страница товара на сайте поставщика — чтобы свериться с ценой и наличием,
+  /// не разыскивая её заново. Своя у каждой пары товар–поставщик
+  url                  String?
   updatedAt            DateTime @updatedAt
 
   @@id([productId, supplierId])
