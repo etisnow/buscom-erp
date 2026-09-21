@@ -19,6 +19,12 @@ export const ADMIN_SECTION_ROLES: UserRole[] = ["ADMIN", "HEAD"];
  */
 export const CUSTOMER_DELETE_ROLES: UserRole[] = ["HEAD", "ADMIN"];
 
+/** Роли, которые заводят и правят поставщиков и их цепочки этапов — как и каталог. */
+export const SUPPLIER_EDIT_ROLES: UserRole[] = ["MANAGER", "HEAD", "ADMIN"];
+
+/** Удаление поставщика необратимо — как и у клиента, только руководителю и администратору. */
+export const SUPPLIER_DELETE_ROLES: UserRole[] = ["HEAD", "ADMIN"];
+
 /** Роли, которые могут создавать заказ вручную. */
 export const ORDER_CREATE_ROLES: UserRole[] = ["MANAGER", "HEAD", "ADMIN"];
 

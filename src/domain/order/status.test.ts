@@ -32,4 +32,48 @@ describe("статусная модель заказа", () => {
       assertTransition({ from: "NEW", to: "CANCELLED", role: "MANAGER", cancelReason: "Дубль" }),
     ).not.toThrow();
   });
+
+  describe("треки поставщиков", () => {
+    const done = { supplierName: "Автокомплект", stageIndex: 2, stagesCount: 3 };
+    const halfway = { supplierName: "Сидения-Про", stageIndex: 0, stagesCount: 3 };
+    const notStarted = { supplierName: "Люки-М", stageIndex: null, stagesCount: 2 };
+
+    it("в «Отправку» не пускает, пока хоть один поставщик не прошёл цепочку, и называет его", () => {
+      expect(() =>
+        assertTransition({
+          from: "PAID",
+          to: "SHIPPING",
+          role: "MANAGER",
+          supplierTracks: [done, halfway, notStarted],
+        }),
+      ).toThrow("Не пройдены этапы поставщиков: «Сидения-Про», «Люки-М»");
+    });
+
+    it("постоплата (из «В работе» сразу в «Отправку») проверяется так же", () => {
+      expect(() =>
+        assertTransition({ from: "IN_PROGRESS", to: "SHIPPING", role: "MANAGER", supplierTracks: [halfway] }),
+      ).toThrow(OrderTransitionError);
+    });
+
+    it("все треки на последнем этапе — «Отправка» разрешена", () => {
+      expect(() =>
+        assertTransition({ from: "PAID", to: "SHIPPING", role: "MANAGER", supplierTracks: [done] }),
+      ).not.toThrow();
+    });
+
+    it("на остальные переходы и на отмену треки не влияют", () => {
+      expect(() =>
+        assertTransition({ from: "IN_PROGRESS", to: "AWAITING_PAYMENT", role: "MANAGER", supplierTracks: [halfway] }),
+      ).not.toThrow();
+      expect(() =>
+        assertTransition({
+          from: "PAID",
+          to: "CANCELLED",
+          role: "HEAD",
+          cancelReason: "Нет у поставщика",
+          supplierTracks: [notStarted],
+        }),
+      ).not.toThrow();
+    });
+  });
 });

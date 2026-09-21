@@ -20,6 +20,10 @@ const listSelect = {
   compatibility: true,
   isActive: true,
   updatedAt: true,
+  suppliers: {
+    orderBy: { purchasePriceKopecks: "asc" },
+    select: { supplierId: true, purchasePriceKopecks: true, supplier: { select: { name: true } } },
+  },
 } satisfies Prisma.ProductSelect;
 
 export type ProductRow = Prisma.ProductGetPayload<{ select: typeof listSelect }>;

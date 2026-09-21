@@ -12,6 +12,7 @@ import {
   type OrderWithItems,
   type Tx,
 } from "@/server/orders/internal";
+import { loadTrackPositions } from "@/server/orders/suppliers";
 import type { SessionUser } from "@/server/session";
 
 export type ChangeStatusInput = {
@@ -44,6 +45,7 @@ export async function changeOrderStatus(input: ChangeStatusInput): Promise<Order
       to: input.to,
       role: input.user.role,
       cancelReason: input.cancelReason,
+      supplierTracks: await loadTrackPositions(tx, order.id),
     });
 
     if (input.to === "SHIPPED" && order.deliveryMethod === "CARRIER" && !order.trackingNumber?.trim()) {

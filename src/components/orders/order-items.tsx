@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ProductPicker } from "@/components/orders/product-picker";
+import { ItemSupplierCell } from "@/components/orders/item-supplier";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +13,7 @@ import { formatRub, rublesToKopecks } from "@/domain/money";
 import { DEFAULT_DISCOUNT_LIMIT_PERCENT, maxDiscountKopecks } from "@/domain/order/discount";
 import { calculateOrderTotals } from "@/domain/order/totals";
 import { updateItemsAction } from "@/app/(app)/orders/[number]/actions";
+import type { ProductSupplierOption } from "@/server/products/search";
 
 export type ItemRow = {
   productId: string | null;
@@ -20,6 +22,13 @@ export type ItemRow = {
   priceKopecks: number;
   quantity: number;
   discountKopecks: number;
+  supplierId: string | null;
+  /** Имя поставщика позиции — для показа, даже если товар у него уже не числится */
+  supplierName: string | null;
+  /** Снимок закупочной цены; у несохранённой позиции его ещё нет */
+  purchasePriceKopecks: number | null;
+  /** Из кого выбирать: поставщики товара по каталогу */
+  supplierOptions: ProductSupplierOption[];
 };
 
 /** Рубли в поле ввода: показываем с копейками, обратно переводим через rublesToKopecks. */
@@ -70,7 +79,20 @@ export function OrderItems({
 
   function save() {
     startTransition(async () => {
-      const result = await updateItemsAction({ orderId, orderNumber, items, discountKopecks });
+      const result = await updateItemsAction({
+        orderId,
+        orderNumber,
+        discountKopecks,
+        items: items.map((item) => ({
+          productId: item.productId,
+          sku: item.sku,
+          name: item.name,
+          priceKopecks: item.priceKopecks,
+          quantity: item.quantity,
+          discountKopecks: item.discountKopecks,
+          supplierId: item.supplierId,
+        })),
+      });
       if (result.ok) toast.success("Состав заказа сохранён");
       else toast.error(result.error);
     });
@@ -92,13 +114,29 @@ export function OrderItems({
                   priceKopecks: product.priceKopecks,
                   quantity: 1,
                   discountKopecks: 0,
+                  // Самый дешёвый поставщик — первым в списке, его и подставляем.
+                  supplierId: product.suppliers[0]?.id ?? null,
+                  supplierName: product.suppliers[0]?.name ?? null,
+                  purchasePriceKopecks: null,
+                  supplierOptions: product.suppliers,
                 },
               ])
             }
             onCustom={() =>
               setItems((current) => [
                 ...current,
-                { productId: null, sku: "", name: "", priceKopecks: 0, quantity: 1, discountKopecks: 0 },
+                {
+                  productId: null,
+                  sku: "",
+                  name: "",
+                  priceKopecks: 0,
+                  quantity: 1,
+                  discountKopecks: 0,
+                  supplierId: null,
+                  supplierName: null,
+                  purchasePriceKopecks: null,
+                  supplierOptions: [],
+                },
               ])
             }
           />
@@ -111,6 +149,7 @@ export function OrderItems({
             <TableRow>
               <TableHead className="w-32">Артикул</TableHead>
               <TableHead>Название</TableHead>
+              <TableHead className="w-44">Поставщик</TableHead>
               <TableHead className="w-28 text-right">Цена, ₽</TableHead>
               <TableHead className="w-20 text-right">Кол-во</TableHead>
               <TableHead className="w-28 text-right">Скидка, ₽</TableHead>
@@ -142,6 +181,16 @@ export function OrderItems({
                   ) : (
                     item.name
                   )}
+                </TableCell>
+                <TableCell>
+                  <ItemSupplierCell
+                    item={item}
+                    editable={editable}
+                    onChange={(supplierId, supplierName) =>
+                      // Снимок закупки относится к прежнему поставщику — до сохранения показываем прайс.
+                      update(index, { supplierId, supplierName, purchasePriceKopecks: null })
+                    }
+                  />
                 </TableCell>
                 <TableCell className="text-right">
                   {editable ? (
@@ -302,7 +351,8 @@ function hasChanges(
       item.name !== initial.name ||
       item.priceKopecks !== initial.priceKopecks ||
       item.quantity !== initial.quantity ||
-      item.discountKopecks !== initial.discountKopecks
+      item.discountKopecks !== initial.discountKopecks ||
+      item.supplierId !== initial.supplierId
     );
   });
 }

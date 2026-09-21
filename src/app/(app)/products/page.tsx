@@ -9,6 +9,7 @@ import { ProductsToolbar } from "@/components/products/products-toolbar";
 import { Button } from "@/components/ui/button";
 import { listProducts } from "@/server/products/list";
 import { canEditCatalog } from "@/server/products/service";
+import { listSupplierOptions } from "@/server/suppliers/list";
 import { requirePageUser } from "@/server/session";
 import { parseProductListParams } from "./params";
 
@@ -20,7 +21,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
   const user = await requirePageUser();
   const params = await searchParams;
 
-  const result = await listProducts(parseProductListParams(params));
+  const [result, suppliers] = await Promise.all([listProducts(parseProductListParams(params)), listSupplierOptions()]);
   const urlParams = toSearchParams(params);
 
   return (
@@ -39,10 +40,14 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
       </div>
 
       <Suspense fallback={null}>
-        <ProductsToolbar categories={result.categories} canEditCatalog={canEditCatalog(user.role)} />
+        <ProductsToolbar
+          categories={result.categories}
+          canEditCatalog={canEditCatalog(user.role)}
+          suppliers={suppliers}
+        />
       </Suspense>
 
-      <ProductsTable rows={result.rows} canEditCatalog={canEditCatalog(user.role)} />
+      <ProductsTable rows={result.rows} canEditCatalog={canEditCatalog(user.role)} suppliers={suppliers} />
 
       <ListPagination
         page={result.page}

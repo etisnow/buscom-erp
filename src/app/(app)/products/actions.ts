@@ -16,6 +16,14 @@ const draftSchema = z.object({
   /** Совместимые модели авто вводятся через запятую */
   compatibility: z.array(z.string().min(1)).optional(),
   isActive: z.boolean().optional(),
+  suppliers: z
+    .array(
+      z.object({
+        supplierId: z.string().min(1, { error: "Выберите поставщика" }),
+        purchasePriceKopecks: z.number().int().min(0, { error: "Закупочная цена не может быть отрицательной" }),
+      }),
+    )
+    .optional(),
 });
 
 async function run(action: () => Promise<unknown>, message: string): Promise<ProductResult> {

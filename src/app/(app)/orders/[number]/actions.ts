@@ -5,6 +5,7 @@ import { z } from "zod";
 import { DiscountLimitError } from "@/domain/order/discount";
 import { OrderEditError } from "@/domain/order/editing";
 import { OrderTransitionError } from "@/domain/order/status";
+import { SupplierStageError } from "@/domain/supplier/stages";
 import { ForbiddenError } from "@/server/errors";
 import { assignManager, takeOrder } from "@/server/orders/assignment";
 import { addOrderComment } from "@/server/orders/comments";
@@ -13,6 +14,7 @@ import { OrderConflictError, OrderNotFoundError } from "@/server/orders/internal
 import { updateOrderItems } from "@/server/orders/items";
 import { addPayment } from "@/server/orders/payments";
 import { changeOrderStatus } from "@/server/orders/status";
+import { changeSupplierStage } from "@/server/orders/suppliers";
 import { searchProducts, type ProductSuggestion } from "@/server/products/search";
 import { getCancelReasons } from "@/server/settings/service";
 import { requireUser } from "@/server/session";
@@ -43,6 +45,7 @@ async function run(orderNumber: number, action: () => Promise<unknown>): Promise
   } catch (error) {
     if (
       error instanceof OrderTransitionError ||
+      error instanceof SupplierStageError ||
       error instanceof OrderEditError ||
       error instanceof DiscountLimitError ||
       error instanceof OrderConflictError ||
@@ -121,6 +124,7 @@ const itemsSchema = z.object({
         priceKopecks: z.number().int().min(0),
         quantity: z.number().int().positive({ error: "Количество должно быть больше нуля" }),
         discountKopecks: z.number().int().min(0),
+        supplierId: z.string().nullable().optional(),
       }),
     )
     .min(1, { error: "В заказе должна остаться хотя бы одна позиция" }),
@@ -216,4 +220,30 @@ export async function addCommentAction(orderId: string, orderNumber: number, tex
 export async function searchProductsAction(query: string): Promise<ProductSuggestion[]> {
   await requireUser();
   return searchProducts(query);
+}
+
+const stageSchema = z.object({
+  orderId: z.string().min(1),
+  orderNumber: z.number().int().positive(),
+  supplierId: z.string().min(1),
+  toStageId: z.string().min(1).nullable(),
+  expectedStageId: z.string().min(1).nullable(),
+});
+
+/** Смена этапа поставщика в заказе — шаг вперёд или назад по его цепочке. */
+export async function changeSupplierStageAction(input: z.input<typeof stageSchema>): Promise<ActionResult> {
+  const user = await requireUser();
+  const parsed = stageSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+  const data = parsed.data;
+
+  return run(data.orderNumber, () =>
+    changeSupplierStage({
+      orderId: data.orderId,
+      supplierId: data.supplierId,
+      toStageId: data.toStageId,
+      expectedStageId: data.expectedStageId,
+      user,
+    }),
+  );
 }

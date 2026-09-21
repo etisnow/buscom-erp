@@ -5,7 +5,30 @@ import { db } from "@/server/db";
 const detailsInclude = {
   customer: true,
   manager: { select: { id: true, name: true } },
-  items: { orderBy: { sortOrder: "asc" } },
+  items: {
+    orderBy: { sortOrder: "asc" },
+    include: {
+      supplier: { select: { id: true, name: true } },
+      // Варианты поставщика для правки позиции — из привязок товара, дешёвый первым.
+      product: {
+        select: {
+          suppliers: {
+            orderBy: { purchasePriceKopecks: "asc" },
+            select: { purchasePriceKopecks: true, supplier: { select: { id: true, name: true } } },
+          },
+        },
+      },
+    },
+  },
+  supplierTracks: {
+    orderBy: { supplier: { name: "asc" } },
+    select: {
+      stageId: true,
+      supplier: {
+        select: { id: true, name: true, stages: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true } } },
+      },
+    },
+  },
   payments: { orderBy: { paidAt: "asc" }, include: { createdBy: { select: { name: true } } } },
   events: {
     orderBy: { createdAt: "desc" },

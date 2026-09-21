@@ -12,6 +12,7 @@ import {
   type OrderWithItems,
 } from "@/server/orders/internal";
 import type { OrderItemDraft } from "@/server/orders/items";
+import { resolveItemSuppliers, syncSupplierTracks } from "@/server/orders/suppliers";
 import { getSettings } from "@/server/settings/service";
 import type { SessionUser } from "@/server/session";
 
@@ -55,6 +56,7 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderWithIte
 
   return db.$transaction(async (tx) => {
     const customerId = input.customerId ?? (await findOrCreateCustomer(tx, requireCustomer(input))).id;
+    const suppliers = await resolveItemSuppliers(tx, input.items);
 
     const order = await tx.order.create({
       data: {
@@ -78,12 +80,14 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderWithIte
             quantity: item.quantity,
             discountKopecks: item.discountKopecks ?? 0,
             sortOrder: index,
+            ...suppliers[index],
           })),
         },
       },
     });
 
     await recalculateOrderTotals(tx, order.id);
+    await syncSupplierTracks(tx, order.id);
 
     await writeOrderEvent(tx, {
       orderId: order.id,

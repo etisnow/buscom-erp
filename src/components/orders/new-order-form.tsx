@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Trash2, UserCheck } from "lucide-react";
 import { toast } from "sonner";
+import { ItemSupplierCell } from "@/components/orders/item-supplier";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +15,7 @@ import { ORDER_CREATE_SOURCES, ORDER_SOURCE_LABELS } from "@/domain/order/source
 import { formatRub, rublesToKopecks } from "@/domain/money";
 import { DEFAULT_DISCOUNT_LIMIT_PERCENT, maxDiscountKopecks } from "@/domain/order/discount";
 import type { CustomerMatch } from "@/server/customers/lookup";
-import type { ProductSuggestion } from "@/server/products/search";
+import type { ProductSuggestion, ProductSupplierOption } from "@/server/products/search";
 import {
   createOrderAction,
   lookupCustomersAction,
@@ -28,6 +29,9 @@ type Item = {
   priceKopecks: number;
   quantity: number;
   discountKopecks: number;
+  supplierId: string | null;
+  supplierName: string | null;
+  supplierOptions: ProductSupplierOption[];
 };
 
 const SOURCES = ORDER_CREATE_SOURCES.map((value) => ({ value, label: ORDER_SOURCE_LABELS[value] }));
@@ -104,7 +108,15 @@ export function NewOrderForm() {
         source: source as "PHONE",
         customerId: picked?.id,
         customer: picked ? undefined : { type: customerType, name, phone, email, inn },
-        items,
+        items: items.map((item) => ({
+          productId: item.productId,
+          sku: item.sku,
+          name: item.name,
+          priceKopecks: item.priceKopecks,
+          quantity: item.quantity,
+          discountKopecks: item.discountKopecks,
+          supplierId: item.supplierId,
+        })),
         discountKopecks,
         deliveryMethod: deliveryMethod === NO_DELIVERY ? null : (deliveryMethod as "PICKUP"),
         carrier,
@@ -284,6 +296,10 @@ export function NewOrderForm() {
                         priceKopecks: product.priceKopecks,
                         quantity: 1,
                         discountKopecks: 0,
+                        // Самый дешёвый поставщик — первым в списке, его и подставляем.
+                        supplierId: product.suppliers[0]?.id ?? null,
+                        supplierName: product.suppliers[0]?.name ?? null,
+                        supplierOptions: product.suppliers,
                       },
                     ]);
                     setProductQuery("");
@@ -306,6 +322,7 @@ export function NewOrderForm() {
                 <TableRow>
                   <TableHead className="w-32">Артикул</TableHead>
                   <TableHead>Название</TableHead>
+                  <TableHead className="w-44">Поставщик</TableHead>
                   <TableHead className="w-28 text-right">Цена, ₽</TableHead>
                   <TableHead className="w-20 text-right">Кол-во</TableHead>
                   <TableHead className="w-28 text-right">Скидка, ₽</TableHead>
@@ -318,6 +335,17 @@ export function NewOrderForm() {
                   <TableRow key={`${item.sku}-${index}`}>
                     <TableCell>{item.sku}</TableCell>
                     <TableCell>{item.name}</TableCell>
+                    <TableCell>
+                      <ItemSupplierCell
+                        item={{ ...item, purchasePriceKopecks: null }}
+                        editable
+                        onChange={(supplierId, supplierName) =>
+                          setItems((current) =>
+                            current.map((row, i) => (i === index ? { ...row, supplierId, supplierName } : row)),
+                          )
+                        }
+                      />
+                    </TableCell>
                     <TableCell className="text-right">{formatRub(item.priceKopecks)}</TableCell>
                     <TableCell className="text-right">
                       <Input

@@ -8,9 +8,11 @@ import { OrderHeader } from "@/components/orders/order-header";
 import { OrderHistory } from "@/components/orders/order-history";
 import { OrderItems } from "@/components/orders/order-items";
 import { OrderPayments } from "@/components/orders/order-payments";
+import { SupplierTracks } from "@/components/orders/supplier-tracks";
 import { formatMoscowDate, formatPhone } from "@/domain/datetime";
 import { canEditItems, canReassignManager } from "@/domain/order/editing";
 import { TERMINAL_STATUSES } from "@/domain/order/status";
+import { canMoveStages } from "@/domain/supplier/stages";
 import { findOrderByNumber } from "@/server/orders/details";
 import { listManagers } from "@/server/orders/list";
 import { getCancelReasons } from "@/server/settings/service";
@@ -85,6 +87,14 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
               priceKopecks: item.priceKopecks,
               quantity: item.quantity,
               discountKopecks: item.discountKopecks,
+              supplierId: item.supplierId,
+              supplierName: item.supplier?.name ?? null,
+              purchasePriceKopecks: item.purchasePriceKopecks,
+              supplierOptions: (item.product?.suppliers ?? []).map((link) => ({
+                id: link.supplier.id,
+                name: link.supplier.name,
+                purchasePriceKopecks: link.purchasePriceKopecks,
+              })),
             }))}
             initialDiscountKopecks={order.discountKopecks}
             deliveryPriceKopecks={order.deliveryPriceKopecks}
@@ -123,6 +133,20 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
         </div>
 
         <div className="flex flex-col gap-4">
+          {order.supplierTracks.length > 0 ? (
+            <SupplierTracks
+              orderId={order.id}
+              orderNumber={order.number}
+              canMove={canMoveStages(order.status, user.role)}
+              tracks={order.supplierTracks.map((track) => ({
+                supplierId: track.supplier.id,
+                supplierName: track.supplier.name,
+                stageId: track.stageId,
+                stages: track.supplier.stages,
+              }))}
+            />
+          ) : null}
+
           <section className="flex flex-col gap-2 rounded-lg border p-4">
             <h2 className="font-heading font-medium">Клиент</h2>
             <dl className="flex flex-col gap-1 text-sm">

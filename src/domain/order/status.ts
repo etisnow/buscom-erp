@@ -4,6 +4,7 @@
  * каждую смену статуса через assertTransition — UI только прячет недоступные кнопки.
  */
 import type { OrderStatus, UserRole } from "@/generated/prisma/enums";
+import { incompleteTracks, type TrackPosition } from "@/domain/supplier/stages";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   NEW: "Новый",
@@ -81,9 +82,11 @@ type TransitionInput = {
   to: OrderStatus;
   role: UserRole;
   cancelReason?: string | null;
+  /** Треки поставщиков заказа: в «Отправку» заказ уходит, только когда все пройдены */
+  supplierTracks?: readonly TrackPosition[];
 };
 
-export function assertTransition({ from, to, role, cancelReason }: TransitionInput): void {
+export function assertTransition({ from, to, role, cancelReason, supplierTracks = [] }: TransitionInput): void {
   if (!TRANSITIONS[from].some((t) => t.to === to)) {
     throw new OrderTransitionError(
       from,
@@ -96,5 +99,12 @@ export function assertTransition({ from, to, role, cancelReason }: TransitionInp
   }
   if (to === "CANCELLED" && !cancelReason?.trim()) {
     throw new OrderTransitionError(from, to, "Для отмены заказа нужно указать причину");
+  }
+  if (to === "SHIPPING") {
+    const pending = incompleteTracks(supplierTracks);
+    if (pending.length > 0) {
+      const names = pending.map((track) => `«${track.supplierName}»`).join(", ");
+      throw new OrderTransitionError(from, to, `Не пройдены этапы поставщиков: ${names}`);
+    }
   }
 }

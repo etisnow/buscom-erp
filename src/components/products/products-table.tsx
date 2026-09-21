@@ -9,9 +9,18 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatRub } from "@/domain/money";
 import type { ProductRow } from "@/server/products/list";
+import type { SupplierOption } from "@/server/suppliers/list";
 import { toggleProductAction, type ProductResult } from "@/app/(app)/products/actions";
 
-export function ProductsTable({ rows, canEditCatalog }: { rows: ProductRow[]; canEditCatalog: boolean }) {
+export function ProductsTable({
+  rows,
+  canEditCatalog,
+  suppliers,
+}: {
+  rows: ProductRow[];
+  canEditCatalog: boolean;
+  suppliers: SupplierOption[];
+}) {
   const [pending, startTransition] = useTransition();
   const [editingProduct, setEditingProduct] = useState<ProductRow | null>(null);
 
@@ -41,6 +50,7 @@ export function ProductsTable({ rows, canEditCatalog }: { rows: ProductRow[]; ca
               <TableHead>Название</TableHead>
               <TableHead className="w-36">Категория</TableHead>
               <TableHead className="w-28 text-right">Цена</TableHead>
+              <TableHead className="w-48">Поставщики</TableHead>
               <TableHead>Совместимость</TableHead>
               {canEditCatalog ? <TableHead className="w-24" /> : null}
             </TableRow>
@@ -59,6 +69,20 @@ export function ProductsTable({ rows, canEditCatalog }: { rows: ProductRow[]; ca
                 </TableCell>
                 <TableCell className="text-muted-foreground">{product.category ?? "—"}</TableCell>
                 <TableCell className="text-right whitespace-nowrap">{formatRub(product.priceKopecks)}</TableCell>
+                <TableCell>
+                  {product.suppliers.length === 0 ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : (
+                    <ul className="flex flex-col text-xs">
+                      {product.suppliers.map((link) => (
+                        <li key={link.supplierId} className="whitespace-nowrap">
+                          {link.supplier.name}{" "}
+                          <span className="text-muted-foreground">{formatRub(link.purchasePriceKopecks)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
                     {product.compatibility.map((model) => (
@@ -100,6 +124,7 @@ export function ProductsTable({ rows, canEditCatalog }: { rows: ProductRow[]; ca
       {editingProduct ? (
         <ProductDialog
           product={editingProduct}
+          suppliers={suppliers}
           open
           onOpenChange={(open) => {
             if (!open) setEditingProduct(null);

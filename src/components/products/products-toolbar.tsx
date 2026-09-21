@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ProductDialog } from "@/components/products/product-dialog";
+import type { SupplierOption } from "@/server/suppliers/list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,7 +12,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const ANY = "__any__";
 
 /** Поиск и фильтры каталога. Состояние — в URL, как и в списке заказов. */
-export function ProductsToolbar({ categories, canEditCatalog }: { categories: string[]; canEditCatalog: boolean }) {
+export function ProductsToolbar({
+  categories,
+  canEditCatalog,
+  suppliers,
+}: {
+  categories: string[];
+  canEditCatalog: boolean;
+  suppliers: SupplierOption[];
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [createOpen, setCreateOpen] = useState(false);
@@ -74,7 +83,7 @@ export function ProductsToolbar({ categories, canEditCatalog }: { categories: st
             <Plus />
             Новый товар
           </Button>
-          <ProductDialog open={createOpen} onOpenChange={setCreateOpen} />
+          <ProductDialog open={createOpen} onOpenChange={setCreateOpen} suppliers={suppliers} />
         </>
       ) : null}
     </div>

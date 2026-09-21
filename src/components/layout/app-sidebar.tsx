@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, ClipboardList, Package, Settings, Users } from "lucide-react";
+import { Boxes, ClipboardList, Factory, Package, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -18,13 +18,14 @@ import {
 export type NavItem = {
   href: string;
   label: string;
-  icon: "orders" | "customers" | "products" | "admin";
+  icon: "orders" | "customers" | "products" | "suppliers" | "admin";
 };
 
 const ICONS = {
   orders: ClipboardList,
   customers: Users,
   products: Package,
+  suppliers: Factory,
   admin: Settings,
 } as const;
 

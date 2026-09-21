@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { DiscountLimitError } from "@/domain/order/discount";
+import { OrderEditError } from "@/domain/order/editing";
 import { ForbiddenError } from "@/server/errors";
 import { lookupCustomers, type CustomerMatch } from "@/server/customers/lookup";
 import { createOrder } from "@/server/orders/create";
@@ -34,6 +35,7 @@ const createSchema = z.object({
         priceKopecks: z.number().int().min(0),
         quantity: z.number().int().positive(),
         discountKopecks: z.number().int().min(0),
+        supplierId: z.string().nullable().optional(),
       }),
     )
     .min(1, { error: "Добавьте хотя бы одну позицию" }),
@@ -77,7 +79,7 @@ export async function createOrderAction(input: z.input<typeof createSchema>): Pr
     });
     orderNumber = order.number;
   } catch (error) {
-    if (error instanceof DiscountLimitError || error instanceof ForbiddenError) {
+    if (error instanceof DiscountLimitError || error instanceof OrderEditError || error instanceof ForbiddenError) {
       return { ok: false, error: error.message };
     }
     if (error instanceof Error && error.message.includes("позиция")) {

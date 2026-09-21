@@ -174,6 +174,69 @@ model Product {
   updatedAt     DateTime @updatedAt
 
   orderItems OrderItem[]
+  suppliers  ProductSupplier[]
+}
+
+// ---------------------------------------------------------------------------
+// Поставщики
+// ---------------------------------------------------------------------------
+
+/// Поставщик товаров. Поля — как у клиента (физлицо или юрлицо), плюс своя
+/// цепочка этапов работы: по ней идёт трек поставщика в заказе (docs/DECISIONS.md).
+model Supplier {
+  id            String       @id @default(cuid())
+  type          CustomerType @default(COMPANY)
+  name          String
+  /// Нормализованный телефон +7XXXXXXXXXX. Не уникален: у поставщика бывает общий
+  /// номер на несколько юрлиц, а сопоставлять по нему ничего не нужно
+  phone         String?
+  email         String?
+  inn           String?
+  kpp           String?
+  /// Реквизиты юрлица — та же форма, что у клиента (`CustomerRequisites`)
+  requisites    Json?
+  contactPerson String?
+  address       String?
+  comment       String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  stages     SupplierStage[]
+  products   ProductSupplier[]
+  orderItems OrderItem[]
+  tracks     OrderSupplierTrack[]
+
+  @@index([name])
+  @@index([inn])
+}
+
+/// Этап в цепочке работы с поставщиком: «Запрошен счёт», «Оплачено поставщику»…
+/// Это подстатусы заказа «в работе» — порядок задаёт `sortOrder`.
+model SupplierStage {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  name       String
+  sortOrder  Int
+  createdAt  DateTime @default(now())
+
+  /// Этап, на котором стоит трек заказа, удалить нельзя — иначе заказ потерял бы место в цепочке
+  tracks OrderSupplierTrack[]
+
+  @@index([supplierId, sortOrder])
+}
+
+/// Товар у поставщика и закупочная цена. Цена продажи остаётся в `Product.priceKopecks`.
+model ProductSupplier {
+  productId            String
+  product              Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplierId           String
+  supplier             Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  purchasePriceKopecks Int
+  updatedAt            DateTime @updatedAt
+
+  @@id([productId, supplierId])
+  @@index([supplierId])
 }
 
 // ---------------------------------------------------------------------------
@@ -250,9 +313,10 @@ model Order {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  items    OrderItem[]
-  payments Payment[]
-  events   OrderEvent[]
+  items          OrderItem[]
+  payments       Payment[]
+  events         OrderEvent[]
+  supplierTracks OrderSupplierTrack[]
 
   @@unique([source, externalId])
   @@index([status])
@@ -263,20 +327,43 @@ model Order {
 }
 
 model OrderItem {
-  id              String   @id @default(cuid())
-  orderId         String
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId       String?
-  product         Product? @relation(fields: [productId], references: [id])
+  id                   String    @id @default(cuid())
+  orderId              String
+  order                Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId            String?
+  product              Product?  @relation(fields: [productId], references: [id])
   /// Снимок товара на момент заказа — правки каталога не меняют старые заказы
-  sku             String
-  name            String
-  priceKopecks    Int
-  quantity        Int
-  discountKopecks Int      @default(0)
-  sortOrder       Int      @default(0)
+  sku                  String
+  name                 String
+  priceKopecks         Int
+  quantity             Int
+  discountKopecks      Int       @default(0)
+  sortOrder            Int       @default(0)
+  /// У кого берём позицию. Поставщика с позициями в заказах удалить нельзя
+  supplierId           String?
+  supplier             Supplier? @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  /// Снимок закупочной цены на момент выбора поставщика — как и цена продажи выше
+  purchasePriceKopecks Int?
 
   @@index([orderId])
+  @@index([supplierId])
+}
+
+/// Трек поставщика в заказе: на каком этапе его цепочки сейчас работа.
+/// Один на пару заказ–поставщик; заводится и убирается вместе с позициями.
+model OrderSupplierTrack {
+  id         String         @id @default(cuid())
+  orderId    String
+  order      Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  supplierId String
+  supplier   Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  /// null — работа с поставщиком ещё не начата
+  stageId    String?
+  stage      SupplierStage? @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  updatedAt  DateTime       @updatedAt
+
+  @@unique([orderId, supplierId])
+  @@index([supplierId])
 }
 
 enum PaymentMethod {
@@ -310,6 +397,8 @@ enum OrderEventType {
   ITEMS_CHANGED
   PAYMENT_ADDED
   COMMENT
+  /// Трек поставщика перешёл на другой этап его цепочки
+  SUPPLIER_STAGE_CHANGED
 }
 
 /// Журнал заказа: история в карточке и аудит. Только добавление, без правок.

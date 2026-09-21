@@ -10,6 +10,7 @@ import {
   writeOrderEvent,
   type OrderWithItems,
 } from "@/server/orders/internal";
+import { resolveItemSuppliers, syncSupplierTracks } from "@/server/orders/suppliers";
 import { getSettings } from "@/server/settings/service";
 import type { SessionUser } from "@/server/session";
 
@@ -21,6 +22,8 @@ export type OrderItemDraft = {
   priceKopecks: Kopecks;
   quantity: number;
   discountKopecks?: Kopecks;
+  /** У кого берём позицию: только из поставщиков, привязанных к товару */
+  supplierId?: string | null;
 };
 
 export type UpdateItemsInput = {
@@ -64,6 +67,8 @@ export async function updateOrderItems(input: UpdateItemsInput): Promise<OrderWi
       discountKopecks: item.discountKopecks,
     }));
 
+    const suppliers = await resolveItemSuppliers(tx, input.items, order.items);
+
     await tx.orderItem.deleteMany({ where: { orderId: order.id } });
     await tx.orderItem.createMany({
       data: input.items.map((item, index) => ({
@@ -75,8 +80,10 @@ export async function updateOrderItems(input: UpdateItemsInput): Promise<OrderWi
         quantity: item.quantity,
         discountKopecks: item.discountKopecks ?? 0,
         sortOrder: index,
+        ...suppliers[index],
       })),
     });
+    await syncSupplierTracks(tx, order.id);
 
     await tx.order.update({
       where: { id: order.id },

@@ -15,6 +15,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     { href: "/orders", label: "Заказы", icon: "orders" },
     { href: "/customers", label: "Клиенты", icon: "customers" },
     { href: "/products", label: "Товары", icon: "products" },
+    { href: "/suppliers", label: "Поставщики", icon: "suppliers" },
   ];
   if (hasRole(user.role, ADMIN_SECTION_ROLES)) {
     items.push({ href: "/admin", label: "Администрирование", icon: "admin" });

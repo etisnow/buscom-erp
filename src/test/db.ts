@@ -28,6 +28,10 @@ export function dbTestsEnabled(): boolean {
 export const describeDb = dbTestsEnabled() ? describe : describe.skip;
 
 const TABLES = [
+  '"OrderSupplierTrack"',
+  '"ProductSupplier"',
+  '"SupplierStage"',
+  '"Supplier"',
   '"OrderEvent"',
   '"Payment"',
   '"OrderItem"',
