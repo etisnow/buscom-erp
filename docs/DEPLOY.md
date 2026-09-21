@@ -323,3 +323,17 @@ PRD требует проверить восстановление **до** за
 - пароль первого администратора лежит в `.env.production` на сервере. Посмотреть: `grep SEED_ADMIN_PASSWORD /opt/buscom-erp/.env.production`. Сменить после первого входа.
 
 **Ловушка формата `.env.production`:** значения с пробелами надо брать в кавычки (`SMTP_FROM="BusCom ERP <noreply@bus-com.ru>"`). Docker Compose разбирает файл и без них, а `source .env.production` в оболочке — нет.
+
+## Импорты на сервере (каталог сайта, картинки)
+
+Скрипты импорта живут в образе миграций. `docker compose run` без имени образа пытается собрать его на сервере и падает по памяти — образ надо указать явно, тот же, что выкатил деплой (`git log -1` на сервере даёт SHA):
+
+```bash
+cd /opt/buscom-erp
+SHA=$(git rev-parse HEAD)
+export MIGRATE_IMAGE=ghcr.io/etisnow/buscom-erp/migrate:$SHA APP_IMAGE=ghcr.io/etisnow/buscom-erp/app:$SHA
+docker compose -f docker-compose.prod.yml --env-file .env.production run --rm -T --no-deps \
+  -v /opt/buscom-erp/misc:/app/misc migrate pnpm import:site-products misc/site-products.json --dry-run
+```
+
+Файлы для импорта кладутся в `/opt/buscom-erp/misc` (с машины разработки: `scp misc/site-products.json buscom-prod:/opt/buscom-erp/misc/`). Сервер видит bus-com.ru, поэтому `import:site-images` качает картинки прямо оттуда.
