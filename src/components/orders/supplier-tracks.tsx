@@ -50,7 +50,7 @@ export function SupplierTracks({
       <div>
         <h2 className="font-heading font-medium">Поставщики</h2>
         <p className="text-muted-foreground text-xs">
-          В «Отправку» заказ уйдёт, когда каждый поставщик пройдёт последний этап.
+          В «Выполнен» заказ уйдёт, когда каждый поставщик пройдёт последний этап.
         </p>
       </div>
 

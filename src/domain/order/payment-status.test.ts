@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isFullyPaid, paidTotal, paymentStatus, remainingToPay } from "./payment-status";
+import { paidTotal, paymentStatus, remainingToPay } from "./payment-status";
 
 describe("paidTotal", () => {
   it("складывает платежи", () => {
@@ -48,23 +48,5 @@ describe("remainingToPay", () => {
 
   it("при переплате остаток нулевой", () => {
     expect(remainingToPay(100_000, 150_000)).toBe(0);
-  });
-});
-
-describe("isFullyPaid", () => {
-  it("оплата ровно в итог переводит в PAID", () => {
-    expect(isFullyPaid(100_000, 100_000)).toBe(true);
-  });
-
-  it("переплата тоже переводит в PAID", () => {
-    expect(isFullyPaid(100_000, 100_001)).toBe(true);
-  });
-
-  it("недоплата не переводит", () => {
-    expect(isFullyPaid(100_000, 99_999)).toBe(false);
-  });
-
-  it("заказ с нулевым итогом без платежей сам в PAID не уходит", () => {
-    expect(isFullyPaid(0, 0)).toBe(false);
   });
 });

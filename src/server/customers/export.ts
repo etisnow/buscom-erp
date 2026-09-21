@@ -23,7 +23,7 @@ export type CustomersCsv = {
 };
 
 /** Сумма покупок считается по закрытым сделкам — так же, как в списке. */
-const PURCHASED_STATUSES = ["SHIPPED", "COMPLETED"] as const;
+const PURCHASED_STATUSES = ["COMPLETED"] as const;
 
 export async function exportCustomersCsv(filters: CustomerFilters): Promise<CustomersCsv> {
   const now = new Date();

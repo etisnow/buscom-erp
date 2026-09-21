@@ -23,16 +23,7 @@ import { requireUser } from "@/server/session";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
-const ORDER_STATUSES = [
-  "NEW",
-  "IN_PROGRESS",
-  "AWAITING_PAYMENT",
-  "PAID",
-  "SHIPPING",
-  "SHIPPED",
-  "COMPLETED",
-  "CANCELLED",
-] as const;
+const ORDER_STATUSES = ["NEW", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const;
 
 /**
  * Единая обёртка: ошибки домена и прав превращаются в текст для формы,

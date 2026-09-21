@@ -3,7 +3,7 @@
  *
  * Глобальный статус заказа остаётся главным. Этапы поставщика — его подстатусы,
  * пока заказ в работе: у каждого поставщика своя цепочка, и в заказе с товарами
- * нескольких поставщиков трек у каждого свой. Дальше «Отправки» заказ не уходит,
+ * нескольких поставщиков трек у каждого свой. В «Выполнен» заказ не уходит,
  * пока все треки не дошли до последнего этапа.
  */
 import type { OrderStatus, UserRole } from "@/generated/prisma/enums";
@@ -12,11 +12,10 @@ import type { OrderStatus, UserRole } from "@/generated/prisma/enums";
 export const SUPPLIER_STAGES_MAX = 20;
 
 /**
- * Статусы заказа, в которых двигают этапы поставщиков. Это «в работе» в широком
- * смысле: и ожидание оплаты, и оплаченный заказ — поставщику часто платят уже
- * после оплаты клиента, поэтому одного `IN_PROGRESS` мало.
+ * Этапы поставщиков — подстатусы «В работе»: двигаются только в этом статусе.
+ * Промежуточных глобальных статусов (оплата, отправка) больше нет — всё это этапы.
  */
-export const SUPPLIER_WORK_STATUSES: readonly OrderStatus[] = ["IN_PROGRESS", "AWAITING_PAYMENT", "PAID"];
+export const SUPPLIER_WORK_STATUSES: readonly OrderStatus[] = ["IN_PROGRESS"];
 
 const STAGE_ROLES: readonly UserRole[] = ["MANAGER", "HEAD", "ADMIN"];
 

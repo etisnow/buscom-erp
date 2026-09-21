@@ -10,7 +10,6 @@ import {
   slaDueAtFor,
   writeOrderEvent,
   type OrderWithItems,
-  type Tx,
 } from "@/server/orders/internal";
 import { loadTrackPositions } from "@/server/orders/suppliers";
 import type { SessionUser } from "@/server/session";
@@ -45,11 +44,13 @@ export async function changeOrderStatus(input: ChangeStatusInput): Promise<Order
       to: input.to,
       role: input.user.role,
       cancelReason: input.cancelReason,
+      paidKopecks: order.paidKopecks,
       supplierTracks: await loadTrackPositions(tx, order.id),
     });
 
-    if (input.to === "SHIPPED" && order.deliveryMethod === "CARRIER" && !order.trackingNumber?.trim()) {
-      throw new OrderConflictError("Для отгрузки транспортной компанией нужен трек-номер");
+    // Отгрузки как статуса больше нет: трек-номер для доставки ТК требуем при закрытии заказа.
+    if (input.to === "COMPLETED" && order.deliveryMethod === "CARRIER" && !order.trackingNumber?.trim()) {
+      throw new OrderConflictError("Для доставки транспортной компанией нужен трек-номер — без него заказ не закрыть");
     }
 
     const changedAt = new Date();
@@ -60,7 +61,7 @@ export async function changeOrderStatus(input: ChangeStatusInput): Promise<Order
         statusChangedAt: changedAt,
         slaDueAt: slaDueAtFor(input.to, changedAt, slaMinutes),
         ...(input.to === "CANCELLED" ? { cancelReason: input.cancelReason ?? null } : {}),
-        ...(input.to === "SHIPPED" ? { shippedAt: changedAt } : {}),
+        ...(input.to === "COMPLETED" && !order.shippedAt ? { shippedAt: changedAt } : {}),
       },
     });
 
@@ -74,28 +75,5 @@ export async function changeOrderStatus(input: ChangeStatusInput): Promise<Order
     });
 
     return tx.order.findUniqueOrThrow({ where: { id: order.id }, include: orderInclude });
-  });
-}
-
-/**
- * Автоперевод в PAID при полной оплате (PRD: автор в журнале — система).
- * Вызывается внутри уже открытой транзакции, из сервиса оплат.
- */
-export async function autoTransitionToPaid(tx: Tx, order: OrderWithItems): Promise<void> {
-  const { slaMinutes } = await getSettings();
-
-  const changedAt = new Date();
-  await tx.order.update({
-    where: { id: order.id },
-    data: { status: "PAID", statusChangedAt: changedAt, slaDueAt: slaDueAtFor("PAID", changedAt, slaMinutes) },
-  });
-
-  await writeOrderEvent(tx, {
-    orderId: order.id,
-    user: null,
-    type: "STATUS_CHANGED",
-    fromStatus: order.status,
-    toStatus: "PAID",
-    comment: "Оплата получена полностью",
   });
 }

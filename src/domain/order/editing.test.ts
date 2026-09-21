@@ -2,21 +2,15 @@ import { describe, expect, it } from "vitest";
 import { assertCanEditItems, canEditItems, canReassignManager, OrderEditError } from "./editing";
 
 describe("canEditItems", () => {
-  it("менеджер правит состав до оплаты", () => {
+  it("менеджер правит состав созданного заказа и заказа в работе до оплаты", () => {
     expect(canEditItems("NEW", "MANAGER")).toBe(true);
     expect(canEditItems("IN_PROGRESS", "MANAGER")).toBe(true);
-    expect(canEditItems("AWAITING_PAYMENT", "MANAGER")).toBe(true);
   });
 
-  it("после оплаты менеджер состав не правит", () => {
-    expect(canEditItems("PAID", "MANAGER")).toBe(false);
-    expect(canEditItems("SHIPPING", "MANAGER")).toBe(false);
-    expect(canEditItems("SHIPPED", "MANAGER")).toBe(false);
-  });
-
-  it("после оплаты правит руководитель", () => {
-    expect(canEditItems("PAID", "HEAD")).toBe(true);
-    expect(canEditItems("SHIPPING", "ADMIN")).toBe(true);
+  it("после первой оплаты — только руководитель", () => {
+    expect(canEditItems("IN_PROGRESS", "MANAGER", 100_000)).toBe(false);
+    expect(canEditItems("IN_PROGRESS", "HEAD", 100_000)).toBe(true);
+    expect(canEditItems("IN_PROGRESS", "ADMIN", 100_000)).toBe(true);
   });
 
   it("в выполненном и отменённом не правит никто", () => {
@@ -36,15 +30,15 @@ describe("assertCanEditItems", () => {
     expect(() => assertCanEditItems("COMPLETED", "ADMIN")).toThrow(/изменить нельзя/);
   });
 
-  it("при нехватке прав говорит про права", () => {
-    expect(() => assertCanEditItems("PAID", "MANAGER")).toThrow(OrderEditError);
-    expect(() => assertCanEditItems("PAID", "MANAGER")).toThrow(/Недостаточно прав/);
+  it("оплаченный заказ менеджеру не даёт и объясняет почему", () => {
+    expect(() => assertCanEditItems("IN_PROGRESS", "MANAGER", 1)).toThrow(OrderEditError);
+    expect(() => assertCanEditItems("IN_PROGRESS", "MANAGER", 1)).toThrow(/только руководитель/);
   });
 });
 
 describe("canReassignManager", () => {
   it("руководитель переназначает в нефинальном статусе", () => {
-    expect(canReassignManager("PAID", "HEAD")).toBe(true);
+    expect(canReassignManager("IN_PROGRESS", "HEAD")).toBe(true);
     expect(canReassignManager("NEW", "ADMIN")).toBe(true);
   });
 

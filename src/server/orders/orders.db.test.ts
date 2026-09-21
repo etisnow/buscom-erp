@@ -151,7 +151,6 @@ describeDb("сервис заказов (живая БД)", () => {
       items: [{ productId: product.id, sku: product.sku, name: product.name, priceKopecks: 100_000, quantity: 1 }],
       user: manager,
     });
-    await changeOrderStatus({ orderId: order.id, to: "AWAITING_PAYMENT", user: manager });
     await addPayment({
       orderId: order.id,
       method: "INVOICE",
@@ -167,7 +166,7 @@ describeDb("сервис заказов (живая БД)", () => {
         user: manager,
         cancelReason: "Клиент передумал",
       }),
-    ).rejects.toThrow(/Недостаточно прав/);
+    ).rejects.toThrow(/только руководитель/);
 
     const cancelled = await changeOrderStatus({
       orderId: order.id,
@@ -178,7 +177,7 @@ describeDb("сервис заказов (живая БД)", () => {
     expect(cancelled.status).toBe("CANCELLED");
   });
 
-  it("полная оплата сама переводит заказ в PAID, автор события — система", async () => {
+  it("оплата статус заказа не меняет: статуса «Оплачен» больше нет", async () => {
     const manager = await makeUser("MANAGER");
     const product = await makeProduct({ priceKopecks: 100_000 });
 
@@ -188,32 +187,17 @@ describeDb("сервис заказов (живая БД)", () => {
       items: [{ productId: product.id, sku: product.sku, name: product.name, priceKopecks: 100_000, quantity: 1 }],
       user: manager,
     });
-    await changeOrderStatus({ orderId: order.id, to: "AWAITING_PAYMENT", user: manager });
-
-    const partial = await addPayment({
-      orderId: order.id,
-      method: "INVOICE",
-      amountKopecks: 40_000,
-      paidAt: new Date(),
-      user: manager,
-    });
-    expect(partial.status).toBe("AWAITING_PAYMENT");
-    expect(partial.paidKopecks).toBe(40_000);
 
     const paid = await addPayment({
       orderId: order.id,
       method: "INVOICE",
-      amountKopecks: 60_000,
+      amountKopecks: 100_000,
       paidAt: new Date(),
       user: manager,
     });
-    expect(paid.status).toBe("PAID");
+    expect(paid.status).toBe("IN_PROGRESS");
     expect(paid.paidKopecks).toBe(100_000);
-
-    const autoEvent = await testDb.orderEvent.findFirst({
-      where: { orderId: order.id, toStatus: "PAID" },
-    });
-    expect(autoEvent?.userId).toBeNull();
+    expect(await testDb.orderEvent.count({ where: { orderId: order.id, type: "STATUS_CHANGED" } })).toBe(0);
   });
 
   it("«взять себе» не перехватывает чужой заказ", async () => {
@@ -308,7 +292,6 @@ describeDb("сервис заказов (живая БД)", () => {
       items: [{ productId: product.id, sku: product.sku, name: product.name, priceKopecks: 100_000, quantity: 1 }],
       user: manager,
     });
-    await changeOrderStatus({ orderId: order.id, to: "AWAITING_PAYMENT", user: manager });
     await addPayment({
       orderId: order.id,
       method: "INVOICE",
@@ -317,18 +300,13 @@ describeDb("сервис заказов (живая БД)", () => {
       user: manager,
     });
     await addOrderComment(order.id, "Клиент просил позвонить после 14:00", manager);
+    await changeOrderStatus({ orderId: order.id, to: "COMPLETED", user: manager });
 
     const events = await testDb.orderEvent.findMany({
       where: { orderId: order.id },
       orderBy: { createdAt: "asc" },
     });
-    expect(events.map((event) => event.type)).toEqual([
-      "CREATED",
-      "STATUS_CHANGED",
-      "PAYMENT_ADDED",
-      "STATUS_CHANGED",
-      "COMMENT",
-    ]);
+    expect(events.map((event) => event.type)).toEqual(["CREATED", "PAYMENT_ADDED", "COMMENT", "STATUS_CHANGED"]);
   });
 
   it("гонка двух менеджеров: несовпадение ожидаемого статуса отклоняется", async () => {
@@ -349,14 +327,13 @@ describeDb("сервис заказов (живая БД)", () => {
       ],
       user: manager,
     });
-    await changeOrderStatus({ orderId: order.id, to: "AWAITING_PAYMENT", user: manager });
-
+    // Второй менеджер видел заказ ещё «Созданным», а он уже в работе.
     await expect(
       changeOrderStatus({
         orderId: order.id,
-        to: "AWAITING_PAYMENT",
+        to: "COMPLETED",
         user: manager,
-        expectedStatus: "IN_PROGRESS",
+        expectedStatus: "NEW",
       }),
     ).rejects.toThrow(/успели изменить/);
   });
@@ -381,8 +358,6 @@ describeDb("сервис заказов (живая БД)", () => {
     });
     await testDb.order.update({ where: { id: order.id }, data: { deletedAt: new Date() } });
 
-    await expect(changeOrderStatus({ orderId: order.id, to: "AWAITING_PAYMENT", user: manager })).rejects.toThrow(
-      /не найден/,
-    );
+    await expect(changeOrderStatus({ orderId: order.id, to: "COMPLETED", user: manager })).rejects.toThrow(/не найден/);
   });
 });

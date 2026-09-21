@@ -4,16 +4,7 @@ import type { OrderListFilters, OrderView } from "@/server/orders/list";
 
 /** Значения из URL приходят строками и могут быть чем угодно — разбираем схемой. */
 const viewSchema = z.enum(["all", "mine", "unassigned", "overdue"]);
-const statusSchema = z.enum([
-  "NEW",
-  "IN_PROGRESS",
-  "AWAITING_PAYMENT",
-  "PAID",
-  "SHIPPING",
-  "SHIPPED",
-  "COMPLETED",
-  "CANCELLED",
-]);
+const statusSchema = z.enum(["NEW", "IN_PROGRESS", "COMPLETED", "CANCELLED"]);
 const paymentSchema = z.enum(["unpaid", "partial", "paid"]);
 
 /** Дата из `<input type="date">` — начало и конец дня по Москве (UTC+3). */

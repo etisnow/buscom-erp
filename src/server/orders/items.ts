@@ -46,7 +46,7 @@ export async function updateOrderItems(input: UpdateItemsInput): Promise<OrderWi
 
   return db.$transaction(async (tx) => {
     const order = await loadOrder(tx, input.orderId);
-    assertCanEditItems(order.status, input.user.role);
+    assertCanEditItems(order.status, input.user.role, order.paidKopecks);
 
     const discountKopecks = input.discountKopecks ?? order.discountKopecks;
     const deliveryPriceKopecks = input.deliveryPriceKopecks ?? order.deliveryPriceKopecks;

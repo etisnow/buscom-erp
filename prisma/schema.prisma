@@ -277,15 +277,13 @@ model ProductSupplier {
 // Заказы
 // ---------------------------------------------------------------------------
 
-/// Переходы между статусами — только через src/domain/order/status.ts
+/// Переходы между статусами — только через src/domain/order/status.ts.
+/// Глобальных статусов четыре; промежуточные этапы — в цепочках поставщиков
+/// (docs/DECISIONS.md, «Статусная модель упрощена»)
 enum OrderStatus {
+  /// «Создан»
   NEW
   IN_PROGRESS
-  AWAITING_PAYMENT
-  PAID
-  /// «Отправка»: заказ готовят и передают перевозчику. Раньше назывался ASSEMBLY («Сборка»)
-  SHIPPING
-  SHIPPED
   COMPLETED
   CANCELLED
 }

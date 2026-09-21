@@ -42,8 +42,10 @@ export function OrderHeader(props: OrderHeaderProps) {
   const [cancelOpen, setCancelOpen] = useState(false);
 
   // Кнопки показываем ровно те, что разрешает статусная машина для этой роли.
-  const transitions = availableTransitions(props.status, props.role).filter((to) => to !== "CANCELLED");
-  const canCancel = availableTransitions(props.status, props.role).includes("CANCELLED");
+  const transitions = availableTransitions(props.status, props.role, props.paidKopecks).filter(
+    (to) => to !== "CANCELLED",
+  );
+  const canCancel = availableTransitions(props.status, props.role, props.paidKopecks).includes("CANCELLED");
   const canTake = props.status === "NEW";
 
   function handle(result: Promise<ActionResult>, successMessage: string) {

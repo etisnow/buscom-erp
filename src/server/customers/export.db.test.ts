@@ -68,7 +68,7 @@ describeDb("выгрузка клиентов в CSV (живая БД)", () => {
 
     // Статус меняем напрямую: проверяется выгрузка, а не статусная машина —
     // её переходы покрыты своими тестами.
-    await testDb.order.update({ where: { id: order.id }, data: { status: "SHIPPED" } });
+    await testDb.order.update({ where: { id: order.id }, data: { status: "COMPLETED" } });
 
     const closed = await exportCustomersCsv({});
     expect(lines(closed.csv)[1]!.split(";")[6]).toBe("1000,00");

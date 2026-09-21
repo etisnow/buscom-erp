@@ -21,16 +21,7 @@ export const discountLimitSchema = z
   .min(0, { error: "Лимит скидки не может быть отрицательным" })
   .max(100, { error: "Лимит скидки не может превышать 100%" });
 
-const statusKeys = [
-  "NEW",
-  "IN_PROGRESS",
-  "AWAITING_PAYMENT",
-  "PAID",
-  "SHIPPING",
-  "SHIPPED",
-  "COMPLETED",
-  "CANCELLED",
-] as const;
+const statusKeys = ["NEW", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const;
 
 /**
  * SLA в рабочих минутах; null — срок не контролируется.

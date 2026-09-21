@@ -18,15 +18,11 @@ export const WORKING_MINUTES_PER_DAY = WORK_END_MINUTE - WORK_START_MINUTE;
 
 /**
  * SLA на статус в рабочих минутах. `null` — контроль не ведётся
- * (заказ уже отгружен, выполнен или отменён).
+ * (заказ выполнен или отменён).
  */
 export const DEFAULT_SLA_MINUTES: Record<OrderStatus, number | null> = {
   NEW: 30,
   IN_PROGRESS: WORKING_MINUTES_PER_DAY,
-  AWAITING_PAYMENT: 5 * WORKING_MINUTES_PER_DAY,
-  PAID: WORKING_MINUTES_PER_DAY,
-  SHIPPING: 2 * WORKING_MINUTES_PER_DAY,
-  SHIPPED: null,
   COMPLETED: null,
   CANCELLED: null,
 };

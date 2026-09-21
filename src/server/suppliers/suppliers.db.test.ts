@@ -146,11 +146,11 @@ describeDb("поставщики и их цепочки в заказе (жив�
     ).rejects.toThrow(/успели изменить/);
   });
 
-  it("в «Отправку» заказ уходит только после последнего этапа поставщика", async () => {
+  it("в «Выполнен» заказ уходит только после последнего этапа поставщика", async () => {
     const { supplierId, stages, item } = await setup();
     const order = await createOrder({ source: "PHONE", customer: { name: "Клиент" }, items: [item], user: manager });
 
-    await expect(changeOrderStatus({ orderId: order.id, to: "SHIPPING", user: manager })).rejects.toThrow(
+    await expect(changeOrderStatus({ orderId: order.id, to: "COMPLETED", user: manager })).rejects.toThrow(
       OrderTransitionError,
     );
 
@@ -166,9 +166,9 @@ describeDb("поставщики и их цепочки в заказе (жив�
       current = stage.id;
     }
 
-    await changeOrderStatus({ orderId: order.id, to: "SHIPPING", user: manager });
+    await changeOrderStatus({ orderId: order.id, to: "COMPLETED", user: manager });
     const fresh = await testDb.order.findUniqueOrThrow({ where: { id: order.id } });
-    expect(fresh.status).toBe("SHIPPING");
+    expect(fresh.status).toBe("COMPLETED");
 
     // Заказ ушёл из работы — этапы заморожены.
     await expect(

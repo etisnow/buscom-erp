@@ -112,8 +112,8 @@ describe("slaState", () => {
     expect(state.isOverdue).toBe(false);
   });
 
-  it("у отгруженного заказа SLA не контролируется", () => {
-    const state = slaState("SHIPPED", msk("2026-09-01T10:00"), msk("2026-09-21T10:00"));
+  it("у выполненного заказа SLA не контролируется", () => {
+    const state = slaState("COMPLETED", msk("2026-09-01T10:00"), msk("2026-09-21T10:00"));
     expect(state.slaMinutes).toBeNull();
     expect(state.isOverdue).toBe(false);
   });
@@ -123,9 +123,9 @@ describe("slaState", () => {
     expect(DEFAULT_SLA_MINUTES.CANCELLED).toBeNull();
   });
 
-  it("отправка просрочена после двух рабочих дней", () => {
-    const state = slaState("SHIPPING", msk("2026-09-21T09:00"), msk("2026-09-23T10:00"));
-    expect(state.slaMinutes).toBe(2 * WORKING_MINUTES_PER_DAY);
+  it("работа просрочена после рабочего дня", () => {
+    const state = slaState("IN_PROGRESS", msk("2026-09-21T09:00"), msk("2026-09-22T10:00"));
+    expect(state.slaMinutes).toBe(WORKING_MINUTES_PER_DAY);
     expect(state.isOverdue).toBe(true);
     expect(state.overdueMinutes).toBe(60);
   });

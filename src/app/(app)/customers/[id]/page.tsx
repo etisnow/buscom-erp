@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 /** Покупки считаются по закрытым сделкам — так же, как в списке клиентов. */
-const PURCHASED_STATUSES = ["SHIPPED", "COMPLETED"];
+const PURCHASED_STATUSES = ["COMPLETED"];
 
 export default async function CustomerPage({ params }: PageProps<"/customers/[id]">) {
   const user = await requirePageUser();

@@ -82,10 +82,10 @@ describe("смена этапа", () => {
     expect(() => assertStageMove({ ...base, orderStatus: "NEW", fromIndex: null, toIndex: 0 })).toThrow(
       /пока заказ в работе/,
     );
-    expect(() => assertStageMove({ ...base, orderStatus: "SHIPPING", fromIndex: 1, toIndex: 2 })).toThrow(
+    expect(() => assertStageMove({ ...base, orderStatus: "COMPLETED", fromIndex: 1, toIndex: 2 })).toThrow(
       SupplierStageError,
     );
-    expect(canMoveStages("PAID", "MANAGER")).toBe(true);
+    expect(canMoveStages("IN_PROGRESS", "MANAGER")).toBe(true);
     expect(canMoveStages("COMPLETED", "ADMIN")).toBe(false);
   });
 });

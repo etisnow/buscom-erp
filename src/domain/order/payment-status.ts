@@ -48,14 +48,3 @@ export function remainingToPay(totalKopecks: Kopecks, paidKopecks: Kopecks): Kop
   assertKopecks(paidKopecks);
   return Math.max(0, totalKopecks - paidKopecks);
 }
-
-/**
- * Пора ли автоматически перевести заказ в PAID (PRD: «когда в AWAITING_PAYMENT
- * сумма платежей ≥ итога»). Заказ без единого платежа не переводим никогда —
- * иначе нулевой итог уехал бы в «Оплачен» сам собой.
- */
-export function isFullyPaid(totalKopecks: Kopecks, paidKopecks: Kopecks): boolean {
-  assertKopecks(totalKopecks);
-  assertKopecks(paidKopecks);
-  return paidKopecks > 0 && paidKopecks >= totalKopecks;
-}

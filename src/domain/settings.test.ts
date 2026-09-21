@@ -24,7 +24,7 @@ describe("parseSetting: SLA", () => {
     const result = parseSetting("slaMinutes", { NEW: 15 });
     expect(result.NEW).toBe(15);
     expect(result.IN_PROGRESS).toBe(WORKING_MINUTES_PER_DAY);
-    expect(result.SHIPPED).toBeNull();
+    expect(result.COMPLETED).toBeNull();
   });
 
   it("null означает «срок не контролируется»", () => {

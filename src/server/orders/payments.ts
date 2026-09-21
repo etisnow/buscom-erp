@@ -1,5 +1,4 @@
 import "server-only";
-import { isFullyPaid, paidTotal } from "@/domain/order/payment-status";
 import type { Kopecks } from "@/domain/money";
 import type { PaymentMethod } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
@@ -10,7 +9,6 @@ import {
   writeOrderEvent,
   type OrderWithItems,
 } from "@/server/orders/internal";
-import { autoTransitionToPaid } from "@/server/orders/status";
 import type { SessionUser } from "@/server/session";
 
 export type AddPaymentInput = {
@@ -24,8 +22,8 @@ export type AddPaymentInput = {
 };
 
 /**
- * Отметка оплаты. Если после платежа заказ в AWAITING_PAYMENT оплачен полностью,
- * он сам уходит в PAID — автором этого события в журнале значится система (PRD).
+ * Отметка оплаты. Статус заказа она не меняет: статуса «Оплачен» больше нет,
+ * степень оплаты считается из суммы платежей (src/domain/order/payment-status.ts).
  */
 export async function addPayment(input: AddPaymentInput): Promise<OrderWithItems> {
   if (!Number.isSafeInteger(input.amountKopecks) || input.amountKopecks <= 0) {
@@ -66,11 +64,6 @@ export async function addPayment(input: AddPaymentInput): Promise<OrderWithItems
         reference: input.reference ?? null,
       },
     });
-
-    const paid = paidTotal([...order.payments, { amountKopecks: input.amountKopecks }]);
-    if (order.status === "AWAITING_PAYMENT" && isFullyPaid(order.totalKopecks, paid)) {
-      await autoTransitionToPaid(tx, order);
-    }
 
     return tx.order.findUniqueOrThrow({ where: { id: order.id }, include: orderInclude });
   });

@@ -40,8 +40,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
   ]);
   if (!order) notFound();
 
-  // Склад видит карточку, но не правит состав и цены (PRD).
-  const editable = canEditItems(order.status, user.role);
+  const editable = canEditItems(order.status, user.role, order.paidKopecks);
   const isClosed = TERMINAL_STATUSES.includes(order.status);
 
   // Источник меняется только у заказа, заведённого руками. Если его пункт выключили,

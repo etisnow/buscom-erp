@@ -21,7 +21,7 @@ export type CustomerListRow = {
   inn: string | null;
   createdAt: Date;
   ordersCount: number;
-  /** Сумма выполненных и отгруженных заказов — «сколько клиент купил» (PRD, M2) */
+  /** Сумма выполненных заказов — «сколько клиент купил» (PRD, M2) */
   purchasedKopecks: number;
 };
 
@@ -55,8 +55,8 @@ export function customersWhere(filters: CustomerFilters): Prisma.CustomerWhereIn
   return and.length > 0 ? { AND: and } : {};
 }
 
-/** Сумма покупок считается только по закрытым сделкам: отгружен и выполнен. */
-const PURCHASED_STATUSES = ["SHIPPED", "COMPLETED"] as const;
+/** Сумма покупок считается только по закрытым сделкам — выполненным заказам. */
+const PURCHASED_STATUSES = ["COMPLETED"] as const;
 
 export async function listCustomers(filters: CustomerFilters): Promise<CustomerListResult> {
   const page = Math.max(1, filters.page ?? 1);

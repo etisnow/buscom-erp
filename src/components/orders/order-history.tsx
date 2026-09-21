@@ -77,7 +77,8 @@ export function OrderHistory({
           <li key={event.id} className="flex flex-col gap-0.5 text-sm">
             <div className="flex flex-wrap items-baseline gap-2">
               <span className="font-medium">{EVENT_LABELS[event.type]}</span>
-              {event.fromStatus && event.toStatus ? (
+              {/* После упрощения статусов у старых записей from и to совпадают — прежний переход в комментарии. */}
+              {event.fromStatus && event.toStatus && event.fromStatus !== event.toStatus ? (
                 <span className="text-muted-foreground">
                   {ORDER_STATUS_LABELS[event.fromStatus]} → {ORDER_STATUS_LABELS[event.toStatus]}
                 </span>
