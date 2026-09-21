@@ -100,3 +100,12 @@ export async function listProducts(filters: ProductFilters): Promise<ProductList
     pageCount: Math.max(1, Math.ceil(total / PRODUCTS_PAGE_SIZE)),
   };
 }
+
+/**
+ * Товары по id в том же виде, что и строки списка, — для карточки товара и
+ * правки опций прямо из заказа. Скрытые тоже: позиция могла попасть в заказ раньше.
+ */
+export async function findProductRows(ids: readonly string[]): Promise<ProductRow[]> {
+  if (ids.length === 0) return [];
+  return db.product.findMany({ where: { id: { in: [...new Set(ids)] } }, select: listSelect });
+}

@@ -43,6 +43,8 @@ async function run(action: () => Promise<unknown>, message: string): Promise<Pro
   try {
     await action();
     revalidatePath("/products");
+    // Карточку товара открывают и из заказа: поставщики и опции там должны обновиться сразу.
+    revalidatePath("/orders/[number]", "page");
     return { ok: true, message };
   } catch (error) {
     if (error instanceof ForbiddenError || error instanceof Error) {

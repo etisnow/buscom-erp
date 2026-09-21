@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Package, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ProductPicker } from "@/components/orders/product-picker";
+import { ItemEditDialog, type ItemCatalog } from "@/components/orders/item-edit-dialog";
 import { ItemSupplierCell } from "@/components/orders/item-supplier";
+import { ProductDialog } from "@/components/products/product-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +16,10 @@ import { DEFAULT_DISCOUNT_LIMIT_PERCENT, maxDiscountKopecks } from "@/domain/ord
 import { calculateOrderTotals } from "@/domain/order/totals";
 import { describeOptions, type OrderItemOption } from "@/domain/product/options";
 import { updateItemsAction } from "@/app/(app)/orders/[number]/actions";
+import type { CategoryRow } from "@/server/products/categories";
+import type { ProductRow } from "@/server/products/list";
 import type { ProductSupplierOption } from "@/server/products/search";
+import type { SupplierOption } from "@/server/suppliers/list";
 
 export type ItemRow = {
   productId: string | null;
@@ -30,6 +35,8 @@ export type ItemRow = {
   purchasePriceKopecks: number | null;
   /** Из кого выбирать: поставщики товара по каталогу */
   supplierOptions: ProductSupplierOption[];
+  /** Цена и опции товара из каталога на момент добавления — для правки позиции, пока страница не обновилась */
+  catalog?: ItemCatalog | null;
   /** Выбранные варианты опций и их снимок — для показа под названием */
   optionValueIds: string[];
   options: OrderItemOption[];
@@ -55,6 +62,10 @@ export function OrderItems({
   initialDiscountKopecks,
   deliveryPriceKopecks,
   editable,
+  products,
+  suppliers,
+  categories,
+  canEditCatalog,
 }: {
   orderId: string;
   orderNumber: number;
@@ -62,8 +73,37 @@ export function OrderItems({
   initialDiscountKopecks: number;
   deliveryPriceKopecks: number;
   editable: boolean;
+  /** Товары позиций из каталога — свежие при каждом обновлении страницы */
+  products: ProductRow[];
+  suppliers: SupplierOption[];
+  categories: CategoryRow[];
+  canEditCatalog: boolean;
 }) {
   const [items, setItems] = useState<ItemRow[]>(initialItems);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [cardProductId, setCardProductId] = useState<string | null>(null);
+  const productById = new Map(products.map((product) => [product.id, product]));
+  // Поставщики товара — из свежих данных каталога, а не из состояния на момент открытия:
+  // поставщика, привязанного в карточке товара, сразу видно в выборе у позиции.
+  const supplierOptionsOf = (item: ItemRow): ProductSupplierOption[] => {
+    const product = item.productId ? productById.get(item.productId) : undefined;
+    if (!product) return item.supplierOptions;
+    return product.suppliers.map((link) => ({
+      id: link.supplierId,
+      name: link.supplier.name,
+      purchasePriceKopecks: link.purchasePriceKopecks,
+    }));
+  };
+  // Опции и базовая цена для окна правки: свежий товар из каталога, а у только что
+  // добавленной позиции — то, что пришло с подбором товара.
+  const catalogOf = (item: ItemRow): ItemCatalog | null => {
+    const product = item.productId ? productById.get(item.productId) : undefined;
+    if (product) return { priceKopecks: product.priceKopecks, options: product.options };
+    return item.catalog ?? null;
+  };
+  const showActions = editable || canEditCatalog;
+  const editingItem = editingIndex !== null ? items[editingIndex] : undefined;
+  const cardProduct = cardProductId ? productById.get(cardProductId) : undefined;
   const [discount, setDiscount] = useState(toRubles(initialDiscountKopecks));
   const [pending, startTransition] = useTransition();
 
@@ -126,6 +166,7 @@ export function OrderItems({
                   supplierOptions: product.suppliers,
                   optionValueIds: selection?.optionValueIds ?? [],
                   options: selection?.options ?? [],
+                  catalog: { priceKopecks: product.priceKopecks, options: product.options },
                 },
               ])
             }
@@ -163,7 +204,7 @@ export function OrderItems({
               <TableHead className="w-20 text-right">Кол-во</TableHead>
               <TableHead className="w-28 text-right">Скидка, ₽</TableHead>
               <TableHead className="w-28 text-right">Сумма</TableHead>
-              {editable ? <TableHead className="w-10" /> : null}
+              {showActions ? <TableHead className="w-28" /> : null}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -196,7 +237,7 @@ export function OrderItems({
                 </TableCell>
                 <TableCell>
                   <ItemSupplierCell
-                    item={item}
+                    item={{ ...item, supplierOptions: supplierOptionsOf(item) }}
                     editable={editable}
                     onChange={(supplierId, supplierName) =>
                       // Снимок закупки относится к прежнему поставщику — до сохранения показываем прайс.
@@ -250,17 +291,45 @@ export function OrderItems({
                 <TableCell className="text-right whitespace-nowrap">
                   {formatRub(item.priceKopecks * item.quantity - item.discountKopecks)}
                 </TableCell>
-                {editable ? (
+                {showActions ? (
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8"
-                      aria-label="Удалить позицию"
-                      onClick={() => setItems((current) => current.filter((_, i) => i !== index))}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
+                    <div className="flex justify-end gap-0.5">
+                      {editable ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          aria-label="Изменить позицию"
+                          title="Изменить позицию: опции, цена, количество"
+                          onClick={() => setEditingIndex(index)}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                      ) : null}
+                      {canEditCatalog && item.productId && productById.has(item.productId) ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          aria-label="Карточка товара"
+                          title="Карточка товара в каталоге"
+                          onClick={() => setCardProductId(item.productId)}
+                        >
+                          <Package className="size-4" />
+                        </Button>
+                      ) : null}
+                      {editable ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          aria-label="Удалить позицию"
+                          onClick={() => setItems((current) => current.filter((_, i) => i !== index))}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      ) : null}
+                    </div>
                   </TableCell>
                 ) : null}
               </TableRow>
@@ -268,6 +337,30 @@ export function OrderItems({
           </TableBody>
         </Table>
       </div>
+
+      {editingItem && editingIndex !== null ? (
+        <ItemEditDialog
+          item={editingItem}
+          catalog={catalogOf(editingItem)}
+          onClose={() => setEditingIndex(null)}
+          onApply={(patch) => {
+            update(editingIndex, patch);
+            setEditingIndex(null);
+          }}
+        />
+      ) : null}
+
+      {cardProduct ? (
+        <ProductDialog
+          product={cardProduct}
+          suppliers={suppliers}
+          categories={categories}
+          open
+          onOpenChange={(open) => {
+            if (!open) setCardProductId(null);
+          }}
+        />
+      ) : null}
 
       <div className="flex flex-col items-end gap-2 border-t pt-3">
         <div className="flex items-center gap-3">

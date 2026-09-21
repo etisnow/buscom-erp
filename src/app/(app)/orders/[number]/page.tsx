@@ -17,8 +17,12 @@ import { parseOrderItemOptions } from "@/domain/product/options";
 import { canMoveStages } from "@/domain/supplier/stages";
 import { findOrderByNumber } from "@/server/orders/details";
 import { listManagers } from "@/server/orders/list";
+import { listCategories } from "@/server/products/categories";
+import { findProductRows } from "@/server/products/list";
+import { canEditCatalog } from "@/server/products/service";
 import { getCancelReasons, getOrderSources } from "@/server/settings/service";
 import { requirePageUser } from "@/server/session";
+import { listSupplierOptions } from "@/server/suppliers/list";
 
 export async function generateMetadata({ params }: PageProps<"/orders/[number]">): Promise<Metadata> {
   const { number } = await params;
@@ -39,6 +43,13 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
     getOrderSources(),
   ]);
   if (!order) notFound();
+
+  // Товары позиций, поставщики и категории — для правки позиции и карточки товара прямо из заказа.
+  const [products, suppliers, categories] = await Promise.all([
+    findProductRows(order.items.map((item) => item.productId).filter((id): id is string => id !== null)),
+    listSupplierOptions(),
+    listCategories(),
+  ]);
 
   const editable = canEditItems(order.status, user.role, order.paidKopecks);
   const isClosed = TERMINAL_STATUSES.includes(order.status);
@@ -134,6 +145,10 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
             initialDiscountKopecks={order.discountKopecks}
             deliveryPriceKopecks={order.deliveryPriceKopecks}
             editable={editable}
+            products={products}
+            suppliers={suppliers}
+            categories={categories}
+            canEditCatalog={canEditCatalog(user.role)}
           />
 
           <OrderPayments
