@@ -29,6 +29,7 @@ pnpm test           # vitest run; одиночный файл: pnpm test src/dom
 pnpm format         # prettier
 pnpm db:tunnel      # SSH-туннель до общей dev-базы — нужен всё время, пока идёт работа (docs/DEV-DB.md)
 pnpm db:up          # Postgres в Docker (docker-compose.yml) — запасная локальная база
+pnpm db:pull        # скопировать общую базу в локальную — чтобы работать без сети
 pnpm db:migrate     # prisma migrate dev — создаёт миграцию после правки schema.prisma
 pnpm db:generate    # перегенерировать клиент в src/generated/prisma
 ```
