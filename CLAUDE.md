@@ -27,7 +27,8 @@ pnpm dev            # dev-сервер на :3000
 pnpm check          # typecheck + lint + test — прогоняй перед тем, как сказать «готово»
 pnpm test           # vitest run; одиночный файл: pnpm test src/domain/order/status.test.ts
 pnpm format         # prettier
-pnpm db:up          # Postgres в Docker (docker-compose.yml)
+pnpm db:tunnel      # SSH-туннель до общей dev-базы — нужен всё время, пока идёт работа (docs/DEV-DB.md)
+pnpm db:up          # Postgres в Docker (docker-compose.yml) — запасная локальная база
 pnpm db:migrate     # prisma migrate dev — создаёт миграцию после правки schema.prisma
 pnpm db:generate    # перегенерировать клиент в src/generated/prisma
 ```
@@ -69,5 +70,5 @@ docs/           PRD и прочие документы
 ## Нельзя
 
 - Редактировать применённые миграции в `prisma/migrations/` — только новая миграция.
-- `prisma migrate reset`, `db push --force-reset` и любые команды, стирающие данные, без явной просьбы.
+- `prisma migrate reset`, `db push --force-reset` и любые команды, стирающие данные, без явной просьбы. База разработки общая для двух машин — такая команда стирает и чужую работу.
 - Коммитить `.env` и секреты.
