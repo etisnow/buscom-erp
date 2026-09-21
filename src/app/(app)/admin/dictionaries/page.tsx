@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { DictionaryEditor } from "@/components/admin/dictionary-editor";
-import { DiscountLimitEditor, RequisitesEditor, SlaEditor } from "@/components/admin/settings-editor";
+import { DiscountLimitEditor, RequisitesEditor, SlaEditor, SmtpEditor } from "@/components/admin/settings-editor";
 import { ADMIN_ROLES } from "@/domain/user/role";
 import { getSettings, listDictionary } from "@/server/settings/service";
 import { requirePageUser } from "@/server/session";
@@ -48,6 +48,8 @@ export default async function AdminDictionariesPage() {
       <DiscountLimitEditor percent={settings.discountLimitPercent} />
       <SlaEditor slaMinutes={settings.slaMinutes} />
       <RequisitesEditor requisites={settings.sellerRequisites} />
+      {/* Пароль в браузер не отдаём — только признак, что он задан. */}
+      <SmtpEditor smtp={{ ...settings.smtp, password: "" }} hasPassword={settings.smtp.password.length > 0} />
     </main>
   );
 }

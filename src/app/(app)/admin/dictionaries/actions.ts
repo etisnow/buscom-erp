@@ -2,15 +2,23 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { discountLimitSchema, sellerRequisitesSchema, slaMinutesSchema } from "@/domain/settings";
+import {
+  discountLimitSchema,
+  mergeSmtpSettings,
+  sellerRequisitesSchema,
+  slaMinutesSchema,
+  smtpSettingsSchema,
+} from "@/domain/settings";
 import { ADMIN_ROLES } from "@/domain/user/role";
 import {
   addDictionaryItem,
   deleteDictionaryItem,
   renameDictionaryItem,
   saveDiscountLimit,
+  readSettings,
   saveSellerRequisites,
   saveSlaMinutes,
+  saveSmtpSettings,
   setDictionaryItemActive,
 } from "@/server/settings/service";
 import { requireUser } from "@/server/session";
@@ -76,4 +84,22 @@ export async function saveRequisitesAction(
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
 
   return run(() => saveSellerRequisites(parsed.data, user.id), "Реквизиты сохранены");
+}
+
+/**
+ * Настройки почты. Пароль в форму не отдаётся и приходит пустым, если его не
+ * меняли, — `mergeSmtpSettings` оставляет в этом случае сохранённый.
+ */
+export async function saveSmtpAction(settings: z.input<typeof smtpSettingsSchema>): Promise<SettingsResult> {
+  const user = await requireUser(ADMIN_ROLES);
+  const parsed = smtpSettingsSchema.safeParse(settings);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+
+  const current = await readSettings();
+  const merged = mergeSmtpSettings(current.smtp, parsed.data);
+
+  return run(
+    () => saveSmtpSettings(merged, user.id),
+    merged.host ? "Настройки почты сохранены" : "Почта выключена — письма будут писаться в лог сервера",
+  );
 }

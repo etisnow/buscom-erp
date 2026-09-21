@@ -5,14 +5,16 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ORDER_STATUS_LABELS } from "@/domain/order/status";
 import { WORKING_MINUTES_PER_DAY, formatWorkingMinutes } from "@/domain/sla";
-import type { SellerRequisites } from "@/domain/settings";
+import type { SellerRequisites, SmtpSettings } from "@/domain/settings";
 import type { OrderStatus } from "@/generated/prisma/enums";
 import {
   saveDiscountLimitAction,
   saveRequisitesAction,
   saveSlaAction,
+  saveSmtpAction,
   type SettingsResult,
 } from "@/app/(app)/admin/dictionaries/actions";
 
@@ -183,6 +185,111 @@ export function RequisitesEditor({ requisites }: { requisites: SellerRequisites 
       <div>
         <Button size="sm" variant="outline" disabled={pending} onClick={() => handle(saveRequisitesAction(values))}>
           Сохранить реквизиты
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+/** Поля почтового сервера, кроме пароля и признака шифрования — у них своя разметка. */
+const SMTP_FIELDS: { key: "host" | "user" | "from"; label: string; hint: string }[] = [
+  { key: "host", label: "Сервер (SMTP-хост)", hint: "Например, smtp.yandex.ru. Пустой — почта выключена" },
+  { key: "user", label: "Пользователь", hint: "Обычно полный адрес ящика" },
+  { key: "from", label: "От кого", hint: "Должен совпадать с ящиком, иначе письмо отклонят" },
+];
+
+/**
+ * Настройки почты. Сохранённый пароль в браузер не отдаётся: поле приходит
+ * пустым, а `hasPassword` говорит, задан ли он. Пустое поле при сохранении
+ * означает «оставить прежний».
+ */
+export function SmtpEditor({ smtp, hasPassword }: { smtp: SmtpSettings; hasPassword: boolean }) {
+  const [values, setValues] = useState<SmtpSettings>(smtp);
+  const { pending, handle } = useSettingsAction();
+
+  const set = (key: keyof SmtpSettings, value: string | number | boolean) =>
+    setValues((current) => ({ ...current, [key]: value }));
+
+  return (
+    <section className="flex flex-col gap-3 rounded-lg border p-4">
+      <div>
+        <h2 className="font-heading font-medium">Почта</h2>
+        <p className="text-muted-foreground text-sm">
+          Через этот сервер уходят письма со ссылкой на смену пароля. Пока сервер не указан, ссылка пишется в лог
+          приложения, и сотрудник её не получит.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {SMTP_FIELDS.map((field) => (
+          <div key={field.key} className="flex flex-col gap-1.5">
+            <Label className="text-xs" htmlFor={`smtp-${field.key}`}>
+              {field.label}
+            </Label>
+            <Input
+              id={`smtp-${field.key}`}
+              value={values[field.key]}
+              onChange={(event) => set(field.key, event.target.value)}
+              className="h-8"
+            />
+            <span className="text-muted-foreground text-xs">{field.hint}</span>
+          </div>
+        ))}
+
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs" htmlFor="smtp-password">
+            Пароль
+          </Label>
+          <Input
+            id="smtp-password"
+            type="password"
+            autoComplete="new-password"
+            value={values.password}
+            onChange={(event) => set("password", event.target.value)}
+            className="h-8"
+            placeholder={hasPassword ? "сохранён, оставьте пустым" : ""}
+          />
+          <span className="text-muted-foreground text-xs">
+            {hasPassword
+              ? "Пустое поле оставит сохранённый пароль"
+              : "У Яндекса и mail.ru нужен пароль приложения, а не пароль от ящика"}
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs" htmlFor="smtp-port">
+            Порт
+          </Label>
+          <Input
+            id="smtp-port"
+            inputMode="numeric"
+            value={String(values.port)}
+            onChange={(event) => set("port", event.target.value)}
+            className="h-8"
+          />
+          <span className="text-muted-foreground text-xs">465 с шифрованием, 587 без него</span>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs" htmlFor="smtp-secure">
+            Шифрование
+          </Label>
+          <Select value={values.secure ? "true" : "false"} onValueChange={(value) => set("secure", value === "true")}>
+            <SelectTrigger id="smtp-secure" size="sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="true">TLS сразу (порт 465)</SelectItem>
+              <SelectItem value="false">STARTTLS (порт 587)</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-muted-foreground text-xs">Не тот вариант — отправка зависнет</span>
+        </div>
+      </div>
+
+      <div>
+        <Button size="sm" variant="outline" disabled={pending} onClick={() => handle(saveSmtpAction(values))}>
+          Сохранить настройки почты
         </Button>
       </div>
     </section>

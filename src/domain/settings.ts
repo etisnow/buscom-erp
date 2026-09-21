@@ -12,6 +12,7 @@ export const SETTING_KEYS = {
   discountLimitPercent: "discountLimitPercent",
   slaMinutes: "slaMinutes",
   sellerRequisites: "sellerRequisites",
+  smtp: "smtp",
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
@@ -59,16 +60,66 @@ export const DEFAULT_SELLER_REQUISITES: SellerRequisites = {
   phone: "",
 };
 
+/**
+ * Почтовый сервер для писем со сбросом пароля. Заполняется администратором в
+ * `/admin/dictionaries`; пока не заполнен, берутся переменные окружения
+ * (`src/server/mail.ts`) — так боевой контур, настроенный через `.env.production`,
+ * продолжает работать, а разработке почтовый сервер по-прежнему не нужен.
+ */
+export const smtpSettingsSchema = z.object({
+  host: z.string().trim().default(""),
+  port: z.coerce
+    .number({ error: "Порт — число" })
+    .int({ error: "Порт — целое число" })
+    .min(1, { error: "Порт вне диапазона" })
+    .max(65535, { error: "Порт вне диапазона" })
+    .default(587),
+  /** true — TLS сразу (обычно порт 465), false — STARTTLS уже в сессии (587) */
+  secure: z.boolean().default(false),
+  user: z.string().trim().default(""),
+  password: z.string().default(""),
+  /** Поле «От кого». Пустое — подставится значение из переменных окружения */
+  from: z.string().trim().default(""),
+});
+
+export type SmtpSettings = z.infer<typeof smtpSettingsSchema>;
+
+export const DEFAULT_SMTP_SETTINGS: SmtpSettings = {
+  host: "",
+  port: 587,
+  secure: false,
+  user: "",
+  password: "",
+  from: "",
+};
+
+/** Настроен ли почтовый сервер: решает один хост, как и в переменных окружения. */
+export function smtpConfigured(settings: SmtpSettings): boolean {
+  return settings.host.length > 0;
+}
+
+/**
+ * Слияние сохранённых настроек с пришедшими из формы. Пустой пароль означает
+ * «оставить прежний»: в браузер сохранённый пароль не отдаётся, поэтому форма
+ * приходит с пустым полем, и без этого правила любое сохранение его стирало бы.
+ * Стереть пароль осознанно можно, убрав хост, — тогда почта и так выключается.
+ */
+export function mergeSmtpSettings(current: SmtpSettings, incoming: SmtpSettings): SmtpSettings {
+  return { ...incoming, password: incoming.password === "" ? current.password : incoming.password };
+}
+
 export type AppSettings = {
   discountLimitPercent: number;
   slaMinutes: Record<OrderStatus, number | null>;
   sellerRequisites: SellerRequisites;
+  smtp: SmtpSettings;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
   discountLimitPercent: DEFAULT_DISCOUNT_LIMIT_PERCENT,
   slaMinutes: DEFAULT_SLA_MINUTES,
   sellerRequisites: DEFAULT_SELLER_REQUISITES,
+  smtp: DEFAULT_SMTP_SETTINGS,
 };
 
 /** Разбор значения из БД: негодное значение не роняет систему, а откатывается к умолчанию. */
@@ -87,6 +138,10 @@ export function parseSetting<K extends keyof AppSettings>(key: K, raw: unknown):
     case "sellerRequisites": {
       const parsed = sellerRequisitesSchema.safeParse(raw);
       return (parsed.success ? parsed.data : DEFAULT_SELLER_REQUISITES) as AppSettings[K];
+    }
+    case "smtp": {
+      const parsed = smtpSettingsSchema.safeParse(raw);
+      return (parsed.success ? parsed.data : DEFAULT_SMTP_SETTINGS) as AppSettings[K];
     }
     default:
       return DEFAULT_SETTINGS[key];

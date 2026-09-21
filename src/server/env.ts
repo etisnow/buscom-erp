@@ -10,7 +10,8 @@ const envSchema = z.object({
   SITE_WEBHOOK_SECRET: z.string().min(32),
 
   /**
-   * SMTP для писем со ссылкой на сброс пароля. Не задан — письма не отправляются,
+   * SMTP — запасной путь: основной — настройки в `/admin/dictionaries`, и они главнее
+   * (`src/server/mail.ts`). Ни там, ни здесь не задан — письма не отправляются,
    * а ссылка пишется в лог сервера: так работает локальная разработка,
    * а в бою отсутствие настроек видно по предупреждению при старте.
    */
@@ -54,9 +55,6 @@ export function parseEnv(raw: RawEnv = process.env): z.infer<typeof envSchema> {
 }
 
 export const env = parseEnv();
-
-/** Настроена ли отправка почты. */
-export const mailEnabled = Boolean(env.SMTP_HOST);
 
 /**
  * Учётные данные, которыми форма входа заполняется сама при `pnpm dev`.

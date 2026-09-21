@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SETTINGS, parseSetting, requisitesReady, DEFAULT_SELLER_REQUISITES } from "./settings";
+import {
+  DEFAULT_SELLER_REQUISITES,
+  DEFAULT_SETTINGS,
+  DEFAULT_SMTP_SETTINGS,
+  mergeSmtpSettings,
+  parseSetting,
+  requisitesReady,
+  smtpConfigured,
+  smtpSettingsSchema,
+  type SmtpSettings,
+} from "./settings";
 import { WORKING_MINUTES_PER_DAY } from "./sla";
 
 describe("parseSetting: лимит скидки", () => {
@@ -74,5 +84,84 @@ describe("requisitesReady", () => {
 
   it("пробелы не считаются заполненным полем", () => {
     expect(requisitesReady({ ...DEFAULT_SELLER_REQUISITES, name: "   ", inn: "  ", bankAccount: " " })).toBe(false);
+  });
+});
+
+const FILLED_SMTP: SmtpSettings = {
+  host: "smtp.yandex.ru",
+  port: 465,
+  secure: true,
+  user: "noreply@bus-com.ru",
+  password: "секрет",
+  from: "BusCom ERP <noreply@bus-com.ru>",
+};
+
+describe("smtpSettingsSchema", () => {
+  it("порт приходит из формы строкой и приводится к числу", () => {
+    const parsed = smtpSettingsSchema.parse({ host: "smtp.test", port: "465", secure: true });
+
+    expect(parsed.port).toBe(465);
+  });
+
+  it("подставляет умолчания для незаполненного", () => {
+    const parsed = smtpSettingsSchema.parse({ host: "smtp.test" });
+
+    expect(parsed).toEqual({ ...DEFAULT_SMTP_SETTINGS, host: "smtp.test" });
+  });
+
+  it("обрезает пробелы в хосте и адресе — из буфера обмена они приходят часто", () => {
+    const parsed = smtpSettingsSchema.parse({ host: "  smtp.test  ", user: " user@test.ru " });
+
+    expect(parsed.host).toBe("smtp.test");
+    expect(parsed.user).toBe("user@test.ru");
+  });
+
+  it("отклоняет порт вне диапазона", () => {
+    expect(smtpSettingsSchema.safeParse({ host: "smtp.test", port: 0 }).success).toBe(false);
+    expect(smtpSettingsSchema.safeParse({ host: "smtp.test", port: 70000 }).success).toBe(false);
+  });
+});
+
+describe("smtpConfigured", () => {
+  it("решает один хост", () => {
+    expect(smtpConfigured(FILLED_SMTP)).toBe(true);
+    expect(smtpConfigured(DEFAULT_SMTP_SETTINGS)).toBe(false);
+  });
+
+  it("хост из одних пробелов настройкой не считается", () => {
+    expect(smtpConfigured(smtpSettingsSchema.parse({ host: "   " }))).toBe(false);
+  });
+});
+
+describe("mergeSmtpSettings", () => {
+  it("пустой пароль из формы оставляет сохранённый", () => {
+    const merged = mergeSmtpSettings(FILLED_SMTP, { ...FILLED_SMTP, password: "", port: 587 });
+
+    expect(merged.password).toBe("секрет");
+    expect(merged.port).toBe(587);
+  });
+
+  it("непустой пароль заменяет сохранённый", () => {
+    const merged = mergeSmtpSettings(FILLED_SMTP, { ...FILLED_SMTP, password: "новый" });
+
+    expect(merged.password).toBe("новый");
+  });
+
+  it("остальные поля берутся из формы целиком", () => {
+    const merged = mergeSmtpSettings(FILLED_SMTP, { ...DEFAULT_SMTP_SETTINGS, password: "" });
+
+    expect(merged.host).toBe("");
+    expect(merged.user).toBe("");
+  });
+});
+
+describe("parseSetting для smtp", () => {
+  it("читает сохранённое значение", () => {
+    expect(parseSetting("smtp", FILLED_SMTP)).toEqual(FILLED_SMTP);
+  });
+
+  it("негодное значение откатывает к умолчанию, а не роняет систему", () => {
+    expect(parseSetting("smtp", { host: 42 })).toEqual(DEFAULT_SMTP_SETTINGS);
+    expect(parseSetting("smtp", null)).toEqual(DEFAULT_SMTP_SETTINGS);
   });
 });

@@ -7,6 +7,7 @@ import {
   SETTING_KEYS,
   type AppSettings,
   type SellerRequisites,
+  type SmtpSettings,
 } from "@/domain/settings";
 import type { Prisma } from "@/generated/prisma/client";
 import type { DictionaryType, OrderSource, OrderStatus } from "@/generated/prisma/enums";
@@ -16,7 +17,7 @@ import { db } from "@/server/db";
  * Настройки системы. В БД лежит только изменённое, остальное — умолчания из домена,
  * поэтому пустая база работоспособна. `cache` — один запрос на HTTP-запрос.
  */
-export const getSettings = cache(async (): Promise<AppSettings> => {
+export async function readSettings(): Promise<AppSettings> {
   const rows = await db.setting.findMany();
   const stored = new Map(rows.map((row) => [row.key, row.value]));
 
@@ -30,8 +31,16 @@ export const getSettings = cache(async (): Promise<AppSettings> => {
     sellerRequisites: stored.has(SETTING_KEYS.sellerRequisites)
       ? parseSetting("sellerRequisites", stored.get(SETTING_KEYS.sellerRequisites))
       : DEFAULT_SETTINGS.sellerRequisites,
+    smtp: stored.has(SETTING_KEYS.smtp) ? parseSetting("smtp", stored.get(SETTING_KEYS.smtp)) : DEFAULT_SETTINGS.smtp,
   };
-});
+}
+
+/**
+ * Те же настройки, но один запрос на HTTP-запрос. `cache` требует контекста
+ * рендера, поэтому вне его (отправка письма из Better Auth, скрипты) берут
+ * `readSettings` напрямую.
+ */
+export const getSettings = cache(readSettings);
 
 async function writeSetting(key: string, value: Prisma.InputJsonValue, userId: string): Promise<void> {
   await db.setting.upsert({
@@ -64,6 +73,11 @@ export type DictionaryEntry = {
   /** Системный источник заказа (SITE, LEGACY): переименовать можно, выключить нельзя */
   systemCode: OrderSource | null;
 };
+
+/** Почтовый сервер. Пароль хранится как есть — без него отправка невозможна. */
+export async function saveSmtpSettings(settings: SmtpSettings, userId: string): Promise<void> {
+  await writeSetting(SETTING_KEYS.smtp, settings, userId);
+}
 
 export async function listDictionary(type: DictionaryType, onlyActive = false): Promise<DictionaryEntry[]> {
   return db.dictionaryItem.findMany({
