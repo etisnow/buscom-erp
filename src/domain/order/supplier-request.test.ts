@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildSupplierRequest, type SupplierRequestInput } from "@/domain/order/supplier-request";
+import { DEFAULT_SELLER_REQUISITES } from "@/domain/settings";
 
 const BASE: SupplierRequestInput = {
   orderNumber: 3021,
@@ -16,7 +17,7 @@ const BASE: SupplierRequestInput = {
     },
   ],
   delivery: { method: "CARRIER", carrier: "СДЭК", address: "Ростов-на-Дону, ул. Ленина, 1" },
-  seller: { name: "БасКом", phone: "+7 999 000-00-00" },
+  seller: { ...DEFAULT_SELLER_REQUISITES, name: "БасКом", phone: "+7 999 000-00-00" },
 };
 
 describe("buildSupplierRequest", () => {
@@ -29,8 +30,47 @@ describe("buildSupplierRequest", () => {
     expect(text).toContain("Крепление: болтовое");
     expect(text).toContain("Доставка: Транспортная компания СДЭК");
     expect(text).toContain("Адрес: Ростов-на-Дону, ул. Ленина, 1");
-    expect(text).toContain("БасКом, +7 999 000-00-00");
+    expect(text).toContain("БасКом");
+    expect(text).toContain("Телефон: +7 999 000-00-00");
     expect(text).not.toContain("Менеджер");
+  });
+
+  it("включает реквизиты юрлица — ИНН, КПП, адрес и банк", () => {
+    const text = buildSupplierRequest({
+      ...BASE,
+      seller: {
+        ...DEFAULT_SELLER_REQUISITES,
+        name: 'ООО "БасКом"',
+        inn: "7700000000",
+        kpp: "770001001",
+        address: "г. Москва, ул. Ленина, 1",
+        bankName: "ПАО Сбербанк",
+        bankAccount: "40702810000000000000",
+        correspondentAccount: "30101810400000000225",
+        bic: "044525225",
+        phone: "+7 999 000-00-00",
+      },
+    });
+
+    expect(text).toContain('ООО "БасКом"');
+    expect(text).toContain("ИНН 7700000000, КПП 770001001");
+    expect(text).toContain("г. Москва, ул. Ленина, 1");
+    expect(text).toContain("Банк: ПАО Сбербанк, р/с 40702810000000000000, к/с 30101810400000000225, БИК 044525225");
+    expect(text).toContain("Телефон: +7 999 000-00-00");
+  });
+
+  it("незаполненные реквизиты пропускает, не оставляя пустых строк", () => {
+    const text = buildSupplierRequest({
+      ...BASE,
+      seller: { ...DEFAULT_SELLER_REQUISITES, name: "БасКом", inn: "7700000000" },
+    });
+
+    expect(text).toContain("БасКом");
+    expect(text).toContain("ИНН 7700000000");
+    expect(text).not.toContain("КПП");
+    expect(text).not.toContain("Банк:");
+    expect(text).not.toContain("Телефон");
+    expect(text).not.toMatch(/\n\n\n/);
   });
 
   it("считает сумму позиции и итог по закупочным ценам", () => {
@@ -82,7 +122,7 @@ describe("buildSupplierRequest", () => {
     const text = buildSupplierRequest({
       ...BASE,
       delivery: { method: null, carrier: null, address: null },
-      seller: { name: "", phone: "" },
+      seller: DEFAULT_SELLER_REQUISITES,
     });
 
     expect(text).not.toContain("Доставка");

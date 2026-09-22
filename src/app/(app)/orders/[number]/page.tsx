@@ -217,7 +217,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
                     carrier: order.carrier,
                     address: order.deliveryAddress,
                   },
-                  seller: { name: settings.sellerRequisites.name, phone: settings.sellerRequisites.phone },
+                  seller: settings.sellerRequisites,
                 }),
               }))}
             />

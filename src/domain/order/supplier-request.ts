@@ -15,6 +15,7 @@ import { formatMoscowDate } from "@/domain/datetime";
 import { formatRub, type Kopecks } from "@/domain/money";
 import { deliveryMethodLabel } from "@/domain/order/delivery";
 import type { OrderItemOption } from "@/domain/product/options";
+import type { SellerRequisites } from "@/domain/settings";
 import type { DeliveryMethod } from "@/generated/prisma/enums";
 
 export type SupplierRequestItem = {
@@ -34,8 +35,8 @@ export type SupplierRequestInput = {
     carrier: string | null;
     address: string | null;
   };
-  /** Наша компания — из реквизитов продавца в настройках */
-  seller: { name: string; phone: string };
+  /** Наша компания — реквизиты продавца из настроек, те же, что и в счёте */
+  seller: SellerRequisites;
 };
 
 /** Позиция без закупочной цены: в сумму не идёт, но из текста не пропадает. */
@@ -71,11 +72,35 @@ function deliveryLines(delivery: SupplierRequestInput["delivery"]): string[] {
 }
 
 /**
- * Подпись — только наша компания. Менеджера в тексте нет: поставщику отвечают
- * в ту же переписку, из которой пришёл заказ, а лишняя строка в сообщении мешает.
+ * Наша компания: название, ИНН/КПП, адрес, банковские реквизиты, телефон —
+ * чтобы поставщик мог сразу выписать документы на нужное юрлицо, не запрашивая
+ * их отдельно. Менеджера в тексте нет: поставщику отвечают в ту же переписку,
+ * из которой пришёл заказ, а лишняя строка в сообщении мешает. Незаполненные
+ * реквизиты (администратор не указал их в /admin/dictionaries) просто выпадают
+ * из блока, а не показываются пустыми.
  */
-function contactLine(input: SupplierRequestInput): string | null {
-  return [input.seller.name, input.seller.phone].filter(Boolean).join(", ") || null;
+function sellerLines(seller: SellerRequisites): string[] {
+  const lines: string[] = [];
+  if (seller.name) lines.push(seller.name);
+
+  const inn = [seller.inn && `ИНН ${seller.inn}`, seller.kpp && `КПП ${seller.kpp}`].filter(Boolean).join(", ");
+  if (inn) lines.push(inn);
+
+  if (seller.address) lines.push(seller.address);
+
+  const bank = [
+    seller.bankName && `Банк: ${seller.bankName}`,
+    seller.bankAccount && `р/с ${seller.bankAccount}`,
+    seller.correspondentAccount && `к/с ${seller.correspondentAccount}`,
+    seller.bic && `БИК ${seller.bic}`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  if (bank) lines.push(bank);
+
+  if (seller.phone) lines.push(`Телефон: ${seller.phone}`);
+
+  return lines;
 }
 
 /**
@@ -99,8 +124,8 @@ export function buildSupplierRequest(input: SupplierRequestInput): string {
   const delivery = deliveryLines(input.delivery);
   if (delivery.length > 0) blocks.push(delivery.join("\n"));
 
-  const contact = contactLine(input);
-  if (contact) blocks.push(contact);
+  const seller = sellerLines(input.seller);
+  if (seller.length > 0) blocks.push(seller.join("\n"));
 
   return blocks.join("\n\n");
 }
