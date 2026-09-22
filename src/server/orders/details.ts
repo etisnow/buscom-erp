@@ -32,9 +32,18 @@ const detailsInclude = {
     select: {
       stageId: true,
       supplier: {
-        select: { id: true, name: true, stages: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true } } },
+        select: {
+          id: true,
+          name: true,
+          enabledActions: true,
+          stages: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true } },
+        },
       },
     },
+  },
+  // Байты файла сюда не тянем (список) — их отдаёт отдельный маршрут по id.
+  supplierDocuments: {
+    select: { id: true, supplierId: true, kind: true, fileName: true, byteSize: true, uploadedAt: true },
   },
   payments: { orderBy: { paidAt: "asc" }, include: { createdBy: { select: { name: true } } } },
   events: {

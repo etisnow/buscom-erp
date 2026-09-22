@@ -15,7 +15,9 @@ import { canEditItems, canReassignManager } from "@/domain/order/editing";
 import { canChangeOrderSource, orderSourceLabel } from "@/domain/order/source";
 import { TERMINAL_STATUSES } from "@/domain/order/status";
 import { buildSupplierRequest } from "@/domain/order/supplier-request";
+import { canManageSupplierDocuments } from "@/domain/order/supplier-document";
 import { parseOrderItemOptions } from "@/domain/product/options";
+import { hasSupplierAction } from "@/domain/supplier/actions";
 import { canMoveStages } from "@/domain/supplier/stages";
 import { findOrderByNumber } from "@/server/orders/details";
 import { listManagers } from "@/server/orders/list";
@@ -195,37 +197,52 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
               orderId={order.id}
               orderNumber={order.number}
               canMove={canMoveStages(order.status, user.role)}
-              tracks={order.supplierTracks.map((track) => ({
-                supplierId: track.supplier.id,
-                supplierName: track.supplier.name,
-                stageId: track.stageId,
-                stages: track.supplier.stages,
-                // Текст собирается на сервере: формат один на всех и покрыт тестами
-                requestText: buildSupplierRequest({
-                  orderNumber: order.number,
-                  orderCreatedAt: order.createdAt,
-                  items: order.items
-                    .filter((item) => item.supplierId === track.supplier.id)
-                    .map((item) => ({
-                      name: item.name,
-                      quantity: item.quantity,
-                      purchasePriceKopecks: item.purchasePriceKopecks,
-                      options: parseOrderItemOptions(item.options),
-                    })),
-                  delivery: {
-                    method: order.deliveryMethod,
-                    carrier: order.carrier,
-                    address: order.deliveryAddress,
-                  },
-                  customer: {
-                    name: order.customer.name,
-                    phone: order.customer.phone,
-                    inn: order.customer.inn,
-                    kpp: order.customer.kpp,
-                    requisites: parseCustomerRequisites(order.customer.requisites),
-                  },
-                }),
-              }))}
+              canManageDocuments={canManageSupplierDocuments(order.status, user.role)}
+              tracks={order.supplierTracks.map((track) => {
+                const enabledActions = track.supplier.enabledActions;
+                const document = order.supplierDocuments.find(
+                  (item) => item.supplierId === track.supplier.id && item.kind === "SUPPLIER_INVOICE",
+                );
+
+                return {
+                  supplierId: track.supplier.id,
+                  supplierName: track.supplier.name,
+                  stageId: track.stageId,
+                  stages: track.supplier.stages,
+                  enabledActions,
+                  // Текст собирается на сервере: формат один на всех и покрыт тестами.
+                  // Строится, только если включено действие — незачем считать зря.
+                  requestText: hasSupplierAction(enabledActions, "SUPPLIER_REQUEST")
+                    ? buildSupplierRequest({
+                        orderNumber: order.number,
+                        orderCreatedAt: order.createdAt,
+                        items: order.items
+                          .filter((item) => item.supplierId === track.supplier.id)
+                          .map((item) => ({
+                            name: item.name,
+                            quantity: item.quantity,
+                            purchasePriceKopecks: item.purchasePriceKopecks,
+                            options: parseOrderItemOptions(item.options),
+                          })),
+                        delivery: {
+                          method: order.deliveryMethod,
+                          carrier: order.carrier,
+                          address: order.deliveryAddress,
+                        },
+                        customer: {
+                          name: order.customer.name,
+                          phone: order.customer.phone,
+                          inn: order.customer.inn,
+                          kpp: order.customer.kpp,
+                          requisites: parseCustomerRequisites(order.customer.requisites),
+                        },
+                      })
+                    : null,
+                  invoiceDocument: document
+                    ? { id: document.id, fileName: document.fileName, byteSize: document.byteSize }
+                    : null,
+                };
+              })}
             />
           ) : null}
 

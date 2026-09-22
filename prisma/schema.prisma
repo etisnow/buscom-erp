@@ -111,28 +111,28 @@ enum CustomerType {
 }
 
 model Customer {
-  id   String       @id @default(cuid())
-  type CustomerType @default(PERSON)
+  id    String       @id @default(cuid())
+  type  CustomerType @default(PERSON)
   /// Имя физлица или название юрлица — одно поле на оба случая
-  name String
+  name  String
   /// Нормализованный телефон в формате +7XXXXXXXXXX — ключ сопоставления и дублей.
   /// Уникален, но может быть пустым: у части клиентов телефона нет, и таких много
   /// (в Postgres UNIQUE не мешает нескольким NULL).
-  phone String? @unique
+  phone String?      @unique
   /// Может повторяться: на несколько юрлиц бывает одна почта бухгалтерии
   email String?
 
-  inn String?
-  kpp String?
+  inn           String?
+  kpp           String?
   /// Реквизиты юрлица (банк, р/с, руководитель и т.п.), форма — `CustomerRequisites`
-  requisites Json?
+  requisites    Json?
   /// Контактное лицо у юрлица: кому звонить, если в `name` название компании
   contactPerson String?
   /// Паспорт физлица одной строкой — как его записывали в прежней ERP
-  passport  String?
-  comment   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  passport      String?
+  comment       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   addresses CustomerAddress[]
   orders    Order[]
@@ -160,8 +160,8 @@ model CustomerAddress {
 
 /// Каталог без количеств: склада нет, остаток и резерв не ведутся.
 model Product {
-  id            String   @id @default(cuid())
-  sku           String   @unique
+  id            String           @id @default(cuid())
+  sku           String           @unique
   name          String
   /// Категория из справочника (docs/DECISIONS.md, «Справочник категорий»)
   categoryId    String?
@@ -170,10 +170,10 @@ model Product {
   /// Совместимые модели авто: ["ГАЗель Next", "Ford Transit", ...]
   compatibility String[]
   /// ID товара на bus-com.ru
-  externalId    String?  @unique
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  externalId    String?          @unique
+  isActive      Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   orderItems OrderItem[]
   suppliers  ProductSupplier[]
@@ -281,10 +281,17 @@ model Supplier {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
+  /// Включённые действия/артефакты для заказа с этим поставщиком — ключи из
+  /// фиксированного списка в src/domain/supplier/actions.ts. По умолчанию —
+  /// «Заказ поставщику»: раньше это была единственная и обязательная функция,
+  /// значение по умолчанию бэкфилит уже заведённых поставщиков тем же составом.
+  enabledActions String[] @default(["SUPPLIER_REQUEST"])
+
   stages     SupplierStage[]
   products   ProductSupplier[]
   orderItems OrderItem[]
   tracks     OrderSupplierTrack[]
+  documents  OrderSupplierDocument[]
 
   @@index([name])
   @@index([inn])
@@ -354,17 +361,17 @@ enum DeliveryMethod {
 }
 
 model Order {
-  id         String      @id @default(cuid())
+  id           String          @id @default(cuid())
   /// Человекочитаемый номер заказа (последовательность)
-  number     Int         @unique @default(autoincrement())
+  number       Int             @unique @default(autoincrement())
   /// Технический канал: по нему идемпотентность интеграции `(source, externalId)`.
   /// Что видит пользователь — `sourceItem` из справочника источников
-  source     OrderSource @default(SITE)
+  source       OrderSource     @default(SITE)
   sourceItemId String?
   sourceItem   DictionaryItem? @relation(fields: [sourceItemId], references: [id], onDelete: Restrict)
   /// Номер/ID заказа во внешней системе (на сайте)
-  externalId String?
-  status     OrderStatus @default(NEW)
+  externalId   String?
+  status       OrderStatus     @default(NEW)
 
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id])
@@ -398,10 +405,11 @@ model Order {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  items          OrderItem[]
-  payments       Payment[]
-  events         OrderEvent[]
-  supplierTracks OrderSupplierTrack[]
+  items             OrderItem[]
+  payments          Payment[]
+  events            OrderEvent[]
+  supplierTracks    OrderSupplierTrack[]
+  supplierDocuments OrderSupplierDocument[]
 
   @@unique([source, externalId])
   @@index([status])
@@ -455,6 +463,27 @@ model OrderSupplierTrack {
   @@index([supplierId])
 }
 
+/// Артефакт по действию из src/domain/supplier/actions.ts (сейчас — только
+/// счёт поставщика, `kind: "SUPPLIER_INVOICE"`). Отдельно от `OrderSupplierTrack`
+/// намеренно: тот трек удаляется, когда позиций этого поставщика в заказе не
+/// осталось (syncSupplierTracks), а прикреплённый файл должен пережить это.
+model OrderSupplierDocument {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  kind        String
+  fileName    String
+  contentType String
+  data        Bytes
+  byteSize    Int
+  uploadedAt  DateTime @default(now())
+
+  @@unique([orderId, supplierId, kind])
+  @@index([orderId])
+}
+
 enum PaymentMethod {
   INVOICE
   ONLINE
@@ -488,6 +517,8 @@ enum OrderEventType {
   COMMENT
   /// Трек поставщика перешёл на другой этап его цепочки
   SUPPLIER_STAGE_CHANGED
+  /// Артефакт по поставщику прикреплён, заменён или удалён (OrderSupplierDocument)
+  SUPPLIER_DOCUMENT_CHANGED
 }
 
 /// Журнал заказа: история в карточке и аудит. Только добавление, без правок.
@@ -524,16 +555,16 @@ enum DictionaryType {
 /// Простые списки, которые редактирует администратор. Позиции не удаляются
 /// физически — гасятся `isActive`, иначе сломались бы ссылки в старых заказах.
 model DictionaryItem {
-  id        String         @id @default(cuid())
-  type      DictionaryType
-  name      String
-  sortOrder Int            @default(0)
-  isActive  Boolean        @default(true)
+  id         String         @id @default(cuid())
+  type       DictionaryType
+  name       String
+  sortOrder  Int            @default(0)
+  isActive   Boolean        @default(true)
   /// Системный источник заказа: его ставит интеграция (SITE) или импорт (LEGACY).
   /// Такой пункт можно переименовать, но нельзя выключить или выбрать руками
   systemCode OrderSource?
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
   orders Order[]
 

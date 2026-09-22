@@ -8,6 +8,7 @@ import { ForbiddenError } from "@/server/errors";
 import {
   createSupplier,
   deleteSupplier,
+  setSupplierActions,
   setSupplierStages,
   SupplierInUseError,
   updateSupplier,
@@ -94,6 +95,14 @@ export async function setSupplierStagesAction(
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
 
   return run(() => setSupplierStages(id, parsed.data, user), "Цепочка этапов сохранена", id);
+}
+
+export async function setSupplierActionsAction(id: string, keys: string[]): Promise<SupplierResult> {
+  const user = await requireUser();
+  const parsed = z.array(z.string()).safeParse(keys);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+
+  return run(() => setSupplierActions(id, parsed.data, user), "Действия сохранены", id);
 }
 
 /** После удаления карточки нет — форма уводит в список. */

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { SupplierActionsEditor } from "@/components/suppliers/supplier-actions-editor";
 import { DeleteSupplier, SupplierForm, SupplierStages } from "@/components/suppliers/supplier-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { parseCustomerRequisites } from "@/domain/customer/requisites";
@@ -75,6 +76,10 @@ export default async function SupplierPage({ params }: PageProps<"/suppliers/[id
             ordersCount: stage._count.tracks,
           }))}
         />
+
+        <div className="lg:col-span-2">
+          <SupplierActionsEditor supplierId={supplier.id} editable={editable} initial={supplier.enabledActions} />
+        </div>
       </div>
 
       <section className="flex flex-col gap-3 rounded-lg border p-4">

@@ -7,7 +7,13 @@ import { updateOrderItems } from "@/server/orders/items";
 import { changeOrderStatus } from "@/server/orders/status";
 import { changeSupplierStage } from "@/server/orders/suppliers";
 import { updateProduct } from "@/server/products/service";
-import { createSupplier, deleteSupplier, setSupplierStages, SupplierInUseError } from "@/server/suppliers/service";
+import {
+  createSupplier,
+  deleteSupplier,
+  setSupplierActions,
+  setSupplierStages,
+  SupplierInUseError,
+} from "@/server/suppliers/service";
 import type { SessionUser } from "@/server/session";
 import { describeDb, resetDb, testDb } from "@/test/db";
 import { makeProduct, makeUser } from "@/test/fixtures";
@@ -221,5 +227,20 @@ describeDb("поставщики и их цепочки в заказе (жив�
     await expect(deleteSupplier(free, manager)).rejects.toThrow(/руководитель/);
     await deleteSupplier(free, head);
     expect(await testDb.supplier.count({ where: { id: free } })).toBe(0);
+  });
+
+  it("новый поставщик заведён с «Заказ поставщику» по умолчанию — бэкфилл и умолчание совпадают", async () => {
+    const { id: supplierId } = await createSupplier({ type: "COMPANY", name: "Автокомплект" }, manager);
+    const supplier = await testDb.supplier.findUniqueOrThrow({ where: { id: supplierId } });
+    expect(supplier.enabledActions).toEqual(["SUPPLIER_REQUEST"]);
+  });
+
+  it("действия поставщика сохраняются и отбрасывают неизвестные ключи", async () => {
+    const { supplierId } = await setup();
+
+    await setSupplierActions(supplierId, ["SUPPLIER_REQUEST", "SUPPLIER_INVOICE", "УСТАРЕЛО"], manager);
+
+    const supplier = await testDb.supplier.findUniqueOrThrow({ where: { id: supplierId } });
+    expect(supplier.enabledActions.sort()).toEqual(["SUPPLIER_INVOICE", "SUPPLIER_REQUEST"]);
   });
 });

@@ -5,7 +5,9 @@ import { z } from "zod";
 import { DiscountLimitError } from "@/domain/order/discount";
 import { OrderEditError } from "@/domain/order/editing";
 import { OrderTransitionError } from "@/domain/order/status";
+import { SupplierDocumentError } from "@/domain/order/supplier-document";
 import { ProductOptionError } from "@/domain/product/options";
+import { isSupplierActionKey } from "@/domain/supplier/actions";
 import { SupplierStageError } from "@/domain/supplier/stages";
 import { ForbiddenError } from "@/server/errors";
 import { assignManager, takeOrder } from "@/server/orders/assignment";
@@ -17,6 +19,11 @@ import { addPayment } from "@/server/orders/payments";
 import { changeOrderStatus } from "@/server/orders/status";
 import { changeOrderSource } from "@/server/orders/source";
 import { changeSupplierStage } from "@/server/orders/suppliers";
+import {
+  deleteSupplierDocument,
+  SupplierNotFoundError,
+  uploadSupplierDocument,
+} from "@/server/orders/supplier-documents";
 import { searchProducts, type ProductSuggestion } from "@/server/products/search";
 import { getCancelReasons } from "@/server/settings/service";
 import { requireUser } from "@/server/session";
@@ -44,6 +51,8 @@ async function run(orderNumber: number, action: () => Promise<unknown>): Promise
       error instanceof DiscountLimitError ||
       error instanceof OrderConflictError ||
       error instanceof OrderNotFoundError ||
+      error instanceof SupplierDocumentError ||
+      error instanceof SupplierNotFoundError ||
       error instanceof ForbiddenError
     ) {
       return { ok: false, error: error.message };
@@ -252,4 +261,37 @@ export async function changeSourceAction(
   const user = await requireUser();
   if (!sourceItemId) return { ok: false, error: "Выберите источник" };
   return run(orderNumber, () => changeOrderSource(orderId, sourceItemId, user));
+}
+
+/** Файл на 200 символов имени: длиннее — явно не имя файла, а что-то не то. */
+const MAX_UPLOAD_FILE_NAME = 200;
+
+/** Прикрепление артефакта поставщика (счёт и т.п.) — раздел «Действия и артефакты» на его карточке. */
+export async function uploadSupplierDocumentAction(
+  orderId: string,
+  orderNumber: number,
+  supplierId: string,
+  kind: string,
+  form: FormData,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!isSupplierActionKey(kind)) return { ok: false, error: "Неизвестный вид файла" };
+
+  const file = form.get("file");
+  if (!(file instanceof File)) return { ok: false, error: "Выберите файл" };
+  const fileName = file.name.slice(0, MAX_UPLOAD_FILE_NAME) || "файл";
+
+  const data = new Uint8Array(await file.arrayBuffer());
+  return run(orderNumber, () => uploadSupplierDocument(orderId, supplierId, kind, fileName, data, user));
+}
+
+export async function deleteSupplierDocumentAction(
+  orderId: string,
+  orderNumber: number,
+  supplierId: string,
+  kind: string,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!isSupplierActionKey(kind)) return { ok: false, error: "Неизвестный вид файла" };
+  return run(orderNumber, () => deleteSupplierDocument(orderId, supplierId, kind, user));
 }

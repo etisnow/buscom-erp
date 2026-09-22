@@ -4,7 +4,9 @@ import { useTransition } from "react";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { SupplierDocumentUpload, type SupplierDocumentView } from "@/components/orders/supplier-document-upload";
 import { SupplierRequestDialog } from "@/components/orders/supplier-request-dialog";
+import { hasSupplierAction } from "@/domain/supplier/actions";
 import { cn } from "@/lib/utils";
 import { changeSupplierStageAction } from "@/app/(app)/orders/[number]/actions";
 
@@ -13,8 +15,12 @@ export type SupplierTrackView = {
   supplierName: string;
   stageId: string | null;
   stages: { id: string; name: string }[];
-  /** Готовый текст заказа этому поставщику — собран на сервере */
-  requestText: string;
+  /** Действия, включённые у этого поставщика (docs/DECISIONS.md, «Действия и артефакты») */
+  enabledActions: string[];
+  /** Готовый текст заказа этому поставщику — есть, только если включено действие «Заказ поставщику» */
+  requestText: string | null;
+  /** Прикреплённый счёт поставщика — есть, только если включено действие «Прикрепить счёт…» */
+  invoiceDocument: SupplierDocumentView;
 };
 
 /**
@@ -26,11 +32,13 @@ export function SupplierTracks({
   orderNumber,
   tracks,
   canMove,
+  canManageDocuments,
 }: {
   orderId: string;
   orderNumber: number;
   tracks: SupplierTrackView[];
   canMove: boolean;
+  canManageDocuments: boolean;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -104,7 +112,21 @@ export function SupplierTracks({
 
               {/* Текст заказа доступен всегда — даже у поставщика без цепочки этапов */}
               <div className="flex flex-wrap items-center gap-2">
-                <SupplierRequestDialog supplierName={track.supplierName} text={track.requestText} />
+                {hasSupplierAction(track.enabledActions, "SUPPLIER_REQUEST") && track.requestText ? (
+                  <SupplierRequestDialog supplierName={track.supplierName} text={track.requestText} />
+                ) : null}
+
+                {hasSupplierAction(track.enabledActions, "SUPPLIER_INVOICE") ? (
+                  <SupplierDocumentUpload
+                    orderId={orderId}
+                    orderNumber={orderNumber}
+                    supplierId={track.supplierId}
+                    kind="SUPPLIER_INVOICE"
+                    label="Счёт поставщика клиенту"
+                    document={track.invoiceDocument}
+                    editable={canManageDocuments}
+                  />
+                ) : null}
 
                 {canMove && track.stages.length > 0 ? (
                   <>

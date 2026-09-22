@@ -1,6 +1,7 @@
 import "server-only";
 import { normalizePhone } from "@/domain/customer/phone";
 import { hasCustomerRequisites, type CustomerRequisites } from "@/domain/customer/requisites";
+import { normalizeEnabledActions } from "@/domain/supplier/actions";
 import { normalizeStageNames, SupplierStageError } from "@/domain/supplier/stages";
 import { hasRole, SUPPLIER_DELETE_ROLES, SUPPLIER_EDIT_ROLES } from "@/domain/user/role";
 import { Prisma } from "@/generated/prisma/client";
@@ -112,6 +113,21 @@ export async function setSupplierStages(supplierId: string, stages: StageDraft[]
         await tx.supplierStage.create({ data: { ...data, supplierId } });
       }
     }
+  });
+}
+
+/**
+ * Действия и артефакты, включённые у поставщика (`src/domain/supplier/actions.ts`) —
+ * какие кнопки и загрузчики файлов видны у него в заказе. Отдельно от
+ * основной формы (как цепочка этапов): свой чекбокс, своё сохранение.
+ */
+export async function setSupplierActions(supplierId: string, keys: string[], user: SessionUser): Promise<void> {
+  if (!canEditSuppliers(user.role)) {
+    throw new ForbiddenError("Менять действия поставщика может менеджер, руководитель или администратор");
+  }
+  await db.supplier.update({
+    where: { id: supplierId },
+    data: { enabledActions: normalizeEnabledActions(keys) },
   });
 }
 

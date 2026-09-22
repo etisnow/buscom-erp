@@ -18,6 +18,7 @@ const EVENT_LABELS: Record<OrderEventType, string> = {
   PAYMENT_ADDED: "Отмечена оплата",
   COMMENT: "Комментарий",
   SUPPLIER_STAGE_CHANGED: "Этап поставщика",
+  SUPPLIER_DOCUMENT_CHANGED: "Файл поставщика",
 };
 
 export type HistoryEvent = {
