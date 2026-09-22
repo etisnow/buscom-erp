@@ -148,7 +148,8 @@ export function ProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-x-hidden overflow-y-auto">
+      {/* minmax(0,1fr): иначе колонка сетки растягивается под длинное имя поставщика и контент вылезает за окно */}
+      <DialogContent className="max-h-[90vh] grid-cols-[minmax(0,1fr)] overflow-x-hidden overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{product ? "Товар" : "Новый товар"}</DialogTitle>
           <DialogDescription>
