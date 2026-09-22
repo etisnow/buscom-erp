@@ -46,7 +46,8 @@ export function customersWhere(filters: CustomerFilters): Prisma.CustomerWhereIn
         { name: { contains: query, mode: "insensitive" } },
         ...(phone ? [{ phone }] : []),
         ...(query.includes("@") ? [{ email: { contains: query, mode: "insensitive" as const } }] : []),
-        ...(/^\d{10,12}$/.test(digits) ? [{ inn: digits }] : []),
+        // Частичный ввод (не весь номер или ИНН целиком) — ищем вхождением цифр.
+        ...(digits.length >= 3 ? [{ phone: { contains: digits } }, { inn: { contains: digits } }] : []),
       ],
     });
   }

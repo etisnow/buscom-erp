@@ -14,6 +14,12 @@ export type CustomerMatch = {
 /**
  * Подбор клиента при создании заказа: по телефону, имени или ИНН.
  * Телефон нормализуется, поэтому «8 916…» находит клиента, записанного как «+7 916…».
+ *
+ * Телефон и ИНН ищутся ещё и частичным вхождением цифр: полный номер или ИНН
+ * набирать не обязательно, начал вводить — уже нашёл. Точное совпадение по
+ * нормализованному телефону остаётся отдельным условием: у частичного номера
+ * «89» в начале нормализация не сработает (не хватает цифр до полного номера),
+ * а как хвост чужого телефона он подхватится через `contains`.
  */
 export async function lookupCustomers(query: string): Promise<CustomerMatch[]> {
   const search = query.trim();
@@ -26,7 +32,7 @@ export async function lookupCustomers(query: string): Promise<CustomerMatch[]> {
     where: {
       OR: [
         ...(phone ? [{ phone }] : []),
-        ...(/^\d{10,12}$/.test(digits) ? [{ inn: digits }] : []),
+        ...(digits.length >= 3 ? [{ phone: { contains: digits } }, { inn: { contains: digits } }] : []),
         { name: { contains: search, mode: "insensitive" as const } },
         ...(search.includes("@") ? [{ email: { equals: search, mode: "insensitive" as const } }] : []),
       ],
