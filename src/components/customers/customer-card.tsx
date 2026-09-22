@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { InnField } from "@/components/customers/inn-field";
+import { applyCompanyInfo } from "@/domain/customer/company-lookup";
 import {
   CUSTOMER_REQUISITES_LABELS,
   hasCustomerRequisites,
@@ -135,18 +137,19 @@ export function CustomerForm({ customer, editable }: { customer: CustomerFormDat
 
         {type === "COMPANY" ? (
           <>
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs" htmlFor="customer-inn">
-                ИНН
-              </Label>
-              <Input
-                id="customer-inn"
-                value={inn}
-                onChange={(event) => setInn(event.target.value)}
-                disabled={!editable}
-                className="h-8"
-              />
-            </div>
+            <InnField
+              id="customer-inn"
+              value={inn}
+              onChange={setInn}
+              disabled={!editable}
+              onFound={(company) => {
+                const filled = applyCompanyInfo({ name, kpp, requisites }, company);
+                setInn(company.inn || inn);
+                setName(filled.name);
+                setKpp(filled.kpp);
+                setRequisites(filled.requisites);
+              }}
+            />
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs" htmlFor="customer-kpp">
                 КПП

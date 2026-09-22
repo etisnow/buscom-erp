@@ -10,6 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { InnField } from "@/components/customers/inn-field";
+import { applyCompanyInfo } from "@/domain/customer/company-lookup";
+import {
+  CUSTOMER_REQUISITES_LABELS,
+  EMPTY_CUSTOMER_REQUISITES,
+  type CustomerRequisites,
+} from "@/domain/customer/requisites";
 import type { CustomerType } from "@/generated/prisma/enums";
 import { createCustomerAction } from "@/app/(app)/customers/actions";
 
@@ -18,6 +25,9 @@ const EMPTY = { name: "", phone: "", email: "", inn: "", kpp: "", contactPerson:
 type AddressDraft = { address: string; isDefault: boolean };
 
 const EMPTY_ADDRESS: AddressDraft = { address: "", isDefault: false };
+
+/** Что из найденного по ИНН показать в форме до сохранения; банк по ИНН не найти. */
+const FOUND_REQUISITES: (keyof CustomerRequisites)[] = ["legalName", "legalAddress", "ogrn", "signerName"];
 
 /**
  * Заведение клиента до первого заказа (PRD, M2.4). Клиента не с сайта заводят
@@ -30,6 +40,8 @@ export function NewCustomerDialog() {
   const [type, setType] = useState<CustomerType>("PERSON");
   const [fields, setFields] = useState(EMPTY);
   const [addresses, setAddresses] = useState<AddressDraft[]>([]);
+  // Заполняется только кнопкой «Заполнить» по ИНН; руками реквизиты вводят в карточке.
+  const [requisites, setRequisites] = useState<CustomerRequisites>(EMPTY_CUSTOMER_REQUISITES);
   // Найденный дубль: показываем ссылку на него вместо того, чтобы завести второго.
   const [existingId, setExistingId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -53,11 +65,18 @@ export function NewCustomerDialog() {
 
   function submit() {
     startTransition(async () => {
-      const result = await createCustomerAction({ type, ...fields, addresses });
+      // Реквизиты — только юрлицу: сменили тип на физлицо — найденное не сохраняем
+      const result = await createCustomerAction({
+        type,
+        ...fields,
+        addresses,
+        requisites: type === "COMPANY" ? requisites : undefined,
+      });
       if (result.ok) {
         setOpen(false);
         setFields(EMPTY);
         setAddresses([]);
+        setRequisites(EMPTY_CUSTOMER_REQUISITES);
         setType("PERSON");
         toast.success("Клиент заведён");
         router.push(`/customers/${result.id}`);
@@ -77,12 +96,13 @@ export function NewCustomerDialog() {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] grid-cols-[minmax(0,1fr)] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Новый клиент</DialogTitle>
             <DialogDescription>
               Обязательно только имя. Телефон сохранится в виде +7XXXXXXXXXX — по нему ERP узнаёт клиента в заказах с
-              сайта и не даёт завести дубль. Реквизиты юрлица дозаполняются в карточке.
+              сайта и не даёт завести дубль. У юрлица кнопка «Заполнить» подтянет название и реквизиты по ИНН, банк
+              вписывается в карточке.
             </DialogDescription>
           </DialogHeader>
 
@@ -142,17 +162,22 @@ export function NewCustomerDialog() {
 
             {type === "COMPANY" ? (
               <>
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs" htmlFor="new-customer-inn">
-                    ИНН
-                  </Label>
-                  <Input
-                    id="new-customer-inn"
-                    value={fields.inn}
-                    onChange={(event) => set("inn", event.target.value)}
-                    className="h-8"
-                  />
-                </div>
+                <InnField
+                  id="new-customer-inn"
+                  value={fields.inn}
+                  onChange={(value) => set("inn", value)}
+                  onFound={(company) => {
+                    const filled = applyCompanyInfo({ name: fields.name, kpp: fields.kpp, requisites }, company);
+                    setFields((current) => ({
+                      ...current,
+                      inn: company.inn || current.inn,
+                      name: filled.name,
+                      kpp: filled.kpp,
+                    }));
+                    setRequisites(filled.requisites);
+                    setExistingId(null);
+                  }}
+                />
                 <div className="flex flex-col gap-1.5">
                   <Label className="text-xs" htmlFor="new-customer-kpp">
                     КПП
@@ -165,6 +190,17 @@ export function NewCustomerDialog() {
                   />
                 </div>
               </>
+            ) : null}
+
+            {type === "COMPANY" && FOUND_REQUISITES.some((key) => requisites[key]) ? (
+              <dl className="bg-muted/50 grid gap-1 rounded-md p-2 text-xs sm:col-span-2">
+                {FOUND_REQUISITES.filter((key) => requisites[key]).map((key) => (
+                  <div key={key} className="flex gap-2">
+                    <dt className="text-muted-foreground w-28 shrink-0">{CUSTOMER_REQUISITES_LABELS[key]}</dt>
+                    <dd className="min-w-0 break-words">{requisites[key]}</dd>
+                  </div>
+                ))}
+              </dl>
             ) : null}
 
             {type === "COMPANY" ? (

@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { checkInn } from "@/domain/customer/company-lookup";
 import { customerRequisitesSchema } from "@/domain/customer/requisites";
 import { ForbiddenError } from "@/server/errors";
+import { findCompanyByInn, type CompanyLookupResult } from "@/server/customers/company-lookup";
 import { lookupCustomers, type CustomerMatch } from "@/server/customers/lookup";
 import {
   addCustomerAddress,
@@ -123,6 +125,19 @@ export async function deleteCustomerAction(id: string): Promise<CustomerResult> 
 export async function mergeCustomersAction(targetId: string, duplicateId: string): Promise<CustomerResult> {
   const user = await requireUser();
   return run(() => mergeCustomers(targetId, duplicateId, user), "Клиенты объединены", targetId);
+}
+
+/**
+ * Реквизиты юрлица по ИНН — кнопка «Заполнить» в форме клиента. Ничего не
+ * сохраняет: подставляет найденное в поля, сохраняет человек.
+ */
+export async function lookupCompanyAction(inn: string): Promise<CompanyLookupResult> {
+  await requireUser();
+
+  const checked = checkInn(z.string().parse(inn));
+  if (!checked.ok) return checked;
+
+  return findCompanyByInn(checked.inn);
 }
 
 /** Поиск возможного дубля для слияния. */
