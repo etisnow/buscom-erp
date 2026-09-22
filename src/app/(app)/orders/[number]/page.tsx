@@ -21,7 +21,7 @@ import { listManagers } from "@/server/orders/list";
 import { listCategories } from "@/server/products/categories";
 import { findProductRows } from "@/server/products/list";
 import { canEditCatalog } from "@/server/products/service";
-import { getCancelReasons, getCarriers, getOrderSources, getSettings } from "@/server/settings/service";
+import { getCancelReasons, getCarriers, getOrderSources } from "@/server/settings/service";
 import { requirePageUser } from "@/server/session";
 import { listSupplierOptions } from "@/server/suppliers/list";
 
@@ -37,13 +37,12 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
   const orderNumber = Number(number);
   if (!Number.isSafeInteger(orderNumber) || orderNumber <= 0) notFound();
 
-  const [order, managers, cancelReasons, orderSources, carriers, settings] = await Promise.all([
+  const [order, managers, cancelReasons, orderSources, carriers] = await Promise.all([
     findOrderByNumber(orderNumber),
     listManagers(),
     getCancelReasons(),
     getOrderSources(),
     getCarriers(),
-    getSettings(),
   ]);
   if (!order) notFound();
 
@@ -217,7 +216,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
                     carrier: order.carrier,
                     address: order.deliveryAddress,
                   },
-                  seller: settings.sellerRequisites,
+                  customer: { name: order.customer.name, inn: order.customer.inn, kpp: order.customer.kpp },
                 }),
               }))}
             />

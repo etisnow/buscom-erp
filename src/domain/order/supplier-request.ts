@@ -7,7 +7,9 @@
  * - цены — закупочные, из снимка в позиции (`OrderItem.purchasePriceKopecks`),
  *   а не текущие из прайса: договаривались по той цене, что в заказе;
  * - артикула нет намеренно — у поставщиков свои коды, наш их только путает;
- * - опции позиции обязательны: без них поставщик не поймёт, какой вариант нужен.
+ * - опции позиции обязательны: без них поставщик не поймёт, какой вариант нужен;
+ * - в подписи — реквизиты клиента (ИНН/КПП), не нашей компании: при прямой
+ *   поставке клиенту документы поставщик выписывает на его юрлицо.
  *
  * Функция чистая: ни БД, ни Next. Формат фиксирован — правится здесь и в тесте.
  */
@@ -15,7 +17,6 @@ import { formatMoscowDate } from "@/domain/datetime";
 import { formatRub, type Kopecks } from "@/domain/money";
 import { deliveryMethodLabel } from "@/domain/order/delivery";
 import type { OrderItemOption } from "@/domain/product/options";
-import type { SellerRequisites } from "@/domain/settings";
 import type { DeliveryMethod } from "@/generated/prisma/enums";
 
 export type SupplierRequestItem = {
@@ -35,8 +36,12 @@ export type SupplierRequestInput = {
     carrier: string | null;
     address: string | null;
   };
-  /** Наша компания — реквизиты продавца из настроек, те же, что и в счёте */
-  seller: SellerRequisites;
+  /**
+   * Клиент, для которого заказаны позиции — не наша компания. При прямой
+   * поставке от поставщика клиенту (адрес доставки — его) документы поставщик
+   * выписывает на это юрлицо, поэтому ИНН/КПП нужны именно клиента.
+   */
+  customer: { name: string; inn: string | null; kpp: string | null };
 };
 
 /** Позиция без закупочной цены: в сумму не идёт, но из текста не пропадает. */
@@ -72,35 +77,18 @@ function deliveryLines(delivery: SupplierRequestInput["delivery"]): string[] {
 }
 
 /**
- * Наша компания: название, ИНН/КПП, адрес, банковские реквизиты, телефон —
- * чтобы поставщик мог сразу выписать документы на нужное юрлицо, не запрашивая
- * их отдельно. Менеджера в тексте нет: поставщику отвечают в ту же переписку,
- * из которой пришёл заказ, а лишняя строка в сообщении мешает. Незаполненные
- * реквизиты (администратор не указал их в /admin/dictionaries) просто выпадают
- * из блока, а не показываются пустыми.
+ * Клиент-покупатель: тем же форматом, что и «Покупатель» в счёте (`buildInvoice`
+ * в `src/server/documents/invoice.ts`) — держать их в одном виде специально не
+ * стали (разные слои, `pdfmake` не отсюда), но текст должен читаться одинаково.
+ * ИНН/КПП есть не у всех — у физлица или у юрлица без реквизитов строка,
+ * которую с ними не собрать, просто не добавляется.
  */
-function sellerLines(seller: SellerRequisites): string[] {
-  const lines: string[] = [];
-  if (seller.name) lines.push(seller.name);
-
-  const inn = [seller.inn && `ИНН ${seller.inn}`, seller.kpp && `КПП ${seller.kpp}`].filter(Boolean).join(", ");
-  if (inn) lines.push(inn);
-
-  if (seller.address) lines.push(seller.address);
-
-  const bank = [
-    seller.bankName && `Банк: ${seller.bankName}`,
-    seller.bankAccount && `р/с ${seller.bankAccount}`,
-    seller.correspondentAccount && `к/с ${seller.correspondentAccount}`,
-    seller.bic && `БИК ${seller.bic}`,
-  ]
+function customerLine(customer: SupplierRequestInput["customer"]): string {
+  const requisites = [customer.inn && `ИНН ${customer.inn}`, customer.kpp && `КПП ${customer.kpp}`]
     .filter(Boolean)
     .join(", ");
-  if (bank) lines.push(bank);
 
-  if (seller.phone) lines.push(`Телефон: ${seller.phone}`);
-
-  return lines;
+  return [`Покупатель: ${customer.name}`, requisites].filter(Boolean).join(", ");
 }
 
 /**
@@ -124,8 +112,7 @@ export function buildSupplierRequest(input: SupplierRequestInput): string {
   const delivery = deliveryLines(input.delivery);
   if (delivery.length > 0) blocks.push(delivery.join("\n"));
 
-  const seller = sellerLines(input.seller);
-  if (seller.length > 0) blocks.push(seller.join("\n"));
+  blocks.push(customerLine(input.customer));
 
   return blocks.join("\n\n");
 }
