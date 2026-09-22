@@ -432,7 +432,7 @@ export function NewOrderForm({
                     </TableCell>
                     <TableCell>
                       <Button
-                        variant="ghost"
+                        variant="destructive"
                         size="icon"
                         className="size-8"
                         aria-label="Удалить позицию"

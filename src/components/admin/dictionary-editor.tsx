@@ -137,7 +137,7 @@ export function DictionaryEditor({
                   </Button>
                 )}
                 {item.systemCode ? (
-                  <Button variant="ghost" size="icon" className="size-8" aria-label="Удалить" disabled>
+                  <Button variant="destructive" size="icon" className="size-8" aria-label="Удалить" disabled>
                     <Trash2 className="size-4" />
                   </Button>
                 ) : confirmDelete === item.id ? (
@@ -161,7 +161,7 @@ export function DictionaryEditor({
                   </span>
                 ) : (
                   <Button
-                    variant="ghost"
+                    variant="destructive"
                     size="icon"
                     className="size-8"
                     aria-label="Удалить"

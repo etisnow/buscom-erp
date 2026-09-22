@@ -96,7 +96,7 @@ export function StageChainEditor({
                     <ArrowDown className="size-4" />
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant="destructive"
                     size="icon"
                     className="size-8"
                     aria-label="Убрать этап"

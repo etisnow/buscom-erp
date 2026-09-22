@@ -290,7 +290,7 @@ export function CustomerAddresses({
               {item.isDefault ? <span className="text-muted-foreground text-xs">по умолчанию</span> : null}
               {editable ? (
                 <Button
-                  variant="ghost"
+                  variant="destructive"
                   size="icon"
                   className="ml-auto size-7"
                   aria-label="Удалить адрес"
@@ -442,7 +442,7 @@ export function DeleteCustomer({ customerId, customerName }: { customerId: strin
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+      <Button variant="destructive" size="sm" onClick={() => setOpen(true)}>
         <Trash />
         Удалить
       </Button>

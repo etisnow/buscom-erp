@@ -281,7 +281,7 @@ export function ProductDialog({
                   />
                 </div>
                 <Button
-                  variant="ghost"
+                  variant="destructive"
                   size="icon"
                   className="size-8"
                   aria-label="Убрать поставщика"

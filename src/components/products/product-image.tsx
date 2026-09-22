@@ -108,7 +108,7 @@ export function ProductImageEditor({
           {imageId ? "Заменить" : "Загрузить"}
         </Button>
         {imageId ? (
-          <Button variant="ghost" size="sm" disabled={pending} onClick={remove}>
+          <Button variant="destructive" size="sm" disabled={pending} onClick={remove}>
             <Trash2 />
             Удалить
           </Button>

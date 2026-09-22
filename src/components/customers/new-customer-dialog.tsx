@@ -287,7 +287,7 @@ export function NewCustomerDialog() {
                   по умолчанию
                 </label>
                 <Button
-                  variant="ghost"
+                  variant="destructive"
                   size="icon"
                   className="size-8"
                   aria-label="Убрать адрес"

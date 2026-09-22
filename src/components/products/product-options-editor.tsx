@@ -112,7 +112,7 @@ export function ProductOptionsEditor({
               обязательная
             </label>
             <Button
-              variant="ghost"
+              variant="destructive"
               size="icon"
               className="size-8"
               aria-label="Убрать группу"
@@ -141,7 +141,7 @@ export function ProductOptionsEditor({
               />
               <span className="text-muted-foreground text-xs">₽</span>
               <Button
-                variant="ghost"
+                variant="destructive"
                 size="icon"
                 className="size-8"
                 aria-label="Убрать вариант"

@@ -139,7 +139,7 @@ export function DeleteSupplier({ supplierId, supplierName }: { supplierId: strin
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+      <Button variant="destructive" size="sm" onClick={() => setOpen(true)}>
         <Trash />
         Удалить
       </Button>

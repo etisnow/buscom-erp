@@ -44,7 +44,7 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
         </Link>
         <div className="flex flex-wrap gap-2">
           {hasRole(user.role, ORDER_CREATE_ROLES) ? (
-            <Button size="sm" variant="outline" asChild>
+            <Button size="sm" asChild>
               <Link href={`/orders/new?customerId=${customer.id}`}>
                 <Plus />
                 Новый заказ

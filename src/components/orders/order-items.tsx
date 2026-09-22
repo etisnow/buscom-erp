@@ -320,7 +320,7 @@ export function OrderItems({
                       ) : null}
                       {editable ? (
                         <Button
-                          variant="ghost"
+                          variant="destructive"
                           size="icon"
                           className="size-8"
                           aria-label="Удалить позицию"

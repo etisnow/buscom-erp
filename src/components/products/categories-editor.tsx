@@ -212,7 +212,7 @@ export function CategoriesEditor({ categories, editable }: { categories: Categor
                               <Pencil className="size-4" />
                             </Button>
                             <Button
-                              variant="ghost"
+                              variant="destructive"
                               size="icon"
                               className="size-8"
                               aria-label="Удалить"
