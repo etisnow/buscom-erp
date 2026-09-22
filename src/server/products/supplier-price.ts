@@ -1,26 +1,40 @@
 import "server-only";
 import type { Kopecks } from "@/domain/money";
 import { isAvitoUrl, parseAvitoPrice } from "@/domain/product/avito";
+import { isVanprojectUrl, parseVanprojectPrice } from "@/domain/product/vanproject";
 
 /**
- * Цена товара со страницы объявления на avito.ru — для кнопки «Подтянуть цену»
- * в карточке товара. Разбор разметки живёт в `src/domain/product/avito.ts`,
- * здесь только поход в сеть.
+ * Цена товара со страницы поставщика — для кнопки «Подтянуть цену» в карточке
+ * товара. Разбор разметки живёт в `src/domain/product/*`, здесь только выбор
+ * сайта по ссылке и поход в сеть.
  *
- * Чего ждать: Авито не любит автоматические запросы и отвечает то 403, то
- * страницей с проверкой. Поэтому любой неуспех — понятный текст для менеджера,
+ * Чего ждать: сайты не любят автоматические запросы (Авито отвечает то 403, то
+ * страницей с проверкой). Поэтому любой неуспех — понятный текст для менеджера,
  * а не исключение: цену всегда можно вписать руками, кнопка лишь экономит время.
  */
 
-/** Страница объявления весит сотни килобайт; больше — читать незачем. */
+/** Страница товара весит сотни килобайт; больше — читать незачем. */
 const MAX_BYTES = 3_000_000;
 const TIMEOUT_MS = 20_000;
 
-export type AvitoPriceResult = { ok: true; priceKopecks: Kopecks } | { ok: false; error: string };
+/** Сайты, с которых умеем брать цену. Новый — парсер в domain + строка здесь. */
+const SOURCES: {
+  name: string;
+  host: string;
+  matches: (url: string) => boolean;
+  parse: (html: string) => Kopecks | null;
+}[] = [
+  { name: "Авито", host: "avito.ru", matches: isAvitoUrl, parse: parseAvitoPrice },
+  { name: "Фургон Проект", host: "vanproject.ru", matches: isVanprojectUrl, parse: parseVanprojectPrice },
+];
 
-export async function fetchAvitoPrice(url: string): Promise<AvitoPriceResult> {
-  if (!isAvitoUrl(url)) {
-    return { ok: false, error: "Пока умею подтягивать цену только с avito.ru" };
+export type SupplierPriceResult = { ok: true; priceKopecks: Kopecks } | { ok: false; error: string };
+
+export async function fetchSupplierPrice(url: string): Promise<SupplierPriceResult> {
+  const source = SOURCES.find((candidate) => candidate.matches(url));
+  if (!source) {
+    const hosts = SOURCES.map((candidate) => candidate.host).join(", ");
+    return { ok: false, error: `Пока умею подтягивать цену только с ${hosts}` };
   }
 
   let response: Response;
@@ -35,22 +49,23 @@ export async function fetchAvitoPrice(url: string): Promise<AvitoPriceResult> {
         accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "accept-language": "ru-RU,ru;q=0.9",
       },
-      // Страница объявления живая, кеш Next тут только мешал бы
+      // Страница товара живая, кеш Next тут только мешал бы
       cache: "no-store",
     });
   } catch (error) {
-    const reason = error instanceof Error && error.name === "TimeoutError" ? "Авито не ответил вовремя" : "нет связи";
+    const reason =
+      error instanceof Error && error.name === "TimeoutError" ? `${source.name} не ответил вовремя` : "нет связи";
     return { ok: false, error: `Не удалось открыть страницу: ${reason}` };
   }
 
   if (response.status === 403 || response.status === 429) {
-    return { ok: false, error: "Авито не пустил запрос из системы — скопируйте цену со страницы руками" };
+    return { ok: false, error: `${source.name} не пустил запрос из системы — скопируйте цену со страницы руками` };
   }
   if (response.status === 404) {
-    return { ok: false, error: "Объявление не найдено: возможно, его сняли" };
+    return { ok: false, error: "Страница товара не найдена: возможно, его сняли" };
   }
   if (!response.ok) {
-    return { ok: false, error: `Авито ответил ошибкой ${response.status}` };
+    return { ok: false, error: `${source.name} ответил ошибкой ${response.status}` };
   }
 
   const length = Number(response.headers.get("content-length") ?? 0);
@@ -59,7 +74,7 @@ export async function fetchAvitoPrice(url: string): Promise<AvitoPriceResult> {
   }
 
   const html = (await response.text()).slice(0, MAX_BYTES);
-  const priceKopecks = parseAvitoPrice(html);
+  const priceKopecks = source.parse(html);
   if (priceKopecks === null) {
     return { ok: false, error: "Цену на странице найти не удалось — впишите её руками" };
   }
