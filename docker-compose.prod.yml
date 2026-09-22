@@ -76,6 +76,8 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-BusCom ERP <noreply@bus-com.ru>}
+      # Заполнение юрлица по ИНН; не задан — кнопка «Заполнить» говорит, что не настроено
+      DADATA_API_KEY: ${DADATA_API_KEY:-}
       TZ: Europe/Moscow
     depends_on:
       postgres:
