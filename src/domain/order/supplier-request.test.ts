@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { EMPTY_CUSTOMER_REQUISITES } from "@/domain/customer/requisites";
 import { buildSupplierRequest, type SupplierRequestInput } from "@/domain/order/supplier-request";
 
 const BASE: SupplierRequestInput = {
@@ -16,7 +17,13 @@ const BASE: SupplierRequestInput = {
     },
   ],
   delivery: { method: "CARRIER", carrier: "СДЭК", address: "Ростов-на-Дону, ул. Ленина, 1" },
-  customer: { name: 'ООО "Ромашка"', inn: "7700000000", kpp: "770001001" },
+  customer: {
+    name: 'ООО "Ромашка"',
+    phone: "+7 999 000-00-00",
+    inn: "7700000000",
+    kpp: "770001001",
+    requisites: EMPTY_CUSTOMER_REQUISITES,
+  },
 };
 
 describe("buildSupplierRequest", () => {
@@ -29,30 +36,103 @@ describe("buildSupplierRequest", () => {
     expect(text).toContain("Крепление: болтовое");
     expect(text).toContain("Доставка: Транспортная компания СДЭК");
     expect(text).toContain("Адрес: Ростов-на-Дону, ул. Ленина, 1");
-    expect(text).toContain('Покупатель: ООО "Ромашка", ИНН 7700000000, КПП 770001001');
+    expect(text).toContain('Покупатель: ООО "Ромашка"');
+    expect(text).toContain("ИНН 7700000000, КПП 770001001");
+    expect(text).toContain("Телефон: +7 999 000-00-00");
     expect(text).not.toContain("Менеджер");
   });
 
   it("покупатель — клиент заказа, а не наша компания", () => {
-    const text = buildSupplierRequest({ ...BASE, customer: { name: "БасКом", inn: null, kpp: null } });
+    const text = buildSupplierRequest({
+      ...BASE,
+      customer: { name: "БасКом", phone: null, inn: null, kpp: null, requisites: EMPTY_CUSTOMER_REQUISITES },
+    });
 
     expect(text).not.toContain('ООО "Ромашка"');
     expect(text).toContain("Покупатель: БасКом");
   });
 
+  it("включает полные реквизиты клиента — юр. название, ИНН/КПП, адрес, ОГРН и банк", () => {
+    const text = buildSupplierRequest({
+      ...BASE,
+      customer: {
+        name: "Ромашка",
+        phone: "+7 999 000-00-00",
+        inn: "7700000000",
+        kpp: "770001001",
+        requisites: {
+          ...EMPTY_CUSTOMER_REQUISITES,
+          legalName: 'ООО "Ромашка"',
+          legalAddress: "г. Москва, ул. Ленина, 1",
+          ogrn: "1027700132195",
+          bankName: "ПАО Сбербанк",
+          bankAccount: "40702810000000000000",
+          correspondentAccount: "30101810400000000225",
+          bic: "044525225",
+        },
+      },
+    });
+
+    // Юр. название приоритетнее рабочего имени
+    expect(text).toContain('Покупатель: ООО "Ромашка"');
+    expect(text).not.toContain("Покупатель: Ромашка\n");
+    expect(text).toContain("ИНН 7700000000, КПП 770001001");
+    expect(text).toContain("г. Москва, ул. Ленина, 1");
+    expect(text).toContain("ОГРН 1027700132195");
+    expect(text).toContain("Банк: ПАО Сбербанк, р/с 40702810000000000000, к/с 30101810400000000225, БИК 044525225");
+    expect(text).toContain("Телефон: +7 999 000-00-00");
+  });
+
   it("у физлица или юрлица без реквизитов печатает только имя", () => {
-    const text = buildSupplierRequest({ ...BASE, customer: { name: "Иванов Иван Иванович", inn: null, kpp: null } });
+    const text = buildSupplierRequest({
+      ...BASE,
+      customer: {
+        name: "Иванов Иван Иванович",
+        phone: null,
+        inn: null,
+        kpp: null,
+        requisites: EMPTY_CUSTOMER_REQUISITES,
+      },
+    });
 
     expect(text).toContain("Покупатель: Иванов Иван Иванович");
     expect(text).not.toContain("ИНН");
     expect(text).not.toContain("КПП");
+    expect(text).not.toContain("ОГРН");
+    expect(text).not.toContain("Банк:");
+    expect(text).not.toContain("Телефон");
   });
 
   it("ИНН без КПП печатает один, без лишней запятой", () => {
-    const text = buildSupplierRequest({ ...BASE, customer: { name: "ИП Петров", inn: "500100732259", kpp: null } });
+    const text = buildSupplierRequest({
+      ...BASE,
+      customer: {
+        name: "ИП Петров",
+        phone: null,
+        inn: "500100732259",
+        kpp: null,
+        requisites: EMPTY_CUSTOMER_REQUISITES,
+      },
+    });
 
-    expect(text).toContain("Покупатель: ИП Петров, ИНН 500100732259");
+    expect(text).toContain("Покупатель: ИП Петров");
+    expect(text).toContain("ИНН 500100732259");
     expect(text).not.toContain("КПП");
+  });
+
+  it("банк без части полей печатает то, что есть, без лишних запятых", () => {
+    const text = buildSupplierRequest({
+      ...BASE,
+      customer: {
+        name: "ИП Петров",
+        phone: null,
+        inn: null,
+        kpp: null,
+        requisites: { ...EMPTY_CUSTOMER_REQUISITES, bankName: "ПАО Сбербанк", bic: "044525225" },
+      },
+    });
+
+    expect(text).toContain("Банк: ПАО Сбербанк, БИК 044525225");
   });
 
   it("считает сумму позиции и итог по закупочным ценам", () => {

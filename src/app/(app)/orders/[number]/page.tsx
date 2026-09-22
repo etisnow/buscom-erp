@@ -10,6 +10,7 @@ import { OrderHistory } from "@/components/orders/order-history";
 import { OrderItems } from "@/components/orders/order-items";
 import { OrderPayments } from "@/components/orders/order-payments";
 import { SupplierTracks } from "@/components/orders/supplier-tracks";
+import { parseCustomerRequisites } from "@/domain/customer/requisites";
 import { canEditItems, canReassignManager } from "@/domain/order/editing";
 import { canChangeOrderSource, orderSourceLabel } from "@/domain/order/source";
 import { TERMINAL_STATUSES } from "@/domain/order/status";
@@ -216,7 +217,13 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
                     carrier: order.carrier,
                     address: order.deliveryAddress,
                   },
-                  customer: { name: order.customer.name, inn: order.customer.inn, kpp: order.customer.kpp },
+                  customer: {
+                    name: order.customer.name,
+                    phone: order.customer.phone,
+                    inn: order.customer.inn,
+                    kpp: order.customer.kpp,
+                    requisites: parseCustomerRequisites(order.customer.requisites),
+                  },
                 }),
               }))}
             />

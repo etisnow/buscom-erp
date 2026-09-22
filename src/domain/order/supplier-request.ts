@@ -8,11 +8,12 @@
  *   а не текущие из прайса: договаривались по той цене, что в заказе;
  * - артикула нет намеренно — у поставщиков свои коды, наш их только путает;
  * - опции позиции обязательны: без них поставщик не поймёт, какой вариант нужен;
- * - в подписи — реквизиты клиента (ИНН/КПП), не нашей компании: при прямой
- *   поставке клиенту документы поставщик выписывает на его юрлицо.
+ * - в подписи — реквизиты клиента, не нашей компании (включая банковские): при
+ *   прямой поставке клиенту документы и расчёты идут на его юрлицо, а не наше.
  *
  * Функция чистая: ни БД, ни Next. Формат фиксирован — правится здесь и в тесте.
  */
+import type { CustomerRequisites } from "@/domain/customer/requisites";
 import { formatMoscowDate } from "@/domain/datetime";
 import { formatRub, type Kopecks } from "@/domain/money";
 import { deliveryMethodLabel } from "@/domain/order/delivery";
@@ -38,10 +39,16 @@ export type SupplierRequestInput = {
   };
   /**
    * Клиент, для которого заказаны позиции — не наша компания. При прямой
-   * поставке от поставщика клиенту (адрес доставки — его) документы поставщик
-   * выписывает на это юрлицо, поэтому ИНН/КПП нужны именно клиента.
+   * поставке от поставщика клиенту (адрес доставки — его) документы и расчёты
+   * идут на это юрлицо, поэтому нужны его реквизиты целиком, включая банк.
    */
-  customer: { name: string; inn: string | null; kpp: string | null };
+  customer: {
+    name: string;
+    phone: string | null;
+    inn: string | null;
+    kpp: string | null;
+    requisites: CustomerRequisites;
+  };
 };
 
 /** Позиция без закупочной цены: в сумму не идёт, но из текста не пропадает. */
@@ -77,18 +84,36 @@ function deliveryLines(delivery: SupplierRequestInput["delivery"]): string[] {
 }
 
 /**
- * Клиент-покупатель: тем же форматом, что и «Покупатель» в счёте (`buildInvoice`
- * в `src/server/documents/invoice.ts`) — держать их в одном виде специально не
- * стали (разные слои, `pdfmake` не отсюда), но текст должен читаться одинаково.
- * ИНН/КПП есть не у всех — у физлица или у юрлица без реквизитов строка,
- * которую с ними не собрать, просто не добавляется.
+ * Клиент-покупатель целиком: юр. название, ИНН/КПП, юр. адрес, ОГРН, банк
+ * с р/с, к/с и БИК, телефон. Юр. название приоритетнее рабочего имени, если
+ * оно заполнено (`CustomerRequisites` — то же, что в реквизитах для договоров
+ * в карточке клиента и в счёте, `src/server/documents/invoice.ts`). Не наша
+ * компания: при прямой поставке клиенту документы и оплата идут на его юрлицо.
+ * Незаполненные поля из блока просто выпадают, а не показываются пустыми.
  */
-function customerLine(customer: SupplierRequestInput["customer"]): string {
-  const requisites = [customer.inn && `ИНН ${customer.inn}`, customer.kpp && `КПП ${customer.kpp}`]
+function customerLines(customer: SupplierRequestInput["customer"]): string[] {
+  const { requisites } = customer;
+  const lines: string[] = [`Покупатель: ${requisites.legalName || customer.name}`];
+
+  const inn = [customer.inn && `ИНН ${customer.inn}`, customer.kpp && `КПП ${customer.kpp}`].filter(Boolean).join(", ");
+  if (inn) lines.push(inn);
+
+  if (requisites.legalAddress) lines.push(requisites.legalAddress);
+  if (requisites.ogrn) lines.push(`ОГРН ${requisites.ogrn}`);
+
+  const bank = [
+    requisites.bankName && `Банк: ${requisites.bankName}`,
+    requisites.bankAccount && `р/с ${requisites.bankAccount}`,
+    requisites.correspondentAccount && `к/с ${requisites.correspondentAccount}`,
+    requisites.bic && `БИК ${requisites.bic}`,
+  ]
     .filter(Boolean)
     .join(", ");
+  if (bank) lines.push(bank);
 
-  return [`Покупатель: ${customer.name}`, requisites].filter(Boolean).join(", ");
+  if (customer.phone) lines.push(`Телефон: ${customer.phone}`);
+
+  return lines;
 }
 
 /**
@@ -112,7 +137,7 @@ export function buildSupplierRequest(input: SupplierRequestInput): string {
   const delivery = deliveryLines(input.delivery);
   if (delivery.length > 0) blocks.push(delivery.join("\n"));
 
-  blocks.push(customerLine(input.customer));
+  blocks.push(customerLines(input.customer).join("\n"));
 
   return blocks.join("\n\n");
 }
