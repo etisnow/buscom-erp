@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { InnField } from "@/components/customers/inn-field";
 import { applyCompanyInfo } from "@/domain/customer/company-lookup";
 import {
+  CUSTOMER_REQUISITES_FIELDS,
   CUSTOMER_REQUISITES_LABELS,
   EMPTY_CUSTOMER_REQUISITES,
   type CustomerRequisites,
@@ -26,9 +27,6 @@ type AddressDraft = { address: string; isDefault: boolean };
 
 const EMPTY_ADDRESS: AddressDraft = { address: "", isDefault: false };
 
-/** Что из найденного по ИНН показать в форме до сохранения; банк по ИНН не найти. */
-const FOUND_REQUISITES: (keyof CustomerRequisites)[] = ["legalName", "legalAddress", "ogrn", "signerName"];
-
 /**
  * Заведение клиента до первого заказа (PRD, M2.4). Клиента не с сайта заводят
  * целиком и сразу, поэтому в форме есть и адреса доставки: иначе их пришлось бы
@@ -40,7 +38,6 @@ export function NewCustomerDialog() {
   const [type, setType] = useState<CustomerType>("PERSON");
   const [fields, setFields] = useState(EMPTY);
   const [addresses, setAddresses] = useState<AddressDraft[]>([]);
-  // Заполняется только кнопкой «Заполнить» по ИНН; руками реквизиты вводят в карточке.
   const [requisites, setRequisites] = useState<CustomerRequisites>(EMPTY_CUSTOMER_REQUISITES);
   // Найденный дубль: показываем ссылку на него вместо того, чтобы завести второго.
   const [existingId, setExistingId] = useState<string | null>(null);
@@ -101,8 +98,8 @@ export function NewCustomerDialog() {
             <DialogTitle>Новый клиент</DialogTitle>
             <DialogDescription>
               Обязательно только имя. Телефон сохранится в виде +7XXXXXXXXXX — по нему ERP узнаёт клиента в заказах с
-              сайта и не даёт завести дубль. У юрлица кнопка «Заполнить» подтянет название и реквизиты по ИНН, банк
-              вписывается в карточке.
+              сайта и не даёт завести дубль. У юрлица кнопка «Заполнить» подтянет название, ИНН/КПП и часть реквизитов
+              из ЕГРЮЛ — банк туда не входит, впишите его руками.
             </DialogDescription>
           </DialogHeader>
 
@@ -161,49 +158,6 @@ export function NewCustomerDialog() {
             </div>
 
             {type === "COMPANY" ? (
-              <>
-                <InnField
-                  id="new-customer-inn"
-                  value={fields.inn}
-                  onChange={(value) => set("inn", value)}
-                  onFound={(company) => {
-                    const filled = applyCompanyInfo({ name: fields.name, kpp: fields.kpp, requisites }, company);
-                    setFields((current) => ({
-                      ...current,
-                      inn: company.inn || current.inn,
-                      name: filled.name,
-                      kpp: filled.kpp,
-                    }));
-                    setRequisites(filled.requisites);
-                    setExistingId(null);
-                  }}
-                />
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs" htmlFor="new-customer-kpp">
-                    КПП
-                  </Label>
-                  <Input
-                    id="new-customer-kpp"
-                    value={fields.kpp}
-                    onChange={(event) => set("kpp", event.target.value)}
-                    className="h-8"
-                  />
-                </div>
-              </>
-            ) : null}
-
-            {type === "COMPANY" && FOUND_REQUISITES.some((key) => requisites[key]) ? (
-              <dl className="bg-muted/50 grid gap-1 rounded-md p-2 text-xs sm:col-span-2">
-                {FOUND_REQUISITES.filter((key) => requisites[key]).map((key) => (
-                  <div key={key} className="flex gap-2">
-                    <dt className="text-muted-foreground w-28 shrink-0">{CUSTOMER_REQUISITES_LABELS[key]}</dt>
-                    <dd className="min-w-0 break-words">{requisites[key]}</dd>
-                  </div>
-                ))}
-              </dl>
-            ) : null}
-
-            {type === "COMPANY" ? (
               <div className="flex flex-col gap-1.5 sm:col-span-2">
                 <Label className="text-xs" htmlFor="new-customer-contact">
                   Контактное лицо
@@ -241,6 +195,54 @@ export function NewCustomerDialog() {
               />
             </div>
           </div>
+
+          {type === "COMPANY" ? (
+            <div className="flex flex-col gap-3 border-t pt-3">
+              <span className="text-sm font-medium">Реквизиты юр. лица</span>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <InnField
+                  id="new-customer-inn"
+                  value={fields.inn}
+                  onChange={(value) => set("inn", value)}
+                  onFound={(company) => {
+                    const filled = applyCompanyInfo({ name: fields.name, kpp: fields.kpp, requisites }, company);
+                    setFields((current) => ({
+                      ...current,
+                      inn: company.inn || current.inn,
+                      name: filled.name,
+                      kpp: filled.kpp,
+                    }));
+                    setRequisites(filled.requisites);
+                    setExistingId(null);
+                  }}
+                />
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs" htmlFor="new-customer-kpp">
+                    КПП
+                  </Label>
+                  <Input
+                    id="new-customer-kpp"
+                    value={fields.kpp}
+                    onChange={(event) => set("kpp", event.target.value)}
+                    className="h-8"
+                  />
+                </div>
+                {CUSTOMER_REQUISITES_FIELDS.map((key) => (
+                  <div key={key} className="flex flex-col gap-1.5">
+                    <Label className="text-xs" htmlFor={`new-requisites-${key}`}>
+                      {CUSTOMER_REQUISITES_LABELS[key]}
+                    </Label>
+                    <Input
+                      id={`new-requisites-${key}`}
+                      value={requisites[key]}
+                      onChange={(event) => setRequisites((current) => ({ ...current, [key]: event.target.value }))}
+                      className="h-8"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="flex flex-col gap-2 border-t pt-3">
             <div className="flex items-center justify-between gap-2">

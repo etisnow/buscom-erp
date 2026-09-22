@@ -49,6 +49,9 @@ export const CUSTOMER_REQUISITES_LABELS: Record<keyof CustomerRequisites, string
   accountantName: "Бухгалтер",
 };
 
+/** Порядок полей в блоке «Реквизиты юр. лица» — один и тот же в карточке и в форме заведения. */
+export const CUSTOMER_REQUISITES_FIELDS = Object.keys(CUSTOMER_REQUISITES_LABELS) as (keyof CustomerRequisites)[];
+
 /**
  * Разбор того, что лежит в Json-поле. Старые записи и записи из импорта могут
  * не иметь части ключей, поэтому недостающие добиваем пустыми строками, а не
