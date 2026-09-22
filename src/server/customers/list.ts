@@ -3,6 +3,7 @@ import { normalizePhone } from "@/domain/customer/phone";
 import type { Prisma } from "@/generated/prisma/client";
 import type { CustomerType } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
+import { hasLetters, matchNamesCaseInsensitive } from "@/server/customers/name-match";
 
 export type CustomerFilters = {
   query?: string;
@@ -32,18 +33,25 @@ export type CustomerListResult = {
   pageCount: number;
 };
 
-/** Условия выборки общие со списком: выгрузка обязана повторять видимое на экране. */
-export function customersWhere(filters: CustomerFilters): Prisma.CustomerWhereInput {
+/**
+ * Условия выборки общие со списком: выгрузка обязана повторять видимое на экране.
+ *
+ * Async: поиск по имени идёт без учёта регистра кириллицы через
+ * `matchNamesCaseInsensitive` (см. её комментарий) — обычный `ILIKE` для
+ * этого не годится, а он требует похода в базу.
+ */
+export async function customersWhere(filters: CustomerFilters): Promise<Prisma.CustomerWhereInput> {
   const and: Prisma.CustomerWhereInput[] = [];
 
   const query = filters.query?.trim();
   if (query) {
     const phone = normalizePhone(query);
     const digits = query.replace(/\D/g, "");
+    const nameMatches = hasLetters(query) ? await matchNamesCaseInsensitive(query) : [];
 
     and.push({
       OR: [
-        { name: { contains: query, mode: "insensitive" } },
+        ...(nameMatches.length > 0 ? [{ id: { in: nameMatches } }] : []),
         ...(phone ? [{ phone }] : []),
         ...(query.includes("@") ? [{ email: { contains: query, mode: "insensitive" as const } }] : []),
         // Частичный ввод (не весь номер или ИНН целиком) — ищем вхождением цифр.
@@ -61,7 +69,7 @@ const PURCHASED_STATUSES = ["COMPLETED"] as const;
 
 export async function listCustomers(filters: CustomerFilters): Promise<CustomerListResult> {
   const page = Math.max(1, filters.page ?? 1);
-  const customerWhere = customersWhere(filters);
+  const customerWhere = await customersWhere(filters);
 
   const [customers, total] = await Promise.all([
     db.customer.findMany({

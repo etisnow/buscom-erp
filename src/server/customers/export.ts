@@ -29,7 +29,7 @@ export async function exportCustomersCsv(filters: CustomerFilters): Promise<Cust
   const now = new Date();
 
   const customers = await db.customer.findMany({
-    where: customersWhere(filters),
+    where: await customersWhere(filters),
     select: {
       id: true,
       type: true,

@@ -38,4 +38,15 @@ describeDb("подбор клиента по частичному телефон
 
     expect(await lookupCustomers("77")).toEqual([]);
   });
+
+  it("находит по имени без учёта регистра кириллицы", async () => {
+    await testDb.customer.create({ data: { name: 'ООО "БАСКОМ"', type: "COMPANY" } });
+    await testDb.customer.create({ data: { name: "Другая компания", type: "COMPANY" } });
+
+    // Обычный Postgres ILIKE это на здешней базе не умеет (docs/DECISIONS.md) —
+    // сравниваем в приложении, см. matchNamesCaseInsensitive.
+    const found = await lookupCustomers("баском");
+
+    expect(found.map((item) => item.name)).toEqual(['ООО "БАСКОМ"']);
+  });
 });

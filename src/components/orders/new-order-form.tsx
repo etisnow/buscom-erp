@@ -233,6 +233,7 @@ export function NewOrderForm({
             <UserCheck className="size-4 text-emerald-600" />
             <span>{picked.name}</span>
             <span className="text-muted-foreground">{formatPhone(picked.phone)}</span>
+            {picked.inn ? <span className="text-muted-foreground">ИНН {picked.inn}</span> : null}
             <span className="text-muted-foreground text-xs">заказов: {picked.ordersCount}</span>
             <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setPicked(null)}>
               Выбрать другого
@@ -251,6 +252,7 @@ export function NewOrderForm({
                     >
                       <span>{match.name}</span>
                       <span className="text-muted-foreground">{formatPhone(match.phone)}</span>
+                      {match.inn ? <span className="text-muted-foreground">ИНН {match.inn}</span> : null}
                       <span className="text-muted-foreground ml-auto text-xs">заказов: {match.ordersCount}</span>
                     </button>
                   </li>

@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { InnField } from "@/components/customers/inn-field";
 import { applyCompanyInfo } from "@/domain/customer/company-lookup";
 import {
+  CUSTOMER_REQUISITES_FIELDS,
   CUSTOMER_REQUISITES_LABELS,
   hasCustomerRequisites,
   type CustomerRequisites,
@@ -45,8 +46,6 @@ export type CustomerFormData = {
 };
 
 export type AddressRow = { id: string; address: string; isDefault: boolean };
-
-const REQUISITES_FIELDS = Object.keys(CUSTOMER_REQUISITES_LABELS) as (keyof CustomerRequisites)[];
 
 function useAction() {
   const [pending, startTransition] = useTransition();
@@ -136,36 +135,6 @@ export function CustomerForm({ customer, editable }: { customer: CustomerFormDat
         </div>
 
         {type === "COMPANY" ? (
-          <>
-            <InnField
-              id="customer-inn"
-              value={inn}
-              onChange={setInn}
-              disabled={!editable}
-              onFound={(company) => {
-                const filled = applyCompanyInfo({ name, kpp, requisites }, company);
-                setInn(company.inn || inn);
-                setName(filled.name);
-                setKpp(filled.kpp);
-                setRequisites(filled.requisites);
-              }}
-            />
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs" htmlFor="customer-kpp">
-                КПП
-              </Label>
-              <Input
-                id="customer-kpp"
-                value={kpp}
-                onChange={(event) => setKpp(event.target.value)}
-                disabled={!editable}
-                className="h-8"
-              />
-            </div>
-          </>
-        ) : null}
-
-        {type === "COMPANY" ? (
           <div className="flex flex-col gap-1.5 sm:col-span-2">
             <Label className="text-xs" htmlFor="customer-contact">
               Контактное лицо
@@ -208,10 +177,35 @@ export function CustomerForm({ customer, editable }: { customer: CustomerFormDat
       </div>
 
       {type === "COMPANY" ? (
-        <details className="border-t pt-3" open={hasCustomerRequisites(requisites)}>
-          <summary className="cursor-pointer text-sm font-medium">Реквизиты для договоров</summary>
+        <details className="border-t pt-3" open={hasCustomerRequisites(requisites) || Boolean(inn) || Boolean(kpp)}>
+          <summary className="cursor-pointer text-sm font-medium">Реквизиты юр. лица</summary>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {REQUISITES_FIELDS.map((key) => (
+            <InnField
+              id="customer-inn"
+              value={inn}
+              onChange={setInn}
+              disabled={!editable}
+              onFound={(company) => {
+                const filled = applyCompanyInfo({ name, kpp, requisites }, company);
+                setInn(company.inn || inn);
+                setName(filled.name);
+                setKpp(filled.kpp);
+                setRequisites(filled.requisites);
+              }}
+            />
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs" htmlFor="customer-kpp">
+                КПП
+              </Label>
+              <Input
+                id="customer-kpp"
+                value={kpp}
+                onChange={(event) => setKpp(event.target.value)}
+                disabled={!editable}
+                className="h-8"
+              />
+            </div>
+            {CUSTOMER_REQUISITES_FIELDS.map((key) => (
               <div key={key} className="flex flex-col gap-1.5">
                 <Label className="text-xs" htmlFor={`requisites-${key}`}>
                   {CUSTOMER_REQUISITES_LABELS[key]}
@@ -389,7 +383,8 @@ export function MergeCustomers({ customerId, customerName }: { customerId: strin
                 <span className="flex flex-col">
                   <span>{match.name}</span>
                   <span className="text-muted-foreground text-xs">
-                    {formatPhone(match.phone)} · заказов: {match.ordersCount}
+                    {formatPhone(match.phone)}
+                    {match.inn ? ` · ИНН ${match.inn}` : ""} · заказов: {match.ordersCount}
                   </span>
                 </span>
                 <Button
