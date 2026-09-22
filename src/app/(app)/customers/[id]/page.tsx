@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { CustomerAddresses, CustomerForm, DeleteCustomer, MergeCustomers } from "@/components/customers/customer-card";
 import { OrderStatusBadge, PaymentBadge } from "@/components/orders/status-badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { parseCustomerRequisites } from "@/domain/customer/requisites";
 import { formatMoscowDateTime } from "@/domain/datetime";
 import { formatRub } from "@/domain/money";
 import { findCustomer } from "@/server/customers/list";
-import { CUSTOMER_DELETE_ROLES, hasRole } from "@/domain/user/role";
+import { CUSTOMER_DELETE_ROLES, ORDER_CREATE_ROLES, hasRole } from "@/domain/user/role";
 import { canEditCustomers } from "@/server/customers/service";
 import { requirePageUser } from "@/server/session";
 
@@ -42,6 +43,14 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
           <ArrowLeft className="size-4" />К списку клиентов
         </Link>
         <div className="flex flex-wrap gap-2">
+          {hasRole(user.role, ORDER_CREATE_ROLES) ? (
+            <Button size="sm" variant="outline" asChild>
+              <Link href={`/orders/new?customerId=${customer.id}`}>
+                <Plus />
+                Новый заказ
+              </Link>
+            </Button>
+          ) : null}
           {editable ? <MergeCustomers customerId={customer.id} customerName={customer.name} /> : null}
           {hasRole(user.role, CUSTOMER_DELETE_ROLES) ? (
             <DeleteCustomer customerId={customer.id} customerName={customer.name} />

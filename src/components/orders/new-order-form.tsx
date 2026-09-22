@@ -54,13 +54,22 @@ function parseRubles(value: string): number {
   }
 }
 
-export function NewOrderForm({ sources, carriers }: { sources: { id: string; name: string }[]; carriers: string[] }) {
+export function NewOrderForm({
+  sources,
+  carriers,
+  initialCustomer = null,
+}: {
+  sources: { id: string; name: string }[];
+  carriers: string[];
+  /** Клиент, для которого заказ заведён кнопкой «Новый заказ» из его карточки */
+  initialCustomer?: CustomerMatch | null;
+}) {
   // По умолчанию — первый источник справочника: администратор ставит частый наверх.
   const [sourceItemId, setSourceItemId] = useState<string | null>(sources[0]?.id ?? null);
 
   const [customerQuery, setCustomerQuery] = useState("");
   const [matches, setMatches] = useState<CustomerMatch[]>([]);
-  const [picked, setPicked] = useState<CustomerMatch | null>(null);
+  const [picked, setPicked] = useState<CustomerMatch | null>(initialCustomer);
   const [customerType, setCustomerType] = useState<"PERSON" | "COMPANY">("PERSON");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");

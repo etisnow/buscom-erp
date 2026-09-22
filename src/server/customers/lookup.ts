@@ -45,3 +45,21 @@ export async function lookupCustomers(query: string): Promise<CustomerMatch[]> {
     ordersCount: customer._count.orders,
   }));
 }
+
+/** Клиент по id для предзаполнения формы нового заказа — кнопка «Новый заказ» из его карточки. */
+export async function findCustomerMatch(id: string): Promise<CustomerMatch | null> {
+  const customer = await db.customer.findUnique({
+    where: { id },
+    select: { id: true, name: true, phone: true, email: true, inn: true, _count: { select: { orders: true } } },
+  });
+  if (!customer) return null;
+
+  return {
+    id: customer.id,
+    name: customer.name,
+    phone: customer.phone,
+    email: customer.email,
+    inn: customer.inn,
+    ordersCount: customer._count.orders,
+  };
+}
