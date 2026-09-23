@@ -3,10 +3,26 @@ import {
   applyCompanyInfo,
   checkInn,
   companyStatusWarning,
+  normalizeInn,
   parseDadataParty,
   type CompanyInfo,
 } from "@/domain/customer/company-lookup";
 import { EMPTY_CUSTOMER_REQUISITES } from "@/domain/customer/requisites";
+
+describe("normalizeInn", () => {
+  it.each([
+    ["7700000009", "7700000009"],
+    ["770000000082", "770000000082"],
+    [" 770 000 0009 ", "7700000009"],
+    ["7700-000009", "7700000009"],
+  ])("«%s» → %s", (raw, expected) => {
+    expect(normalizeInn(raw)).toBe(expected);
+  });
+
+  it.each([[null], [undefined], [""], ["77000"], ["77000000091"], ["ИНН7700000009"]])("«%s» — не ИНН", (raw) => {
+    expect(normalizeInn(raw)).toBeNull();
+  });
+});
 
 describe("checkInn", () => {
   it("принимает верные ИНН юрлица и ИП", () => {

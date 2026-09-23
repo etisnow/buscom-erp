@@ -1,4 +1,5 @@
 import "server-only";
+import { normalizeInn } from "@/domain/customer/company-lookup";
 import { normalizePhone } from "@/domain/customer/phone";
 import type { CustomerType } from "@/generated/prisma/enums";
 import type { Tx } from "@/server/orders/internal";
@@ -12,12 +13,6 @@ export type CustomerDraft = {
   kpp?: string | null;
   comment?: string | null;
 };
-
-/** ИНН без пробелов и дефисов, если он похож на ИНН (10 или 12 цифр). */
-function normalizeInn(raw: string | null | undefined): string | null {
-  const inn = raw?.replace(/[s-]/g, "") ?? "";
-  return /^(d{10}|d{12})$/.test(inn) ? inn : null;
-}
 
 /**
  * Сопоставление клиента при приёме заказа (PRD, «Бизнес-правила»).
