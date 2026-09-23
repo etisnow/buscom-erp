@@ -3,3 +3,4 @@ src/generated
 .claude/skills
 # настоящие письма сайта (обезличенные) — байт в байт, иначе тесты парсера проверяют не тот шаблон
 src/domain/integration/fixtures
+src/domain/product/fixtures

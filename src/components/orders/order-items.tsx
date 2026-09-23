@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatRub, rublesToKopecks } from "@/domain/money";
+import { parsePriceFormula, unitCostFor } from "@/domain/supplier/price-economics";
 import { DEFAULT_DISCOUNT_LIMIT_PERCENT, maxDiscountKopecks } from "@/domain/order/discount";
 import { calculateOrderTotals } from "@/domain/order/totals";
 import { describeOptions, type OrderItemOption } from "@/domain/product/options";
@@ -33,6 +34,8 @@ export type ItemRow = {
   supplierName: string | null;
   /** Снимок закупочной цены; у несохранённой позиции его ещё нет */
   purchasePriceKopecks: number | null;
+  /** Снимок стоимости закупки для нас (номинал + «Экономика цены»); у несохранённой нет */
+  purchaseCostKopecks: number | null;
   /** Из кого выбирать: поставщики товара по каталогу */
   supplierOptions: ProductSupplierOption[];
   /** Цена и опции товара из каталога на момент добавления — для правки позиции, пока страница не обновилась */
@@ -92,6 +95,9 @@ export function OrderItems({
       id: link.supplierId,
       name: link.supplier.name,
       purchasePriceKopecks: link.purchasePriceKopecks,
+      costKopecks: unitCostFor(link.purchasePriceKopecks, link.supplier.priceFormula),
+      optionPrices: link.optionPrices,
+      priceFormula: parsePriceFormula(link.supplier.priceFormula),
     }));
   };
   // Опции и базовая цена для окна правки: свежий товар из каталога, а у только что
@@ -163,6 +169,7 @@ export function OrderItems({
                   supplierId: product.suppliers[0]?.id ?? null,
                   supplierName: product.suppliers[0]?.name ?? null,
                   purchasePriceKopecks: null,
+                  purchaseCostKopecks: null,
                   supplierOptions: product.suppliers,
                   optionValueIds: selection?.optionValueIds ?? [],
                   options: selection?.options ?? [],
@@ -183,6 +190,7 @@ export function OrderItems({
                   supplierId: null,
                   supplierName: null,
                   purchasePriceKopecks: null,
+                  purchaseCostKopecks: null,
                   supplierOptions: [],
                   optionValueIds: [],
                   options: [],
@@ -241,7 +249,7 @@ export function OrderItems({
                     editable={editable}
                     onChange={(supplierId, supplierName) =>
                       // Снимок закупки относится к прежнему поставщику — до сохранения показываем прайс.
-                      update(index, { supplierId, supplierName, purchasePriceKopecks: null })
+                      update(index, { supplierId, supplierName, purchasePriceKopecks: null, purchaseCostKopecks: null })
                     }
                   />
                 </TableCell>

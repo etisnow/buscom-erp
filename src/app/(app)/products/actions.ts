@@ -3,12 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ForbiddenError } from "@/server/errors";
-import { fetchSupplierPrice } from "@/server/products/supplier-price";
+import {
+  fetchSupplierCombos,
+  fetchSupplierPrice,
+  type SupplierCombosResult,
+  type SupplierPriceResult,
+} from "@/server/products/supplier-price";
 import { deleteMainImage, uploadMainImage } from "@/server/products/images";
 import { createProduct, updateProduct } from "@/server/products/service";
 import { requireUser } from "@/server/session";
 
 export type ProductResult = { ok: true; message: string } | { ok: false; error: string };
+
+const variantSchema = z.record(z.string().max(100), z.string().max(300));
 
 const draftSchema = z.object({
   sku: z.string().min(1, { error: "Укажите артикул" }),
@@ -25,6 +32,19 @@ const draftSchema = z.object({
         purchasePriceKopecks: z.number().int().min(0, { error: "Закупочная цена не может быть отрицательной" }),
         // Адрес проверяем схемой: неверная ссылка в карточке бесполезна, а ошибку лучше показать сразу
         url: z.union([z.literal(""), z.url({ error: "Ссылка должна начинаться с http:// или https://" })]).optional(),
+        /** Выбранные варианты товара на странице поставщика */
+        variant: variantSchema.nullable().optional(),
+        /** Закупка вариантов опций у этого поставщика — по названиям группы и варианта */
+        optionPrices: z
+          .array(
+            z.object({
+              group: z.string().min(1),
+              value: z.string().min(1),
+              purchasePriceKopecks: z.number().int().min(0, { error: "Закупка опции не может быть отрицательной" }),
+              variant: variantSchema.nullable().optional(),
+            }),
+          )
+          .optional(),
       }),
     )
     .optional(),
@@ -99,7 +119,8 @@ export async function deleteProductImageAction(productId: string): Promise<Produ
   return run(() => deleteMainImage(productId, user), "Картинка удалена");
 }
 
-export type FetchedPrice = { ok: true; priceKopecks: number } | { ok: false; error: string };
+/** Цена со страницы поставщика; `variants` — списки вариантов товара, если цена от них зависит. */
+export type FetchedPrice = SupplierPriceResult;
 
 /**
  * Цена со страницы товара у поставщика (avito.ru, vanproject.ru) — кнопка
@@ -110,11 +131,26 @@ export type FetchedPrice = { ok: true; priceKopecks: number } | { ok: false; err
  * решает человек. Неудача — обычный ответ с текстом, кнопка не должна
  * превращаться в источник ошибок.
  */
-export async function fetchSupplierPriceAction(url: string): Promise<FetchedPrice> {
+export async function fetchSupplierPriceAction(
+  url: string,
+  selection: Record<string, string> = {},
+): Promise<FetchedPrice> {
+  await requireUser();
+
+  const parsed = z.string().min(1, { error: "Сначала вставьте ссылку" }).safeParse(url);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+  const parsedSelection = variantSchema.safeParse(selection);
+  if (!parsedSelection.success) return { ok: false, error: "Непонятный выбор вариантов — выберите их заново" };
+
+  return fetchSupplierPrice(parsed.data.trim(), parsedSelection.data);
+}
+
+/** Все варианты товара на странице поставщика с ценами — для «Подтянуть цены опций». Ничего не сохраняет. */
+export async function fetchSupplierCombosAction(url: string): Promise<SupplierCombosResult> {
   await requireUser();
 
   const parsed = z.string().min(1, { error: "Сначала вставьте ссылку" }).safeParse(url);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
 
-  return fetchSupplierPrice(parsed.data.trim());
+  return fetchSupplierCombos(parsed.data.trim());
 }

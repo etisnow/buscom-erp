@@ -254,6 +254,9 @@ model ProductOptionValue {
   /// ID варианта на сайте (product_option_value_id)
   externalId        String?
 
+  /// Закупка этого варианта у поставщиков товара — «Подтянуть цены опций»
+  supplierPrices ProductSupplierOptionPrice[]
+
   @@index([optionId])
 }
 
@@ -286,6 +289,16 @@ model Supplier {
   /// «Заказ поставщику»: раньше это была единственная и обязательная функция,
   /// значение по умолчанию бэкфилит уже заведённых поставщиков тем же составом.
   enabledActions String[] @default(["SUPPLIER_REQUEST"])
+
+  /// «Экономика цены»: шаги от номинала к стоимости закупки для нас и расходы
+  /// на заказ. Форма — `PriceFormula` в src/domain/supplier/price-economics.ts;
+  /// null — без надбавок, стоимость для нас равна номиналу
+  priceFormula Json?
+
+  /// «Комиссия с прибыли»: какую долю нашей прибыли по его товарам в заказе
+  /// удерживает поставщик, сотые доли процента (2000 = 20%). 0 — не удерживает.
+  /// Расчёт — src/domain/order/margin.ts
+  profitCommissionHundredths Int @default(0)
 
   stages     SupplierStage[]
   products   ProductSupplier[]
@@ -323,10 +336,35 @@ model ProductSupplier {
   /// Страница товара на сайте поставщика — чтобы свериться с ценой и наличием,
   /// не разыскивая её заново. Своя у каждой пары товар–поставщик
   url                  String?
+  /// Выбранные варианты товара на странице поставщика ({ category: "заднее", … }),
+  /// когда цена там зависит от выпадающих списков (src/domain/product/vanproject.ts).
+  /// По ним «Подтянуть цену» спрашивает цену именно этого варианта
+  variant              Json?
   updatedAt            DateTime @updatedAt
+
+  /// Закупка вариантов опций товара у этого поставщика
+  optionPrices ProductSupplierOptionPrice[]
 
   @@id([productId, supplierId])
   @@index([supplierId])
+}
+
+/// Закупка варианта опции товара у поставщика. Закупка позиции в заказе — базовая
+/// закупка пары товар–поставщик плюс закупки выбранных вариантов, как цена продажи
+/// (src/domain/product/option-matching.ts). Живёт, пока живы и пара, и вариант
+model ProductSupplierOptionPrice {
+  id                   String             @id @default(cuid())
+  productId            String
+  supplierId           String
+  productSupplier      ProductSupplier    @relation(fields: [productId, supplierId], references: [productId, supplierId], onDelete: Cascade)
+  optionValueId        String
+  optionValue          ProductOptionValue @relation(fields: [optionValueId], references: [id], onDelete: Cascade)
+  purchasePriceKopecks Int
+  /// Какой вариант на странице поставщика сопоставлен ({ category: …, equipment: … })
+  variant              Json?
+
+  @@unique([productId, supplierId, optionValueId])
+  @@index([optionValueId])
 }
 
 // ---------------------------------------------------------------------------
@@ -438,6 +476,9 @@ model OrderItem {
   supplier             Supplier? @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   /// Снимок закупочной цены на момент выбора поставщика — как и цена продажи выше
   purchasePriceKopecks Int?
+  /// Снимок стоимости закупки для нас за штуку: номинал выше + «Экономика цены»
+  /// поставщика на тот же момент. Правка формулы старые заказы не меняет
+  purchaseCostKopecks  Int?
   /// Снимок выбранных опций: [{ optionName, valueName, priceDeltaKopecks, valueId }].
   /// Форма — `OrderItemOption` в src/domain/product/options.ts
   options              Json?
@@ -449,15 +490,20 @@ model OrderItem {
 /// Трек поставщика в заказе: на каком этапе его цепочки сейчас работа.
 /// Один на пару заказ–поставщик; заводится и убирается вместе с позициями.
 model OrderSupplierTrack {
-  id         String         @id @default(cuid())
-  orderId    String
-  order      Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  supplierId String
-  supplier   Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  id                         String         @id @default(cuid())
+  orderId                    String
+  order                      Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  supplierId                 String
+  supplier                   Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   /// null — работа с поставщиком ещё не начата
-  stageId    String?
-  stage      SupplierStage? @relation(fields: [stageId], references: [id], onDelete: Restrict)
-  updatedAt  DateTime       @updatedAt
+  stageId                    String?
+  stage                      SupplierStage? @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  /// Снимок расходов на заказ из «Экономики цены» поставщика — на момент, когда
+  /// поставщик появился в заказе
+  orderCostKopecks           Int            @default(0)
+  /// Снимок комиссии с прибыли поставщика на тот же момент, сотые доли процента
+  profitCommissionHundredths Int            @default(0)
+  updatedAt                  DateTime       @updatedAt
 
   @@unique([orderId, supplierId])
   @@index([supplierId])

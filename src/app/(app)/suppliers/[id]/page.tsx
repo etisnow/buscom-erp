@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { PriceEconomicsEditor } from "@/components/suppliers/price-economics-editor";
+import { ProfitCommissionEditor } from "@/components/suppliers/profit-commission-editor";
 import { SupplierActionsEditor } from "@/components/suppliers/supplier-actions-editor";
 import { DeleteSupplier, SupplierForm, SupplierStages } from "@/components/suppliers/supplier-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { parseCustomerRequisites } from "@/domain/customer/requisites";
 import { formatRub } from "@/domain/money";
+import { calculateUnitCost, parsePriceFormula } from "@/domain/supplier/price-economics";
 import { hasRole, SUPPLIER_DELETE_ROLES } from "@/domain/user/role";
 import { findSupplier } from "@/server/suppliers/list";
 import { canEditSuppliers } from "@/server/suppliers/service";
@@ -24,6 +27,7 @@ export default async function SupplierPage({ params }: PageProps<"/suppliers/[id
   if (!supplier) notFound();
 
   const editable = canEditSuppliers(user.role);
+  const priceFormula = parsePriceFormula(supplier.priceFormula);
 
   return (
     <main className="flex flex-col gap-4">
@@ -80,6 +84,26 @@ export default async function SupplierPage({ params }: PageProps<"/suppliers/[id
         <div className="lg:col-span-2">
           <SupplierActionsEditor supplierId={supplier.id} editable={editable} initial={supplier.enabledActions} />
         </div>
+
+        <div className="lg:col-span-2">
+          <PriceEconomicsEditor
+            // Ключ по формуле: после сохранения редактор берёт сохранённое с сервера
+            key={JSON.stringify(priceFormula)}
+            supplierId={supplier.id}
+            editable={editable}
+            initial={priceFormula}
+            sampleNominalKopecks={supplier.products[0]?.purchasePriceKopecks ?? 30_000}
+          />
+        </div>
+
+        <div className="lg:col-span-2">
+          <ProfitCommissionEditor
+            key={supplier.profitCommissionHundredths}
+            supplierId={supplier.id}
+            editable={editable}
+            initial={supplier.profitCommissionHundredths}
+          />
+        </div>
       </div>
 
       <section className="flex flex-col gap-3 rounded-lg border p-4">
@@ -96,6 +120,9 @@ export default async function SupplierPage({ params }: PageProps<"/suppliers/[id
                   <TableHead className="w-32">Артикул</TableHead>
                   <TableHead>Название</TableHead>
                   <TableHead className="w-32 text-right">Закупка</TableHead>
+                  <TableHead className="w-32 text-right" title="Закупка с учётом «Экономики цены», за штуку">
+                    Для нас
+                  </TableHead>
                   <TableHead className="w-32 text-right">Продажа</TableHead>
                 </TableRow>
               </TableHeader>
@@ -104,7 +131,12 @@ export default async function SupplierPage({ params }: PageProps<"/suppliers/[id
                   <TableRow key={product.id} className={product.isActive ? undefined : "opacity-60"}>
                     <TableCell className="font-mono text-xs">{product.sku}</TableCell>
                     <TableCell>{product.name}</TableCell>
-                    <TableCell className="text-right whitespace-nowrap">{formatRub(purchasePriceKopecks)}</TableCell>
+                    <TableCell className="text-muted-foreground text-right whitespace-nowrap">
+                      {formatRub(purchasePriceKopecks)}
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                      {formatRub(calculateUnitCost(purchasePriceKopecks, priceFormula).costKopecks)}
+                    </TableCell>
                     <TableCell className="text-right whitespace-nowrap">{formatRub(product.priceKopecks)}</TableCell>
                   </TableRow>
                 ))}

@@ -88,16 +88,13 @@ export function OrdersTable({ rows, now }: { rows: OrderListRow[]; now: Date }) 
         </TableHeader>
         <TableBody>
           {rows.map((order) => {
-            // Просрочка видна сразу: дедлайн посчитан при смене статуса.
+            // Просрочка — красным только в колонке «В статусе»: строку целиком не заливаем,
+            // иначе в длинном списке красное забивает всё остальное (просьба владельца).
             const isOverdue = order.slaDueAt !== null && order.slaDueAt < now;
             const inStatus = workingMinutesBetween(order.statusChangedAt, now);
 
             return (
-              <OrderRowLink
-                key={order.id}
-                href={`/orders/${order.number}`}
-                className={isOverdue ? "bg-rose-50 dark:bg-rose-950/30" : undefined}
-              >
+              <OrderRowLink key={order.id} href={`/orders/${order.number}`}>
                 <TableCell className="font-medium">
                   <Link href={`/orders/${order.number}`} className="underline-offset-4 hover:underline">
                     {order.number}

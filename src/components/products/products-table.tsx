@@ -9,7 +9,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatRub } from "@/domain/money";
+import { unitCostFor } from "@/domain/supplier/price-economics";
 import type { ProductRow } from "@/server/products/list";
+
+/** «→ 324,45 ₽» — стоимость для нас, если «Экономика цены» поставщика её меняет. */
+function CostSuffix({ nominal, formula }: { nominal: number; formula: unknown }) {
+  const cost = unitCostFor(nominal, formula);
+  if (cost === nominal) return null;
+  return (
+    <span className="text-muted-foreground" title="Для нас — с учётом «Экономики цены» поставщика">
+      {" "}
+      → {formatRub(cost)}
+    </span>
+  );
+}
 import { categoryPath } from "@/domain/product/categories";
 import type { CategoryRow } from "@/server/products/categories";
 import type { SupplierOption } from "@/server/suppliers/list";
@@ -94,6 +107,7 @@ export function ProductsTable({
                         <li key={link.supplierId} className="whitespace-nowrap">
                           {link.supplier.name}{" "}
                           <span className="text-muted-foreground">{formatRub(link.purchasePriceKopecks)}</span>
+                          <CostSuffix nominal={link.purchasePriceKopecks} formula={link.supplier.priceFormula} />
                         </li>
                       ))}
                     </ul>

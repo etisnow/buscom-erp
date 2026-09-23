@@ -21,7 +21,11 @@ const detailsInclude = {
         select: {
           suppliers: {
             orderBy: { purchasePriceKopecks: "asc" },
-            select: { purchasePriceKopecks: true, supplier: { select: { id: true, name: true } } },
+            select: {
+              purchasePriceKopecks: true,
+              optionPrices: { select: { optionValueId: true, purchasePriceKopecks: true } },
+              supplier: { select: { id: true, name: true, priceFormula: true } },
+            },
           },
         },
       },
@@ -31,6 +35,8 @@ const detailsInclude = {
     orderBy: { supplier: { name: "asc" } },
     select: {
       stageId: true,
+      orderCostKopecks: true,
+      profitCommissionHundredths: true,
       supplier: {
         select: {
           id: true,

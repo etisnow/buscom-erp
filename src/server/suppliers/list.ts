@@ -1,6 +1,7 @@
 import "server-only";
 import { normalizePhone } from "@/domain/customer/phone";
 import type { Prisma } from "@/generated/prisma/client";
+import { parsePriceFormula, type PriceFormula } from "@/domain/supplier/price-economics";
 import { db } from "@/server/db";
 
 export type SupplierFilters = {
@@ -85,9 +86,18 @@ export async function findSupplier(id: string): Promise<SupplierDetails | null> 
   return db.supplier.findUnique({ where: { id }, include: detailsInclude });
 }
 
-export type SupplierOption = { id: string; name: string };
+export type SupplierOption = {
+  id: string;
+  name: string;
+  /** «Экономика цены» — чтобы в карточке товара сразу видеть стоимость для нас */
+  priceFormula: PriceFormula;
+};
 
 /** Все поставщики для выпадающих списков: их десятки, а не тысячи, — постранично не нужно. */
 export async function listSupplierOptions(): Promise<SupplierOption[]> {
-  return db.supplier.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } });
+  const rows = await db.supplier.findMany({
+    select: { id: true, name: true, priceFormula: true },
+    orderBy: { name: "asc" },
+  });
+  return rows.map((row) => ({ id: row.id, name: row.name, priceFormula: parsePriceFormula(row.priceFormula) }));
 }

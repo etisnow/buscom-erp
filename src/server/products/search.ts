@@ -1,11 +1,20 @@
 import "server-only";
 import type { OptionGroup } from "@/domain/product/options";
+import type { OptionPurchase } from "@/domain/product/option-matching";
+import { parsePriceFormula, unitCostFor, type PriceFormula } from "@/domain/supplier/price-economics";
 import { db } from "@/server/db";
+import { matchProductsCaseInsensitive } from "@/server/products/name-match";
 
 export type ProductSupplierOption = {
   id: string;
   name: string;
   purchasePriceKopecks: number;
+  /** Стоимость закупки для нас за штуку — номинал через «Экономику цены» поставщика */
+  costKopecks: number;
+  /** Закупка вариантов опций у поставщика — добавляется к номиналу по выбранным вариантам */
+  optionPrices: OptionPurchase[];
+  /** «Экономика цены» — чтобы пересчитать стоимость для нас с учётом опций */
+  priceFormula: PriceFormula;
 };
 
 export type ProductSuggestion = {
@@ -26,8 +35,8 @@ export async function searchProducts(query: string): Promise<ProductSuggestion[]
 
   const products = await db.product.findMany({
     where: {
-      isActive: true,
-      OR: [{ sku: { contains: search, mode: "insensitive" } }, { name: { contains: search, mode: "insensitive" } }],
+      // Без учёта регистра — в приложении: база кириллицу по регистру не сворачивает
+      id: { in: await matchProductsCaseInsensitive(search, true) },
     },
     select: {
       id: true,
@@ -36,7 +45,11 @@ export async function searchProducts(query: string): Promise<ProductSuggestion[]
       priceKopecks: true,
       suppliers: {
         orderBy: { purchasePriceKopecks: "asc" },
-        select: { purchasePriceKopecks: true, supplier: { select: { id: true, name: true } } },
+        select: {
+          purchasePriceKopecks: true,
+          optionPrices: { select: { optionValueId: true, purchasePriceKopecks: true } },
+          supplier: { select: { id: true, name: true, priceFormula: true } },
+        },
       },
       options: {
         orderBy: { sortOrder: "asc" },
@@ -61,6 +74,9 @@ export async function searchProducts(query: string): Promise<ProductSuggestion[]
       id: link.supplier.id,
       name: link.supplier.name,
       purchasePriceKopecks: link.purchasePriceKopecks,
+      costKopecks: unitCostFor(link.purchasePriceKopecks, link.supplier.priceFormula),
+      optionPrices: link.optionPrices,
+      priceFormula: parsePriceFormula(link.supplier.priceFormula),
     })),
     options: product.options,
   }));

@@ -2,6 +2,7 @@ import "server-only";
 import { normalizePhone } from "@/domain/customer/phone";
 import { hasCustomerRequisites, type CustomerRequisites } from "@/domain/customer/requisites";
 import { normalizeEnabledActions } from "@/domain/supplier/actions";
+import { isEmptyPriceFormula, type PriceFormula } from "@/domain/supplier/price-economics";
 import { normalizeStageNames, SupplierStageError } from "@/domain/supplier/stages";
 import { hasRole, SUPPLIER_DELETE_ROLES, SUPPLIER_EDIT_ROLES } from "@/domain/user/role";
 import { Prisma } from "@/generated/prisma/client";
@@ -129,6 +130,46 @@ export async function setSupplierActions(supplierId: string, keys: string[], use
     where: { id: supplierId },
     data: { enabledActions: normalizeEnabledActions(keys) },
   });
+}
+
+/**
+ * «Экономика цены» поставщика. Отдельно от основной формы, как цепочка этапов.
+ * Действует на заказы, в которых поставщик выбран после сохранения: в уже
+ * выбранных позициях лежит снимок стоимости (`OrderItem.purchaseCostKopecks`).
+ */
+export async function setSupplierPriceFormula(
+  supplierId: string,
+  formula: PriceFormula,
+  user: SessionUser,
+): Promise<void> {
+  if (!canEditSuppliers(user.role)) {
+    throw new ForbiddenError("Менять экономику цены может менеджер, руководитель или администратор");
+  }
+  await db.supplier.update({
+    where: { id: supplierId },
+    data: { priceFormula: isEmptyPriceFormula(formula) ? Prisma.DbNull : formula },
+  });
+}
+
+/** Комиссия с прибыли — сотые доли процента, от 0 (не удерживает) до 100%. */
+export const PROFIT_COMMISSION_MAX = 10_000;
+
+/**
+ * «Комиссия с прибыли» поставщика. Как и «Экономика цены», действует на заказы,
+ * где поставщик появится после сохранения: в уже заведённых — снимок у трека.
+ */
+export async function setSupplierProfitCommission(
+  supplierId: string,
+  hundredths: number,
+  user: SessionUser,
+): Promise<void> {
+  if (!canEditSuppliers(user.role)) {
+    throw new ForbiddenError("Менять комиссию с прибыли может менеджер, руководитель или администратор");
+  }
+  if (!Number.isInteger(hundredths) || hundredths < 0 || hundredths > PROFIT_COMMISSION_MAX) {
+    throw new Error("Комиссия с прибыли — от 0 до 100%");
+  }
+  await db.supplier.update({ where: { id: supplierId }, data: { profitCommissionHundredths: hundredths } });
 }
 
 /**

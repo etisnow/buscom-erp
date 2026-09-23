@@ -8,16 +8,19 @@ import { OrderDelivery } from "@/components/orders/order-delivery";
 import { OrderHeader } from "@/components/orders/order-header";
 import { OrderHistory } from "@/components/orders/order-history";
 import { OrderItems } from "@/components/orders/order-items";
+import { OrderMarginBlock } from "@/components/orders/order-margin";
 import { OrderPayments } from "@/components/orders/order-payments";
 import { SupplierTracks } from "@/components/orders/supplier-tracks";
 import { parseCustomerRequisites } from "@/domain/customer/requisites";
 import { canEditItems, canReassignManager } from "@/domain/order/editing";
+import { calculateOrderMargin } from "@/domain/order/margin";
 import { canChangeOrderSource, orderSourceLabel } from "@/domain/order/source";
 import { TERMINAL_STATUSES } from "@/domain/order/status";
 import { buildSupplierRequest } from "@/domain/order/supplier-request";
 import { canManageSupplierDocuments } from "@/domain/order/supplier-document";
 import { parseOrderItemOptions } from "@/domain/product/options";
 import { hasSupplierAction } from "@/domain/supplier/actions";
+import { parsePriceFormula, unitCostFor } from "@/domain/supplier/price-economics";
 import { canMoveStages } from "@/domain/supplier/stages";
 import { findOrderByNumber } from "@/server/orders/details";
 import { listManagers } from "@/server/orders/list";
@@ -142,10 +145,14 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
                 supplierId: item.supplierId,
                 supplierName: item.supplier?.name ?? null,
                 purchasePriceKopecks: item.purchasePriceKopecks,
+                purchaseCostKopecks: item.purchaseCostKopecks,
                 supplierOptions: (item.product?.suppliers ?? []).map((link) => ({
                   id: link.supplier.id,
                   name: link.supplier.name,
                   purchasePriceKopecks: link.purchasePriceKopecks,
+                  costKopecks: unitCostFor(link.purchasePriceKopecks, link.supplier.priceFormula),
+                  optionPrices: link.optionPrices,
+                  priceFormula: parsePriceFormula(link.supplier.priceFormula),
                 })),
                 optionValueIds: options.map((option) => option.valueId),
                 options,
@@ -159,6 +166,29 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
             categories={categories}
             canEditCatalog={canEditCatalog(user.role)}
           />
+
+          {order.items.length > 0 ? (
+            <OrderMarginBlock
+              margin={calculateOrderMargin({
+                items: order.items.map((item) => ({
+                  priceKopecks: item.priceKopecks,
+                  quantity: item.quantity,
+                  discountKopecks: item.discountKopecks,
+                  supplierId: item.supplierId,
+                  // Снимок стоимости для нас; у позиций до «Экономики цены» — номинал
+                  costKopecks: item.supplierId ? (item.purchaseCostKopecks ?? item.purchasePriceKopecks) : null,
+                })),
+                discountKopecks: order.discountKopecks,
+                suppliers: order.supplierTracks.map((track) => ({
+                  supplierId: track.supplier.id,
+                  name: track.supplier.name,
+                  orderCostKopecks: track.orderCostKopecks,
+                  profitCommissionHundredths: track.profitCommissionHundredths,
+                })),
+              })}
+              orderCostsKopecks={order.supplierTracks.reduce((sum, track) => sum + track.orderCostKopecks, 0)}
+            />
+          ) : null}
 
           <OrderPayments
             orderId={order.id}

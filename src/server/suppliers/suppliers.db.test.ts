@@ -11,6 +11,8 @@ import {
   createSupplier,
   deleteSupplier,
   setSupplierActions,
+  setSupplierPriceFormula,
+  setSupplierProfitCommission,
   setSupplierStages,
   SupplierInUseError,
 } from "@/server/suppliers/service";
@@ -199,6 +201,135 @@ describeDb("поставщики и их цепочки в заказе (жив�
 
     await updateOrderItems({ orderId: order.id, items: [{ ...item, supplierId: null }], user: manager });
     expect(await testDb.orderSupplierTrack.count({ where: { orderId: order.id } })).toBe(0);
+  });
+
+  it("«Экономика цены»: стоимость для нас и расходы на заказ — снимком, правка формулы старый заказ не меняет", async () => {
+    const { supplierId, item } = await setup();
+    await setSupplierPriceFormula(
+      supplierId,
+      {
+        unitSteps: [
+          { kind: "PERCENT", label: "Обналичка", percentHundredths: 500, base: "RUNNING" },
+          { kind: "ROUND", label: "", stepKopecks: 1_000, mode: "UP" },
+        ],
+        orderCosts: [{ label: "Отправка", amountKopecks: 50_000 }],
+      },
+      manager,
+    );
+
+    const order = await createOrder({ source: "PHONE", customer: { name: "Клиент" }, items: [item], user: manager });
+    // 600 ₽ + 5% = 630 ₽, кратно 10 — округление не меняет
+    expect(order.items[0]).toMatchObject({ purchasePriceKopecks: 60_000, purchaseCostKopecks: 63_000 });
+    const track = await testDb.orderSupplierTrack.findFirstOrThrow({ where: { orderId: order.id } });
+    expect(track.orderCostKopecks).toBe(50_000);
+
+    await setSupplierPriceFormula(supplierId, { unitSteps: [], orderCosts: [] }, manager);
+    const resaved = await updateOrderItems({ orderId: order.id, items: [{ ...item, quantity: 3 }], user: manager });
+    expect(resaved.items[0]).toMatchObject({ purchaseCostKopecks: 63_000 });
+    expect((await testDb.orderSupplierTrack.findFirstOrThrow({ where: { orderId: order.id } })).orderCostKopecks).toBe(
+      50_000,
+    );
+
+    // Пустая формула хранится как null — «без надбавок», новый заказ идёт по номиналу
+    expect((await testDb.supplier.findUniqueOrThrow({ where: { id: supplierId } })).priceFormula).toBeNull();
+    const fresh = await createOrder({ source: "PHONE", customer: { name: "Клиент 2" }, items: [item], user: manager });
+    expect(fresh.items[0]).toMatchObject({ purchaseCostKopecks: 60_000 });
+  });
+
+  it("комиссия с прибыли — снимком у поставщика в заказе, правка у поставщика его не меняет", async () => {
+    const { supplierId, item } = await setup();
+    await setSupplierProfitCommission(supplierId, 2_000, manager);
+
+    const order = await createOrder({ source: "PHONE", customer: { name: "Клиент" }, items: [item], user: manager });
+    const track = () => testDb.orderSupplierTrack.findFirstOrThrow({ where: { orderId: order.id } });
+    expect((await track()).profitCommissionHundredths).toBe(2_000);
+
+    await setSupplierProfitCommission(supplierId, 0, manager);
+    await updateOrderItems({ orderId: order.id, items: [{ ...item, quantity: 3 }], user: manager });
+    expect((await track()).profitCommissionHundredths).toBe(2_000);
+
+    await expect(setSupplierProfitCommission(supplierId, 10_001, manager)).rejects.toThrow("от 0 до 100%");
+  });
+
+  it("выбор вариантов товара у поставщика хранится вместе со ссылкой, без ссылки — не хранится", async () => {
+    const { supplierId, product } = await setup();
+    const url = "https://vanproject.ru/catalog/steklo/xlwb";
+    const variant = { category: "заднее", equipment: "1845х780мм глухое прозрачное" };
+
+    await updateProduct(
+      product.id,
+      { suppliers: [{ supplierId, purchasePriceKopecks: 925_000, url, variant }] },
+      manager,
+    );
+    const link = () => testDb.productSupplier.findFirstOrThrow({ where: { productId: product.id } });
+    expect((await link()).variant).toEqual(variant);
+
+    await updateProduct(
+      product.id,
+      { suppliers: [{ supplierId, purchasePriceKopecks: 925_000, url: "", variant }] },
+      manager,
+    );
+    expect((await link()).variant).toBeNull();
+  });
+
+  it("закупка вариантов опций: сохраняется по названию, в заказе — база плюс выбранный вариант", async () => {
+    const { supplierId, product, item } = await setup();
+    const glass = { name: "Стекло", required: true };
+    await updateProduct(
+      product.id,
+      {
+        options: [
+          {
+            ...glass,
+            values: [
+              { name: "Переднее левое 1406x667", priceDeltaKopecks: 1_425_000 },
+              { name: "Заднее левое 1545x667", priceDeltaKopecks: 700_000 },
+            ],
+          },
+        ],
+        // Вариант, которого среди опций нет, молча пропускается
+        suppliers: [
+          {
+            supplierId,
+            purchasePriceKopecks: 0,
+            url: "https://vanproject.ru/catalog/l2",
+            optionPrices: [
+              {
+                group: "стекло",
+                value: "Переднее левое 1406X667",
+                purchasePriceKopecks: 1_455_000,
+                variant: { category: "переднее левое" },
+              },
+              { group: "Стекло", value: "Лобовое", purchasePriceKopecks: 900_000 },
+            ],
+          },
+        ],
+      },
+      manager,
+    );
+
+    const saved = await testDb.productSupplierOptionPrice.findMany({ include: { optionValue: true } });
+    expect(saved.map((row) => [row.optionValue.name, row.purchasePriceKopecks, row.variant])).toEqual([
+      ["Переднее левое 1406x667", 1_455_000, { category: "переднее левое" }],
+    ]);
+
+    const front = saved[0]!.optionValueId;
+    const order = await createOrder({
+      source: "PHONE",
+      customer: { name: "Клиент" },
+      items: [{ ...item, priceKopecks: 1_425_000, quantity: 1, optionValueIds: [front] }],
+      user: manager,
+    });
+    expect(order.items[0]).toMatchObject({ purchasePriceKopecks: 1_455_000, purchaseCostKopecks: 1_455_000 });
+
+    // Другой вариант без своей закупки — только база
+    const rear = (await testDb.productOptionValue.findFirstOrThrow({ where: { name: "Заднее левое 1545x667" } })).id;
+    const resaved = await updateOrderItems({
+      orderId: order.id,
+      items: [{ ...item, priceKopecks: 700_000, quantity: 1, optionValueIds: [rear] }],
+      user: manager,
+    });
+    expect(resaved.items[0]).toMatchObject({ purchasePriceKopecks: 0 });
   });
 
   it("этап, на котором стоит заказ, из цепочки не убрать", async () => {

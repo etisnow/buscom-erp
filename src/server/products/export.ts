@@ -27,7 +27,7 @@ export async function exportProductsCsv(filters: ProductFilters): Promise<Produc
   // Путь категории («Климат / Люки») собирается из справочника — он маленький, берём целиком.
   const categories = await db.productCategory.findMany({ select: { id: true, name: true, parentId: true } });
   const products = await db.product.findMany({
-    where: productsWhere(filters),
+    where: await productsWhere(filters),
     select: {
       sku: true,
       name: true,

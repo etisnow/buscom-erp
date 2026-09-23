@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatRub, formatRubPlain, rublesToKopecks } from "./money";
+import { formatRub, formatRubPlain, roundToRubles, roundToRublesHalfDown, rublesToKopecks } from "./money";
 
 describe("rublesToKopecks", () => {
   it.each([
@@ -37,5 +37,37 @@ describe("formatRubPlain", () => {
 
   it("не ставит разделитель тысяч — иначе Excel увидит текст", () => {
     expect(formatRubPlain(123456789)).toBe("1234567,89");
+  });
+});
+
+describe("roundToRubles", () => {
+  it.each([
+    [16_050, 16_100],
+    [16_049, 16_000],
+    [16_000, 16_000],
+    [1_500.5, 1_500],
+    [5_161.5, 5_200],
+    [49.99, 0],
+    [50, 100],
+    [-1_250, -1_300],
+    [-1_249, -1_200],
+    [0, 0],
+  ])("%d коп. → %d коп.", (input, expected) => {
+    expect(roundToRubles(input)).toBe(expected);
+  });
+});
+
+describe("roundToRublesHalfDown", () => {
+  it.each([
+    [16_050, 16_000],
+    [16_051, 16_100],
+    [16_049, 16_000],
+    [16_000, 16_000],
+    [50, 0],
+    [-1_250, -1_300],
+    [-1_249, -1_200],
+    [0, 0],
+  ])("%d коп. → %d коп.", (input, expected) => {
+    expect(roundToRublesHalfDown(input)).toBe(expected);
   });
 });

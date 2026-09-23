@@ -390,7 +390,7 @@ export function NewOrderForm({
                     </TableCell>
                     <TableCell>
                       <ItemSupplierCell
-                        item={{ ...item, purchasePriceKopecks: null }}
+                        item={{ ...item, purchasePriceKopecks: null, purchaseCostKopecks: null }}
                         editable
                         onChange={(supplierId, supplierName) =>
                           setItems((current) =>

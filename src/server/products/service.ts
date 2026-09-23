@@ -1,6 +1,7 @@
 import "server-only";
 import type { Kopecks } from "@/domain/money";
 import { normalizeOptionGroups, type OptionGroupDraft } from "@/domain/product/options";
+import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import type { Tx } from "@/server/orders/internal";
@@ -15,6 +16,20 @@ export type ProductSupplierDraft = {
   purchasePriceKopecks: Kopecks;
   /** Страница товара у поставщика; пустая строка равносильна «нет ссылки» */
   url?: string | null;
+  /** Выбранные варианты товара на этой странице; без ссылки не храним */
+  variant?: Record<string, string> | null;
+  /**
+   * Закупка вариантов опций у этого поставщика. Ключ — названия группы и варианта,
+   * а не id: у вариантов, добавленных в этой же правке, id ещё нет.
+   */
+  optionPrices?: ProductOptionPriceDraft[];
+};
+
+export type ProductOptionPriceDraft = {
+  group: string;
+  value: string;
+  purchasePriceKopecks: Kopecks;
+  variant?: Record<string, string> | null;
 };
 
 export type ProductDraft = {
@@ -53,6 +68,7 @@ export async function createProduct(draft: ProductDraft, user: SessionUser): Pro
     });
     if (draft.suppliers) await replaceProductSuppliers(tx, product.id, draft.suppliers);
     if (draft.options) await replaceProductOptions(tx, product.id, draft.options);
+    if (draft.suppliers) await replaceOptionPrices(tx, product.id, draft.suppliers);
     return product;
   });
 }
@@ -76,6 +92,8 @@ export async function updateProduct(id: string, draft: Partial<ProductDraft>, us
     });
     if (draft.suppliers) await replaceProductSuppliers(tx, id, draft.suppliers);
     if (draft.options) await replaceProductOptions(tx, id, draft.options);
+    // После опций: закупки привязываются к вариантам по названию, новым нужен уже их id
+    if (draft.suppliers) await replaceOptionPrices(tx, id, draft.suppliers);
   });
 }
 
@@ -97,9 +115,49 @@ async function replaceProductSuppliers(tx: Tx, productId: string, suppliers: Pro
         supplierId: item.supplierId,
         purchasePriceKopecks: item.purchasePriceKopecks,
         url: item.url?.trim() || null,
+        // Выбор вариантов относится к конкретной странице: нет ссылки — нечего и помнить
+        variant:
+          item.url?.trim() && item.variant && Object.keys(item.variant).length > 0 ? item.variant : Prisma.DbNull,
       })),
     });
   }
+}
+
+/**
+ * Закупки вариантов опций у поставщиков — полным списком из формы. Привязки к
+ * поставщикам только что пересозданы (`replaceProductSuppliers` удаляет пары, и
+ * их закупки опций уходят каскадом), поэтому пишем заново всё, что пришло.
+ * Вариант, которого в опциях товара нет (удалили в этой же правке), пропускаем.
+ */
+async function replaceOptionPrices(tx: Tx, productId: string, suppliers: ProductSupplierDraft[]): Promise<void> {
+  const groups = await tx.productOption.findMany({
+    where: { productId },
+    select: { name: true, values: { select: { id: true, name: true } } },
+  });
+  // Названия уникальны без учёта регистра (normalizeOptionGroups) — по ним и ищем
+  const key = (group: string, value: string) =>
+    JSON.stringify([group.trim().toLocaleLowerCase("ru"), value.trim().toLocaleLowerCase("ru")]);
+  const valueIds = new Map(
+    groups.flatMap((group) => group.values.map((value) => [key(group.name, value.name), value.id])),
+  );
+
+  await tx.productSupplierOptionPrice.deleteMany({ where: { productId } });
+  const data = suppliers.flatMap((supplier) =>
+    (supplier.optionPrices ?? []).flatMap((price) => {
+      const optionValueId = valueIds.get(key(price.group, price.value));
+      if (!optionValueId) return [];
+      return [
+        {
+          productId,
+          supplierId: supplier.supplierId,
+          optionValueId,
+          purchasePriceKopecks: price.purchasePriceKopecks,
+          variant: price.variant && Object.keys(price.variant).length > 0 ? price.variant : Prisma.DbNull,
+        },
+      ];
+    }),
+  );
+  if (data.length > 0) await tx.productSupplierOptionPrice.createMany({ data, skipDuplicates: true });
 }
 
 export function canEditCatalog(role: SessionUser["role"]): boolean {

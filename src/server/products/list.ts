@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/server/db";
+import { matchProductsCaseInsensitive } from "@/server/products/name-match";
 
 export type ProductFilters = {
   query?: string;
@@ -23,7 +24,15 @@ const listSelect = {
   updatedAt: true,
   suppliers: {
     orderBy: { purchasePriceKopecks: "asc" },
-    select: { supplierId: true, purchasePriceKopecks: true, url: true, supplier: { select: { name: true } } },
+    select: {
+      supplierId: true,
+      purchasePriceKopecks: true,
+      url: true,
+      variant: true,
+      optionPrices: { select: { optionValueId: true, purchasePriceKopecks: true, variant: true } },
+      // Формула «Экономики цены» — чтобы показать рядом с номиналом стоимость для нас
+      supplier: { select: { name: true, priceFormula: true } },
+    },
   },
   // Только id аватарки: байты картинок в список не тянем.
   images: { orderBy: { sortOrder: "asc" }, take: 1, select: { id: true } },
@@ -47,21 +56,18 @@ export type ProductListResult = {
   pageCount: number;
 };
 
-/** Условия выборки общие со списком: выгрузка обязана повторять видимое на экране. */
-export function productsWhere(filters: ProductFilters): Prisma.ProductWhereInput {
+/**
+ * Условия выборки общие со списком: выгрузка обязана повторять видимое на экране.
+ * Поиск — по артикулу, названию и совместимым моделям без учёта регистра; сравнение
+ * в приложении (`matchProductsCaseInsensitive`), потому что база кириллицу по
+ * регистру не сворачивает.
+ */
+export async function productsWhere(filters: ProductFilters): Promise<Prisma.ProductWhereInput> {
   const and: Prisma.ProductWhereInput[] = [];
 
   const query = filters.query?.trim();
   if (query) {
-    and.push({
-      OR: [
-        { sku: { contains: query, mode: "insensitive" } },
-        { name: { contains: query, mode: "insensitive" } },
-        // Совместимость — массив строк в Postgres: частичное совпадение внутри элемента
-        // Prisma выразить не может, поэтому модель ищется целиком («ГАЗель Next»).
-        { compatibility: { has: query } },
-      ],
-    });
+    and.push({ id: { in: await matchProductsCaseInsensitive(query) } });
   }
   // Раздел показывает и товары подкатегорий. Глубина дерева ограничена
   // (CATEGORY_MAX_DEPTH = 4), поэтому хватает цепочки родителей без рекурсии в SQL.
@@ -80,7 +86,7 @@ export function productsWhere(filters: ProductFilters): Prisma.ProductWhereInput
 
 export async function listProducts(filters: ProductFilters): Promise<ProductListResult> {
   const page = Math.max(1, filters.page ?? 1);
-  const productWhere = productsWhere(filters);
+  const productWhere = await productsWhere(filters);
 
   const [rows, total] = await Promise.all([
     db.product.findMany({
