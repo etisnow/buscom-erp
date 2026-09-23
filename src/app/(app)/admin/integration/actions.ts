@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { ADMIN_ROLES } from "@/domain/user/role";
-import { retryInboxEntry } from "@/server/integrations/site-orders";
+import { retryInboxEntry } from "@/server/integrations/inbox";
+import { describePoll, isMailboxConfigured, pollMailbox } from "@/server/integrations/mailbox";
 import { requireUser } from "@/server/session";
 
 export type RetryResult = { ok: true; message: string } | { ok: false; error: string };
@@ -23,5 +24,24 @@ export async function retryInboxAction(inboxId: string): Promise<RetryResult> {
       return { ok: false, error: result.error };
     case 400:
       return { ok: false, error: result.error };
+  }
+}
+
+/** «Проверить почту» — внеочередной проход по ящику заказов, не дожидаясь таймера. */
+export async function pollMailboxAction(): Promise<RetryResult> {
+  await requireUser(ADMIN_ROLES);
+  if (!isMailboxConfigured()) {
+    return {
+      ok: false,
+      error: "Ящик заказов не настроен: задайте IMAP_HOST, IMAP_USER и IMAP_PASSWORD в окружении сервера",
+    };
+  }
+
+  try {
+    const summary = await pollMailbox();
+    revalidatePath("/admin/integration");
+    return { ok: true, message: describePoll(summary) };
+  } catch (error) {
+    return { ok: false, error: `Не удалось проверить ящик: ${error instanceof Error ? error.message : String(error)}` };
   }
 }

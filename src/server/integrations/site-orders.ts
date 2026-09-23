@@ -6,7 +6,7 @@ import { db } from "@/server/db";
 import { findOrCreateCustomer } from "@/server/customers/match";
 import { recalculateOrderTotals, slaDueAtFor, writeOrderEvent, type Tx } from "@/server/orders/internal";
 import { resolveSystemSource } from "@/server/orders/source";
-import { getSettings } from "@/server/settings/service";
+import { readSettings } from "@/server/settings/service";
 
 export const SITE_SOURCE = "site";
 
@@ -87,15 +87,23 @@ export async function ingestSiteOrder(payload: unknown): Promise<IngestResult> {
   }
 }
 
-/** Повторная обработка записи журнала — кнопка «Повторить» на экране интеграции. */
-export async function retryInboxEntry(inboxId: string): Promise<IngestResult> {
-  const entry = await db.integrationInbox.findUnique({ where: { id: inboxId }, select: { payload: true } });
-  if (!entry) return { status: 400, error: "Запись журнала не найдена" };
-  return ingestSiteOrder(entry.payload);
-}
+export type CreateOrderOptions = {
+  /** Текст первой записи журнала заказа — откуда и как пришёл заказ */
+  eventComment?: string;
+};
 
-async function createOrderFromPayload(payload: SiteOrderPayload, inboxId: string): Promise<number> {
-  const { slaMinutes } = await getSettings();
+/**
+ * Заказ из разобранного контракта v1 — общий для эндпоинта и писем с сайта.
+ * Запись журнала интеграции помечается обработанной в той же транзакции.
+ * `readSettings`, а не `getSettings`: письма разбираются вне HTTP-запроса,
+ * где `cache` из React не работает.
+ */
+export async function createOrderFromPayload(
+  payload: SiteOrderPayload,
+  inboxId: string,
+  options: CreateOrderOptions = {},
+): Promise<number> {
+  const { slaMinutes } = await readSettings();
 
   return db.$transaction(async (tx) => {
     const customer = await findOrCreateCustomer(tx, {
@@ -104,6 +112,7 @@ async function createOrderFromPayload(payload: SiteOrderPayload, inboxId: string
       phone: payload.customer.phone,
       email: payload.customer.email,
       inn: payload.customer.inn,
+      kpp: payload.customer.kpp,
     });
 
     const items = await matchItems(tx, payload);
@@ -146,7 +155,7 @@ async function createOrderFromPayload(payload: SiteOrderPayload, inboxId: string
       user: null,
       type: "CREATED",
       toStatus: "NEW",
-      comment: `Заказ принят с сайта, № на сайте ${payload.externalId}`,
+      comment: options.eventComment ?? `Заказ принят с сайта, № на сайте ${payload.externalId}`,
     });
 
     // Предоплата с сайта, если она была, сразу видна в карточке.

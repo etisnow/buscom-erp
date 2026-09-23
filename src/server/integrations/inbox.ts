@@ -1,10 +1,33 @@
 import "server-only";
 import type { InboxStatus } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
+import { retrySiteEmail, SITE_EMAIL_SOURCE } from "@/server/integrations/site-email";
+import { ingestSiteOrder, type IngestResult } from "@/server/integrations/site-orders";
+
+/** Названия источников для журнала — в базе лежат технические ключи. */
+const INBOX_SOURCE_LABELS: Record<string, string> = {
+  site: "Сайт (API)",
+  [SITE_EMAIL_SOURCE]: "Сайт (письмо)",
+};
+
+/**
+ * Повторная обработка записи журнала — кнопка «Повторить» на экране интеграции.
+ * Письмо разбирается своим парсером, JSON эндпоинта — контрактом.
+ */
+export async function retryInboxEntry(inboxId: string): Promise<IngestResult> {
+  const entry = await db.integrationInbox.findUnique({
+    where: { id: inboxId },
+    select: { source: true, payload: true },
+  });
+  if (!entry) return { status: 400, error: "Запись журнала не найдена" };
+  if (entry.source === SITE_EMAIL_SOURCE) return retrySiteEmail(inboxId, entry.payload);
+  return ingestSiteOrder(entry.payload);
+}
 
 export type InboxRow = {
   id: string;
   source: string;
+  sourceLabel: string;
   externalId: string;
   status: InboxStatus;
   error: string | null;
@@ -61,6 +84,7 @@ export async function listInbox(status?: InboxStatus): Promise<InboxPage> {
     rows: rows.map((row) => ({
       id: row.id,
       source: row.source,
+      sourceLabel: INBOX_SOURCE_LABELS[row.source] ?? row.source,
       externalId: row.externalId,
       status: row.status,
       error: row.error,

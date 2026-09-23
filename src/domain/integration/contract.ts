@@ -15,6 +15,8 @@ export const siteOrderSchema = z.object({
     phone: z.string().nullish(),
     email: z.string().nullish(),
     inn: z.string().nullish(),
+    /** Добавлено 2026-09-23, необязательное — совместимо с v1. Выбирает филиал среди клиентов с одним ИНН */
+    kpp: z.string().nullish(),
     companyName: z.string().nullish(),
   }),
   items: z

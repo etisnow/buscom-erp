@@ -1,5 +1,6 @@
 import { beforeEach, expect, it } from "vitest";
-import { ingestSiteOrder, retryInboxEntry } from "@/server/integrations/site-orders";
+import { retryInboxEntry } from "@/server/integrations/inbox";
+import { ingestSiteOrder } from "@/server/integrations/site-orders";
 import { describeDb, resetDb, testDb } from "@/test/db";
 import { makeProduct } from "@/test/fixtures";
 

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { InboxTable } from "@/components/admin/inbox-table";
+import { PollMailboxButton } from "@/components/admin/poll-mailbox-button";
 import type { InboxStatus } from "@/generated/prisma/enums";
 import { listInbox } from "@/server/integrations/inbox";
+import { isMailboxConfigured } from "@/server/integrations/mailbox";
 import { requirePageUser } from "@/server/session";
 
 export const metadata: Metadata = {
@@ -23,7 +25,7 @@ function parseStatus(value: string | string[] | undefined): InboxStatus | undefi
 
 export default async function AdminIntegrationPage({ searchParams }: PageProps<"/admin/integration">) {
   // Руководителю журнал доступен на чтение (PRD, «Карта экранов»).
-  await requirePageUser(["ADMIN", "HEAD"]);
+  const user = await requirePageUser(["ADMIN", "HEAD"]);
 
   const params = await searchParams;
   const status = parseStatus(params.status);
@@ -31,12 +33,15 @@ export default async function AdminIntegrationPage({ searchParams }: PageProps<"
 
   return (
     <main className="flex flex-col gap-4">
-      <div>
-        <h1 className="font-heading text-xl font-semibold">Журнал интеграции</h1>
-        <p className="text-muted-foreground text-sm">
-          Входящие заказы с сайта. Сырой JSON сохраняется до разбора, поэтому ничего не теряется — упавшие записи можно
-          разобрать повторно.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-xl font-semibold">Журнал интеграции</h1>
+          <p className="text-muted-foreground text-sm">
+            Входящие заказы с сайта — через API и из писем в ящике заказов. Запрос или письмо сохраняются до разбора,
+            поэтому ничего не теряется — упавшие записи можно разобрать повторно.
+          </p>
+        </div>
+        {user.role === "ADMIN" ? <PollMailboxButton configured={isMailboxConfigured()} /> : null}
       </div>
 
       <nav className="flex flex-wrap gap-1" aria-label="Фильтр по статусу">

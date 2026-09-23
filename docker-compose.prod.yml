@@ -78,6 +78,12 @@ services:
       SMTP_FROM: ${SMTP_FROM:-BusCom ERP <noreply@bus-com.ru>}
       # Заполнение юрлица по ИНН; не задан — кнопка «Заполнить» говорит, что не настроено
       DADATA_API_KEY: ${DADATA_API_KEY:-}
+      # Ящик, куда сайт шлёт письма о заказах; не задан — заказы из писем не принимаются
+      IMAP_HOST: ${IMAP_HOST:-}
+      IMAP_PORT: ${IMAP_PORT:-993}
+      IMAP_USER: ${IMAP_USER:-}
+      IMAP_PASSWORD: ${IMAP_PASSWORD:-}
+      IMAP_POLL_SECONDS: ${IMAP_POLL_SECONDS:-}
       TZ: Europe/Moscow
     depends_on:
       postgres:

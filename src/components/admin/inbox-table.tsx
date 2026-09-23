@@ -65,7 +65,7 @@ export function InboxTable({ rows }: { rows: InboxRow[] }) {
                 <TableCell className="text-muted-foreground whitespace-nowrap">
                   {formatMoscowDateTime(row.receivedAt)}
                 </TableCell>
-                <TableCell className="text-muted-foreground">{row.source}</TableCell>
+                <TableCell className="text-muted-foreground">{row.sourceLabel}</TableCell>
                 <TableCell>{row.externalId}</TableCell>
                 <TableCell>
                   <Badge variant="secondary" className={`${STATUS_CLASS[row.status]} border-0 font-normal`}>
