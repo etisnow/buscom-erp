@@ -163,6 +163,9 @@ model Product {
   id            String           @id @default(cuid())
   sku           String           @unique
   name          String
+  /// Описание с сайта, приведённое к тексту (абзацы переводом строки, пункты «• »).
+  /// HTML не храним — docs/DECISIONS.md, «Описание товара»
+  description   String?
   /// Категория из справочника (docs/DECISIONS.md, «Справочник категорий»)
   categoryId    String?
   category      ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)

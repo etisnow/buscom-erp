@@ -9,7 +9,7 @@ import {
   type SupplierCombosResult,
   type SupplierPriceResult,
 } from "@/server/products/supplier-price";
-import { deleteMainImage, uploadMainImage } from "@/server/products/images";
+import { addImages, deleteImage, makeImageMain } from "@/server/products/images";
 import { createProduct, updateProduct } from "@/server/products/service";
 import { requireUser } from "@/server/session";
 
@@ -20,6 +20,7 @@ const variantSchema = z.record(z.string().max(100), z.string().max(300));
 const draftSchema = z.object({
   sku: z.string().min(1, { error: "Укажите артикул" }),
   name: z.string().min(1, { error: "Укажите название" }),
+  description: z.string().max(20_000, { error: "Описание слишком длинное" }).nullable().optional(),
   categoryId: z.string().min(1).nullable().optional(),
   priceKopecks: z.number().int().min(0, { error: "Цена не может быть отрицательной" }),
   /** Совместимые модели авто вводятся через запятую */
@@ -102,21 +103,28 @@ export async function toggleProductAction(id: string, isActive: boolean): Promis
 }
 
 /**
- * Загрузка аватарки товара. Файл приходит в FormData; тип и размер проверяет
- * сервер по содержимому — расширению и типу из браузера не доверяем.
+ * Загрузка картинок в галерею товара — можно выбрать сразу несколько. Файлы
+ * приходят в FormData; тип и размер проверяет сервер по содержимому — расширению
+ * и типу из браузера не доверяем.
  */
-export async function uploadProductImageAction(productId: string, form: FormData): Promise<ProductResult> {
+export async function uploadProductImagesAction(productId: string, form: FormData): Promise<ProductResult> {
   const user = await requireUser();
-  const file = form.get("file");
-  if (!(file instanceof File)) return { ok: false, error: "Выберите файл картинки" };
+  const files = form.getAll("file").filter((item): item is File => item instanceof File);
+  if (files.length === 0) return { ok: false, error: "Выберите файл картинки" };
 
-  const data = new Uint8Array(await file.arrayBuffer());
-  return run(() => uploadMainImage(productId, data, user), "Картинка сохранена");
+  const data = await Promise.all(files.map(async (file) => new Uint8Array(await file.arrayBuffer())));
+  return run(() => addImages(productId, data, user), files.length === 1 ? "Картинка сохранена" : "Картинки сохранены");
 }
 
-export async function deleteProductImageAction(productId: string): Promise<ProductResult> {
+export async function deleteProductImageAction(imageId: string): Promise<ProductResult> {
   const user = await requireUser();
-  return run(() => deleteMainImage(productId, user), "Картинка удалена");
+  return run(() => deleteImage(imageId, user), "Картинка удалена");
+}
+
+/** Картинка становится аватаркой: её видно в списках и в позициях заказа. */
+export async function makeProductImageMainAction(imageId: string): Promise<ProductResult> {
+  const user = await requireUser();
+  return run(() => makeImageMain(imageId, user), "Картинка стала главной");
 }
 
 /** Цена со страницы поставщика; `variants` — списки вариантов товара, если цена от них зависит. */

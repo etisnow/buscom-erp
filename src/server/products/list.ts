@@ -17,6 +17,7 @@ const listSelect = {
   id: true,
   sku: true,
   name: true,
+  description: true,
   categoryId: true,
   priceKopecks: true,
   compatibility: true,
@@ -34,8 +35,9 @@ const listSelect = {
       supplier: { select: { name: true, priceFormula: true } },
     },
   },
-  // Только id аватарки: байты картинок в список не тянем.
-  images: { orderBy: { sortOrder: "asc" }, take: 1, select: { id: true } },
+  // Только id картинок: байты в список не тянем. Первая — аватарка для списка,
+  // остальные нужны галерее в карточке товара.
+  images: { orderBy: { sortOrder: "asc" }, select: { id: true } },
   options: {
     orderBy: { sortOrder: "asc" },
     select: {

@@ -20,10 +20,11 @@ export function proxy(request: NextRequest) {
 export const config = {
   /**
    * Под защитой всё, кроме: `/login`, страниц восстановления пароля,
-   * `/api/auth/*` (сам вход), `/api/integrations/*` (вебхуки сайта, своя подпись HMAC)
+   * `/api/auth/*` (сам вход), `/api/integrations/*` (вебхуки сайта, своя подпись HMAC),
+   * `/robots.txt` (робот должен увидеть запрет, а не редирект на вход)
    * и статики Next.
    */
   matcher: [
-    "/((?!login|forgot-password|reset-password|api/auth|api/integrations|_next/static|_next/image|favicon.ico).*)",
+    "/((?!login|forgot-password|reset-password|api/auth|api/integrations|robots.txt|_next/static|_next/image|favicon.ico).*)",
   ],
 };

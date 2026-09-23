@@ -19,7 +19,7 @@ describeDb("выгрузка каталога в CSV (живая БД)", () => {
     const { csv, truncated } = await exportProductsCsv({});
     const rows = lines(csv);
 
-    expect(rows[0]).toBe("Артикул;Название;Категория;Цена, ₽;Совместимость;В каталоге");
+    expect(rows[0]).toBe("Артикул;Название;Описание;Категория;Цена, ₽;Совместимость;В каталоге");
     expect(rows).toHaveLength(3);
     expect(truncated).toBe(false);
   });
@@ -37,9 +37,21 @@ describeDb("выгрузка каталога в CSV (живая БД)", () => {
     const { csv } = await exportProductsCsv({});
     const cells = lines(csv)[1]!.split(";");
 
-    expect(cells[3]).toBe("1234,50");
+    expect(cells[4]).toBe("1234,50");
     // Запятая внутри ячейки разделителем не является: он — точка с запятой.
-    expect(cells[4]).toBe("ГАЗель Next, Соболь");
+    expect(cells[5]).toBe("ГАЗель Next, Соболь");
+  });
+
+  it("многострочное описание — одной ячейкой в кавычках", async () => {
+    await testDb.product.create({
+      data: { sku: "A-1", name: "Линолеум", priceKopecks: 1, description: "Первая строка\n• пункт" },
+    });
+
+    const { csv } = await exportProductsCsv({});
+
+    expect(csv).toContain('"Первая строка\n• пункт"');
+    // Перевод строки внутри кавычек не разрывает строку файла: товар один
+    expect(csv.replace(/"[^"]*"/g, "")).not.toContain("• пункт");
   });
 
   it("скрытый товар помечен словом", async () => {
@@ -47,7 +59,7 @@ describeDb("выгрузка каталога в CSV (живая БД)", () => {
 
     const cells = lines((await exportProductsCsv({})).csv)[1]!.split(";");
 
-    expect(cells[5]).toBe("скрыт");
+    expect(cells[6]).toBe("скрыт");
   });
 
   it("выгружается тот же список, что на экране: фильтры учитываются", async () => {

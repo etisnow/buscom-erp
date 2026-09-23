@@ -19,6 +19,16 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "6mb",
     },
   },
+  /**
+   * Админка не для поисковых систем. Заголовок ставит само приложение, а не
+   * Caddy: в бою HTTPS терминирует прокси хостинга, до конфига Caddy дело не
+   * дошло, и на живом `erp.bus-com.ru` заголовка не было (проверено 24.09.2026).
+   * `noindex` сильнее robots.txt: тот запрещает обход, но не попадание адреса в
+   * выдачу. Страница входа открыта всем — закрывать нужно именно её.
+   */
+  async headers() {
+    return [{ source: "/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] }];
+  },
 };
 
 export default nextConfig;

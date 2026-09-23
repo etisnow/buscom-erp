@@ -12,7 +12,7 @@ import { productsWhere, type ProductFilters } from "@/server/products/list";
  * пагинации. Количеств в каталоге нет — склада в проекте не ведут.
  */
 
-const HEADERS = ["Артикул", "Название", "Категория", "Цена, ₽", "Совместимость", "В каталоге"];
+const HEADERS = ["Артикул", "Название", "Описание", "Категория", "Цена, ₽", "Совместимость", "В каталоге"];
 
 export type ProductsCsv = {
   csv: string;
@@ -31,6 +31,7 @@ export async function exportProductsCsv(filters: ProductFilters): Promise<Produc
     select: {
       sku: true,
       name: true,
+      description: true,
       category: { select: { id: true } },
       priceKopecks: true,
       compatibility: true,
@@ -48,6 +49,8 @@ export async function exportProductsCsv(filters: ProductFilters): Promise<Produc
     ...rows.map((product) => [
       product.sku,
       product.name,
+      // Описание многострочное: переводы строк внутри ячейки экранирует toCsv
+      product.description ?? "",
       categoryPath(product.category?.id, categories),
       formatRubPlain(product.priceKopecks),
       // Совместимость — массив моделей; точку с запятой внутри ячейки экранирует toCsv.

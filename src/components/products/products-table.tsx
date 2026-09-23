@@ -64,7 +64,8 @@ export function ProductsTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-14" />
+              {/* min-w: без него узкая колонка схлопывается, когда таблица шире окна, и превью пропадает */}
+              <TableHead className="w-14 min-w-14" />
               <TableHead className="w-32">Артикул</TableHead>
               <TableHead>Название</TableHead>
               <TableHead className="w-36">Категория</TableHead>
@@ -77,7 +78,7 @@ export function ProductsTable({
           <TableBody>
             {rows.map((product) => (
               <TableRow key={product.id} className={product.isActive ? undefined : "opacity-60"}>
-                <TableCell>
+                <TableCell className="min-w-14">
                   <ProductThumb imageId={product.images[0]?.id ?? null} name={product.name} />
                 </TableCell>
                 <TableCell className="font-mono text-xs">{product.sku}</TableCell>

@@ -59,6 +59,30 @@ describeDb("перенос каталога сайта (живая БД)", () =>
     expect(await testDb.product.count()).toBe(1);
   });
 
+  it("описание переносится и обновляется; без поля в файле прежнее описание остаётся", async () => {
+    await importSiteProducts([row({ externalId: "10", description: "Клей для ткани.\n• 1 кг" })]);
+    const created = await testDb.product.findFirstOrThrow({ where: { externalId: "10" } });
+    expect(created.description).toBe("Клей для ткани.\n• 1 кг");
+
+    // Выгрузка без описаний (файл старого формата) описание не стирает
+    const same = await importSiteProducts([row({ externalId: "10" })]);
+    expect(same).toMatchObject({ безИзменений: 1 });
+    expect((await testDb.product.findFirstOrThrow({ where: { externalId: "10" } })).description).toBe(
+      "Клей для ткани.\n• 1 кг",
+    );
+
+    // Описание сменилось на сайте — обновляем
+    const changed = await importSiteProducts([row({ externalId: "10", description: "Другое описание" })]);
+    expect(changed).toMatchObject({ обновлено: 1 });
+    expect((await testDb.product.findFirstOrThrow({ where: { externalId: "10" } })).description).toBe(
+      "Другое описание",
+    );
+
+    // Описание убрали с сайта — чистим и в ERP
+    await importSiteProducts([row({ externalId: "10", description: null })]);
+    expect((await testDb.product.findFirstOrThrow({ where: { externalId: "10" } })).description).toBeNull();
+  });
+
   it("проверочный прогон ничего не пишет", async () => {
     const report = await importSiteProducts([row({ externalId: "1" })], { dryRun: true });
     expect(report.создано).toBe(1);

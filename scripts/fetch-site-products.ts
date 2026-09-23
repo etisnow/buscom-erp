@@ -91,6 +91,7 @@ async function main(): Promise<void> {
   console.log(`  выключены:       ${rows.filter((row) => !row.isActive).length}`);
   console.log(`  с опциями:       ${rows.filter((row) => row.options.length > 0).length}`);
   console.log(`  с картинкой:     ${rows.filter((row) => row.images.length > 0).length}`);
+  console.log(`  с описанием:     ${rows.filter((row) => row.description).length}`);
   if (failed.length > 0) {
     console.log(`  не прочитано:    ${failed.length}`);
     for (const line of failed) console.log(`    ${line}`);

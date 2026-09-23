@@ -3,6 +3,7 @@ import {
   assignSkus,
   parseCatalogMenu,
   parseCategoryProductKeys,
+  parseProductDescription,
   parseProductImages,
   parseProductOptions,
   parseProductPage,
@@ -99,6 +100,7 @@ describe("страница товара", () => {
       priceKopecks: 179_000,
       isActive: true,
       manufacturer: "Россия",
+      description: null,
       options: [],
       images: [],
     });
@@ -216,8 +218,38 @@ describe("опции товара на сайте", () => {
   });
 });
 
+describe("описание товара на сайте", () => {
+  it("абзацы и списки становятся текстом, мусор Word'а выбрасывается", () => {
+    const html = `<div class="tab-content"><div class="tab-pane active" id="tab-description">
+      <p class="MsoNormal">Линолеум антискользящий.<o:p></o:p></p>
+      <div style="text-align: left;">Ширина рулона&nbsp;&mdash; 2&nbsp;м.<br>Цена за м&sup2;.</div>
+      <ul><li class="MsoNormal">толщина 2.5&nbsp;мм</li><li>простой монтаж</li></ul>
+      </div><div class="buttons">Купить</div></div>`;
+    expect(parseProductDescription(html)).toBe(
+      "Линолеум антискользящий.\n\nШирина рулона — 2 м.\nЦена за м².\n\n• толщина 2.5 мм\n• простой монтаж",
+    );
+  });
+
+  it("вложенные div не обрывают описание, скрипт в текст не попадает", () => {
+    const html = `<div class="tab-pane active" id="tab-description"><div>Первый<div>вложенный</div></div>
+      <script>alert(1)</script><p>Второй</p></div><div>Чужое</div>`;
+    expect(parseProductDescription(html)).toBe("Первый\nвложенный\n\nВторой");
+  });
+
+  it("пустое описание и его отсутствие — null", () => {
+    expect(parseProductDescription(`<div id="tab-description"><p><br></p><p>&nbsp;</p></div>`)).toBeNull();
+    expect(parseProductDescription("<h1>Клей</h1>")).toBeNull();
+  });
+
+  it("на странице товара описание попадает в карточку", () => {
+    const html = `<h1>Клей</h1><input type="hidden" name="product_id" value="319" />
+      <div id="tab-description"><p>Клей для ткани.</p></div>`;
+    expect(parseProductPage(html, "u")?.description).toBe("Клей для ткани.");
+  });
+});
+
 describe("картинки товара на сайте", () => {
-  it("главная — первой, с превью 228×228; у дополнительных только полный размер", () => {
+  it("главная — первой, с превью 228×228; у дополнительных превью 74×74", () => {
     const html = `<ul class="thumbnails">
       <li><a class="thumbnail" href="https://bus-com.ru/image/cache/a-1000x1000-product_popup.jpg" title="А"><img src="https://bus-com.ru/image/cache/a-228x228-product_thumb.jpg" /></a></li>
       <li class="image-additional"><a class="thumbnail" href="https://bus-com.ru/image/cache/b-1000x1000-product_popup.jpg" title="А"> <img src="https://bus-com.ru/image/cache/b-74x74-product_popup.jpg" /></a></li>
@@ -227,7 +259,10 @@ describe("картинки товара на сайте", () => {
         url: "https://bus-com.ru/image/cache/a-1000x1000-product_popup.jpg",
         thumbUrl: "https://bus-com.ru/image/cache/a-228x228-product_thumb.jpg",
       },
-      { url: "https://bus-com.ru/image/cache/b-1000x1000-product_popup.jpg", thumbUrl: null },
+      {
+        url: "https://bus-com.ru/image/cache/b-1000x1000-product_popup.jpg",
+        thumbUrl: "https://bus-com.ru/image/cache/b-74x74-product_popup.jpg",
+      },
     ]);
   });
 

@@ -35,6 +35,8 @@ export type ProductOptionPriceDraft = {
 export type ProductDraft = {
   sku: string;
   name: string;
+  /** Описание для карточки; пустая строка — описания нет */
+  description?: string | null;
   categoryId?: string | null;
   priceKopecks: Kopecks;
   compatibility?: string[];
@@ -59,6 +61,7 @@ export async function createProduct(draft: ProductDraft, user: SessionUser): Pro
       data: {
         sku,
         name: draft.name.trim(),
+        description: draft.description?.trim() || null,
         categoryId: draft.categoryId || null,
         priceKopecks: draft.priceKopecks,
         compatibility: draft.compatibility ?? [],
@@ -84,6 +87,7 @@ export async function updateProduct(id: string, draft: Partial<ProductDraft>, us
       data: {
         ...(draft.sku !== undefined ? { sku: draft.sku.trim() } : {}),
         ...(draft.name !== undefined ? { name: draft.name.trim() } : {}),
+        ...(draft.description !== undefined ? { description: draft.description?.trim() || null } : {}),
         ...(draft.categoryId !== undefined ? { categoryId: draft.categoryId || null } : {}),
         ...(draft.priceKopecks !== undefined ? { priceKopecks: draft.priceKopecks } : {}),
         ...(draft.compatibility !== undefined ? { compatibility: draft.compatibility } : {}),

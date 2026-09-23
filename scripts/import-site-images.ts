@@ -1,12 +1,12 @@
 /**
- * Аватарки товаров с bus-com.ru — после `pnpm fetch:site-products` и `pnpm import:site-products`.
+ * Картинки товаров с bus-com.ru — после `pnpm fetch:site-products` и `pnpm import:site-products`.
  *
  *   pnpm import:site-images misc/site-products.json --dry-run
  *   pnpm import:site-images misc/site-products.json
  *
- * Скачивает главную картинку товара и её превью, проверяет, что это картинка,
- * и сохраняет в ERP. Повторный прогон скачивает только сменившиеся картинки.
- * Правила — `src/server/products/site-images.ts`.
+ * Скачивает всю галерею товара (главную картинку и дополнительные) с превью,
+ * проверяет, что это картинки, и сохраняет в ERP. Повторный прогон скачивает
+ * только новое. Правила — `src/server/products/site-images.ts`.
  */
 import "dotenv/config";
 import { readFileSync } from "node:fs";
@@ -40,13 +40,14 @@ async function main(): Promise<void> {
 
   console.log("");
   console.log("Итог:");
-  console.log(`  всего товаров:        ${report.всего}`);
-  console.log(`  картинок загружено:   ${report.загружено}`);
-  console.log(`  уже были:             ${report.ужеЕсть}`);
-  console.log(`  без картинки на сайте: ${report.безКартинки}`);
-  console.log(`  нет товара в ERP:     ${report.нетТовара}`);
+  console.log(`  всего товаров:         ${report.всего}`);
+  console.log(`  картинок загружено:    ${report.загружено}`);
+  console.log(`  уже были:              ${report.ужеЕсть}`);
+  console.log(`  убрано (нет на сайте): ${report.удалено}`);
+  console.log(`  без картинок на сайте: ${report.безКартинки}`);
+  console.log(`  нет товара в ERP:      ${report.нетТовара}`);
   if (report.ошибки.length > 0) {
-    console.log(`  ошибки:               ${report.ошибки.length}`);
+    console.log(`  ошибки:                ${report.ошибки.length}`);
     for (const item of report.ошибки) console.log(`    ${item.externalId} ${item.name}: ${item.error}`);
   }
   if (dryRun) console.log("\nЭто была проверка — в базу ничего не записано.");

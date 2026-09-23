@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatRub, rublesToKopecks } from "@/domain/money";
@@ -25,7 +26,7 @@ import {
 } from "@/domain/product/vanproject";
 import { calculateUnitCost } from "@/domain/supplier/price-economics";
 import { CategorySelect } from "@/components/products/category-select";
-import { ProductImageEditor } from "@/components/products/product-image";
+import { ProductGalleryEditor } from "@/components/products/product-image";
 import {
   ProductOptionsEditor,
   toOptionDrafts,
@@ -102,6 +103,7 @@ export function ProductDialog({
 }) {
   const [sku, setSku] = useState(product?.sku ?? "");
   const [name, setName] = useState(product?.name ?? "");
+  const [description, setDescription] = useState(product?.description ?? "");
   const [categoryId, setCategoryId] = useState<string | null>(product?.categoryId ?? null);
   const [price, setPrice] = useState(((product?.priceKopecks ?? 0) / 100).toFixed(2));
   // Совместимые модели вводятся через запятую — так быстрее, чем тегами.
@@ -305,6 +307,7 @@ export function ProductDialog({
     const payload = {
       sku,
       name,
+      description,
       categoryId,
       priceKopecks,
       compatibility: compatibility
@@ -338,9 +341,9 @@ export function ProductDialog({
         </DialogHeader>
 
         {product ? (
-          <ProductImageEditor productId={product.id} imageId={product.images[0]?.id ?? null} name={product.name} />
+          <ProductGalleryEditor productId={product.id} images={product.images} name={product.name} />
         ) : (
-          <p className="text-muted-foreground text-xs">Картинку можно будет добавить после сохранения товара.</p>
+          <p className="text-muted-foreground text-xs">Картинки можно будет добавить после сохранения товара.</p>
         )}
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -392,6 +395,21 @@ export function ProductDialog({
               placeholder="ГАЗель Next, Ford Transit"
               className="h-8"
             />
+          </div>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label className="text-xs" htmlFor="product-description">
+              Описание
+            </Label>
+            <Textarea
+              id="product-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Описание с сайта; можно дополнить своим"
+              className="max-h-64 min-h-24 text-sm"
+            />
+            <span className="text-muted-foreground text-xs">
+              Переносится с сайта: следующий прогон «Каталог с сайта» перезапишет правки.
+            </span>
           </div>
         </div>
 

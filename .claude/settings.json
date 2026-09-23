@@ -17,7 +17,8 @@
       "Bash(pnpm prisma migrate status)",
       "Bash(git status)",
       "Bash(git diff *)",
-      "Bash(git log *)"
+      "Bash(git log *)",
+      "Bash(ssh buscom-prod:*)"
     ],
     "deny": [
       "Bash(pnpm prisma migrate reset *)",

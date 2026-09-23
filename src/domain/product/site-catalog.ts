@@ -28,6 +28,8 @@ export type SiteProduct = {
   isActive: boolean;
   /** «Производитель» на сайте — там страна или марка («Россия», «Webasto») */
   manufacturer: string | null;
+  /** Описание со вкладки «Описание», приведённое к тексту; пустое — null */
+  description: string | null;
   /** Опции с выбором варианта (список, радиокнопки). Текстовые поля не переносим */
   options: SiteOptionGroup[];
   /** Картинки товара, главная — первой. Импортируется пока только она (аватарка) */
@@ -45,10 +47,47 @@ export type SiteOptionGroup = {
   values: { externalId: string; name: string; priceDeltaKopecks: Kopecks }[];
 };
 
-const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'", nbsp: " " };
+const ENTITIES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  "#39": "'",
+  nbsp: " ",
+  // Описания товаров набраны в Word и пестрят типографикой
+  laquo: "«",
+  raquo: "»",
+  mdash: "—",
+  ndash: "–",
+  hellip: "…",
+  deg: "°",
+  times: "×",
+  rsquo: "’",
+  lsquo: "‘",
+  ldquo: "“",
+  rdquo: "”",
+  sup2: "²",
+  sup3: "³",
+  frac12: "½",
+  plusmn: "±",
+  middot: "·",
+  bull: "•",
+  copy: "©",
+  reg: "®",
+  trade: "™",
+  euro: "€",
+};
 
+/** `&amp;`, `&laquo;`, а также числовые `&#1057;` и `&#x41;` — в обычные символы. */
 export function decodeEntities(value: string): string {
-  return value.replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, name: string) => ENTITIES[name]);
+  return value.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]*);/gi, (match, name: string) => {
+    const known = ENTITIES[name] ?? ENTITIES[name.toLowerCase()];
+    if (known !== undefined) return known;
+    if (name.startsWith("#x") || name.startsWith("#X")) return String.fromCodePoint(Number.parseInt(name.slice(2), 16));
+    if (name.startsWith("#")) return String.fromCodePoint(Number(name.slice(1)));
+    // Незнакомую сущность оставляем как есть: лучше «&sup2;» в тексте, чем потерянный символ
+    return match;
+  });
 }
 
 function clean(value: string): string {
@@ -218,9 +257,68 @@ export function parseProductPage(html: string, url: string): SiteProduct | null 
     priceKopecks,
     isActive: debug?.status === undefined ? true : String(debug.status) === "1",
     manufacturer,
+    description: parseProductDescription(html),
     options: parseProductOptions(html),
     images: parseProductImages(html),
   };
+}
+
+/**
+ * Описание товара со страницы — вкладка «Описание» (`#tab-description` у OpenCart).
+ * Блок берётся по балансу `<div>`: внутри описания они встречаются, а по первому
+ * `</div>` текст обрывался бы на середине.
+ *
+ * Разметку сводим к тексту: абзацы и `<br>` — переводом строки, пункты списков —
+ * «• ». Хранить HTML сайта и показывать его в админке не хотим: описания набраны
+ * в Word и полны мусора (`<o:p>`, inline-стили, классы MsoNormal), а вместе с ним
+ * приехал бы и чужой скрипт, если он однажды попадёт на страницу товара.
+ * Текст же показывается как есть, уходит в выгрузку и в коммерческое предложение.
+ */
+export function parseProductDescription(html: string): string | null {
+  const open = html.indexOf('id="tab-description"');
+  if (open === -1) return null;
+
+  const start = html.indexOf(">", open) + 1;
+  const tags = /<(\/?)div\b[^>]*>/gi;
+  tags.lastIndex = start;
+  let depth = 1;
+  let end = html.length;
+  for (let tag = tags.exec(html); tag; tag = tags.exec(html)) {
+    depth += tag[1] ? -1 : 1;
+    if (depth === 0) {
+      end = tag.index;
+      break;
+    }
+  }
+
+  return htmlToText(html.slice(start, end));
+}
+
+/** HTML описания → текст: абзацы и переводы строк сохраняются, пункты списка — «• ». */
+export function htmlToText(html: string): string | null {
+  const text = decodeEntities(
+    html
+      // Скрипты и стили выбрасываем вместе с содержимым, иначе их код попадёт в текст
+      .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, "")
+      // Пункт списка — с новой строки и с маркером; пустых строк между пунктами быть не должно
+      .replace(/<\/li>/gi, "")
+      .replace(/<li\b[^>]*>/gi, "\n• ")
+      .replace(/<br\s*\/?>/gi, "\n")
+      // Конец блока — конец абзаца (пустая строка), начало блока — просто новая строка:
+      // иначе текст перед вложенным div слипался бы со следующим
+      .replace(/<\/(p|div|ul|ol|tr|h\d)>/gi, "\n\n")
+      .replace(/<(p|div|ul|ol|tr|h\d)\b[^>]*>/gi, "\n")
+      .replace(/<[^>]+>/g, ""),
+  )
+    // Неразрывные пробелы Word'а в тексте не нужны
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    // Пустая строка разделяет абзацы; больше одной подряд не оставляем
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return text || null;
 }
 
 /**
@@ -284,8 +382,10 @@ export function uniqueOptionNames(groups: readonly SiteOptionGroup[]): SiteOptio
 /**
  * Картинки со страницы товара. Разметка OpenCart: `<ul class="thumbnails">`,
  * первая `a.thumbnail` — главная (полный размер в href, превью 228×228 в img),
- * дальше `li.image-additional` — дополнительные, у них превью крошечное (74×74),
- * поэтому для них берём только полный размер.
+ * дальше `li.image-additional` — дополнительные, у них превью маленькое (74×74).
+ * Берём превью у всех: в галерее карточки оно показывается мелко, а полный
+ * размер — по щелчку. Других размеров у магазина нет: адреса кеша OpenCart
+ * существуют только для тех размеров, что сайт сам нарисовал на странице.
  */
 export function parseProductImages(html: string): SiteImage[] {
   const list = html.match(/<ul class="thumbnails">([\s\S]*?)<\/ul>/)?.[1];
@@ -295,8 +395,7 @@ export function parseProductImages(html: string): SiteImage[] {
   for (const [item] of list.matchAll(/<li[^>]*>[\s\S]*?<\/li>/g)) {
     const url = item.match(/<a class="thumbnail" href="([^"]+)"/)?.[1];
     if (!url) continue;
-    const isMain = images.length === 0 && !/class="image-additional"/.test(item);
-    const thumbUrl = isMain ? (item.match(/<img src="([^"]+)"/)?.[1] ?? null) : null;
+    const thumbUrl = item.match(/<img src="([^"]+)"/)?.[1] ?? null;
     const image = { url: decodeEntities(url), thumbUrl: thumbUrl ? decodeEntities(thumbUrl) : null };
     if (!images.some((known) => known.url === image.url)) images.push(image);
   }

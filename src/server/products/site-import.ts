@@ -23,6 +23,9 @@ export const siteProductRowSchema = z.object({
   priceKopecks: z.number().int().min(0),
   isActive: z.boolean(),
   manufacturer: z.string().nullable(),
+  // Описание текстом. Поля нет в выгрузках до 24.09.2026: тогда оно `undefined`
+  // и описание в ERP не трогается. Явный null — описание на сайте убрали, чистим.
+  description: z.string().nullable().optional(),
   // Путь в справочнике категорий: ["Климат", "Люки"]. В ранних выгрузках вместо него
   // была одна строка `category` — она читается как путь из одного уровня.
   categoryPath: z.array(z.string()).optional(),
@@ -102,7 +105,7 @@ function sameOptions(site: SiteOptionGroup[], existing: ExistingOption[]): boole
 /**
  * Перенос каталога сайта в ERP. Ключ повторного прогона — `Product.externalId`
  * (`product_id` на сайте). Каталог синхронизируется с сайта (PRD, M3), поэтому
- * повторный прогон обновляет название, артикул, категорию, цену и опции по сайту.
+ * повторный прогон обновляет название, описание, артикул, категорию, цену и опции по сайту.
  * Поставщиков, закупочные цены и совместимость не трогает — их на сайте нет,
  * они ведутся в ERP. Позиции оформленных заказов не меняются: там снимок.
  */
@@ -126,6 +129,7 @@ export async function importSiteProducts(
       sku: true,
       externalId: true,
       name: true,
+      description: true,
       categoryId: true,
       priceKopecks: true,
       isActive: true,
@@ -165,9 +169,11 @@ export async function importSiteProducts(
     const data = {
       sku,
       name: row.name,
+      description: row.description,
       priceKopecks: row.priceKopecks,
       isActive: row.isActive,
     };
+    // `undefined` Prisma в update пропускает — описание остаётся прежним.
     const current = byExternalId.get(row.externalId);
 
     if (!current) {
@@ -196,6 +202,7 @@ export async function importSiteProducts(
       categoryChanged ||
       current.sku !== data.sku ||
       current.name !== data.name ||
+      (data.description !== undefined && current.description !== data.description) ||
       current.priceKopecks !== data.priceKopecks ||
       current.isActive !== data.isActive;
     if (!changed) {

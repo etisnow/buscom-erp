@@ -17,6 +17,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "BusCom ERP",
   description: "Управление заказами bus-com.ru",
+  // Админку поисковикам не отдаём. Тот же запрет идёт заголовком X-Robots-Tag
+  // (next.config.ts) — тег в разметке остаётся, даже если запрос пройдёт мимо него.
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
