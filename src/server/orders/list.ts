@@ -45,8 +45,6 @@ const listSelect = {
   id: true,
   number: true,
   externalId: true,
-  source: true,
-  sourceItem: { select: { name: true } },
   status: true,
   createdAt: true,
   statusChangedAt: true,
@@ -54,7 +52,16 @@ const listSelect = {
   totalKopecks: true,
   paidKopecks: true,
   customer: { select: { name: true, phone: true } },
-  manager: { select: { id: true, name: true } },
+  items: { select: { id: true, name: true, quantity: true }, orderBy: { sortOrder: "asc" } },
+  // Цепочка этапов нужна целиком: по ней видно, пройден ли трек (isTrackComplete)
+  supplierTracks: {
+    select: {
+      supplierId: true,
+      stageId: true,
+      supplier: { select: { name: true, stages: { select: { id: true, name: true }, orderBy: { sortOrder: "asc" } } } },
+    },
+    orderBy: { supplier: { name: "asc" } },
+  },
 } satisfies Prisma.OrderSelect;
 
 export type OrderListRow = Prisma.OrderGetPayload<{ select: typeof listSelect }>;
