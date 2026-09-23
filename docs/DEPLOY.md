@@ -267,23 +267,38 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --bui
 
 PRD: ежедневно, хранение 30 дней, копия **вне сервера с базой**.
 
-Скрипт `scripts/backup-db.sh` делает выгрузку в `./backups` внутри тома Postgres и чистит старше 30 дней. Он падает с ненулевым кодом, если файл подозрительно мал, — это повод для алерта.
+`scripts/backup-db.sh` выгружает базу в `./backups` (каталог смонтирован в контейнер Postgres как `/backups`) и чистит старые файлы. Он падает с ненулевым кодом, если файл подозрительно мал, — это повод для алерта.
+
+**Два режима, потому что картинки товаров лежат в базе.** На 24.09.2026 в `ProductImage` 910 файлов и 283 МБ — больше, чем вся остальная база (322 МБ всего). В plain-дампе `bytea` разворачивается в hex, то есть вдвое, а gzip уже сжатые JPEG почти не жмёт: полный дамп весит около 300 МБ. Тридцать таких на диск в 9,8 ГБ не влезут.
+
+| Режим                             | Что в файле                      | Как часто    | Хранение                            | Размер     |
+| --------------------------------- | -------------------------------- | ------------ | ----------------------------------- | ---------- |
+| `./scripts/backup-db.sh`          | вся база, но без байтов картинок | ежедневно    | 30 дней (`BACKUP_KEEP_DAYS`)        | единицы МБ |
+| `./scripts/backup-db.sh --images` | только строки `ProductImage`     | раз в неделю | 14 дней (`BACKUP_IMAGES_KEEP_DAYS`) | ~300 МБ    |
+
+Картинкам хватает недельного ритма: они меняются только прогоном `pnpm import:site-images`, а всё, что приехало с bus-com.ru, в крайнем случае качается оттуда заново. Своё, загруженное в карточке товара руками, заново не возьмётся ниоткуда — из-за него выгрузка картинок и нужна.
 
 ```bash
 chmod +x scripts/backup-db.sh
 crontab -e
-# каждый день в 03:30 по времени сервера
-30 3 * * * cd /path/to/buscom-erp && ./scripts/backup-db.sh >> /var/log/buscom-backup.log 2>&1
+# каждый день в 03:30 по времени сервера — база без картинок
+30 3 * * * cd /opt/buscom-erp && ./scripts/backup-db.sh >> /var/log/buscom-backup.log 2>&1
+# по воскресеньям в 04:30 — картинки
+30 4 * * 0 cd /opt/buscom-erp && ./scripts/backup-db.sh --images >> /var/log/buscom-backup.log 2>&1
 ```
 
 **Вывоз копии наружу не настроен** — это оставшийся кусок требования PRD. Нужен второй шаг: rsync/rclone в объектное хранилище провайдера (Selectel, Yandex Object Storage) или на другой сервер. Без него бэкап лежит на той же машине и не спасает от её потери.
 
-Восстановление:
+Восстановление — **двумя файлами по порядку**: сначала ежедневный (он создаёт таблицы; `ProductImage` будет пустой), потом выгрузка картинок.
 
 ```bash
-gunzip -c backups/buscom_2026-09-20_0330.sql.gz | \
-  docker compose -f docker-compose.prod.yml exec -T postgres psql -U buscom -d buscom_erp
+cd /opt/buscom-erp
+COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.production"
+gunzip -c backups/buscom_2026-09-24_0330.sql.gz        | $COMPOSE exec -T postgres psql -U buscom -d buscom_erp
+gunzip -c backups/buscom-images_2026-09-24_0430.sql.gz | $COMPOSE exec -T postgres psql -U buscom -d buscom_erp
 ```
+
+Без второго файла ERP поднимется и будет работать — просто без картинок товаров; вернуть их можно `pnpm import:site-images` (кроме загруженных руками).
 
 PRD требует проверить восстановление **до** запуска. Проверяйте на отдельной пустой базе, а не на боевой.
 
