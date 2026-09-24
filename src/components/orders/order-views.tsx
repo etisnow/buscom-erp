@@ -1,7 +1,5 @@
 import Link from "next/link";
-import { ORDER_VIEW_LABELS, type OrderView } from "@/server/orders/list";
-
-const VIEWS: OrderView[] = ["all", "mine", "unassigned", "overdue"];
+import { ORDER_VIEW_LABELS, VISIBLE_ORDER_VIEWS, type OrderView } from "@/server/orders/list";
 
 /**
  * Вкладки-виды. Обычные ссылки, а не состояние компонента: вид, фильтры и страница
@@ -18,7 +16,7 @@ export function OrderViews({
 }) {
   return (
     <nav className="flex flex-wrap gap-1" aria-label="Виды списка">
-      {VIEWS.map((view) => {
+      {VISIBLE_ORDER_VIEWS.map((view) => {
         const next = new URLSearchParams(params);
         next.set("view", view);
         next.delete("page");

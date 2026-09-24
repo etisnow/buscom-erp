@@ -1,5 +1,6 @@
 import "server-only";
 import { normalizePhone } from "@/domain/customer/phone";
+import { SLA_ENABLED } from "@/domain/sla";
 import type { Prisma } from "@/generated/prisma/client";
 import type { OrderStatus } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
@@ -148,7 +149,10 @@ function baseWhere(filters: OrderListFilters): Prisma.OrderWhereInput {
   return { AND: and };
 }
 
-const ALL_VIEWS: OrderView[] = ["all", "mine", "unassigned", "overdue"];
+/** Виды, которые показываются вкладками: «Просроченные» — только при включённом SLA. */
+export const VISIBLE_ORDER_VIEWS: OrderView[] = SLA_ENABLED
+  ? ["all", "mine", "unassigned", "overdue"]
+  : ["all", "mine", "unassigned"];
 
 /**
  * Условия выборки для текущих фильтров и вида. Общие у списка и у выгрузки в CSV,
@@ -173,7 +177,7 @@ export async function listOrders(filters: OrderListFilters, user: SessionUser): 
       take: PAGE_SIZE,
     }),
     db.order.count({ where }),
-    ...ALL_VIEWS.map((view) => db.order.count({ where: { AND: [base, viewWhere(view, user, now)] } })),
+    ...VISIBLE_ORDER_VIEWS.map((view) => db.order.count({ where: { AND: [base, viewWhere(view, user, now)] } })),
   ]);
 
   return {
@@ -181,7 +185,13 @@ export async function listOrders(filters: OrderListFilters, user: SessionUser): 
     total,
     page,
     pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)),
-    counts: Object.fromEntries(ALL_VIEWS.map((view, index) => [view, counts[index] ?? 0])) as Record<OrderView, number>,
+    counts: {
+      all: 0,
+      mine: 0,
+      unassigned: 0,
+      overdue: 0,
+      ...Object.fromEntries(VISIBLE_ORDER_VIEWS.map((view, index) => [view, counts[index] ?? 0])),
+    },
   };
 }
 

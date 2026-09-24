@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { list, pageNumber, single, type RawParams } from "@/app/(app)/search-params";
-import type { OrderListFilters, OrderView } from "@/server/orders/list";
+import { VISIBLE_ORDER_VIEWS, type OrderListFilters, type OrderView } from "@/server/orders/list";
 
 /** Значения из URL приходят строками и могут быть чем угодно — разбираем схемой. */
 const viewSchema = z.enum(["all", "mine", "unassigned", "overdue"]);
@@ -25,7 +25,8 @@ export function parseOrderListParams(params: RawParams, fallbackView: OrderView)
   const payment = paymentSchema.safeParse(single(params.payment));
 
   return {
-    view: view.success ? view.data : fallbackView,
+    // Старая ссылка на скрытый вид (например, «Просроченные» при выключенном SLA) открывает вид по умолчанию.
+    view: view.success && VISIBLE_ORDER_VIEWS.includes(view.data) ? view.data : fallbackView,
     query: single(params.q),
     statuses: list(params.status).filter(
       (value) => statusSchema.safeParse(value).success,

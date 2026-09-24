@@ -13,6 +13,14 @@ const MINUTES_PER_DAY = 24 * 60;
 const WORK_START_MINUTE = 9 * 60;
 const WORK_END_MINUTE = 18 * 60;
 
+/**
+ * Контроль SLA в интерфейсе: подсветка просрочки в списке, вид «Просроченные»,
+ * колонка «Просрочен» в выгрузке, нормативы в справочниках. Выключен 2026-09-24 —
+ * владельцу SLA не нужен (docs/DECISIONS.md). Дедлайн `slaDueAt` в заказе продолжает
+ * считаться, так что включение — только смена этого флага.
+ */
+export const SLA_ENABLED = false;
+
 /** Рабочих минут в одном рабочем дне — 9 часов. */
 export const WORKING_MINUTES_PER_DAY = WORK_END_MINUTE - WORK_START_MINUTE;
 

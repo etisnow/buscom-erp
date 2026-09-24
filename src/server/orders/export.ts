@@ -5,6 +5,7 @@ import { formatRubPlain } from "@/domain/money";
 import { PAYMENT_STATUS_LABELS, paymentStatus } from "@/domain/order/payment-status";
 import { orderSourceLabel } from "@/domain/order/source";
 import { ORDER_STATUS_LABELS } from "@/domain/order/status";
+import { SLA_ENABLED } from "@/domain/sla";
 import { db } from "@/server/db";
 import { ordersWhere, type OrderListFilters } from "@/server/orders/list";
 import type { SessionUser } from "@/server/session";
@@ -29,7 +30,7 @@ const HEADERS = [
   "Оплата",
   "Менеджер",
   "Источник",
-  "Просрочен",
+  ...(SLA_ENABLED ? ["Просрочен"] : []),
 ];
 
 export type OrdersCsv = {
@@ -79,7 +80,7 @@ export async function exportOrdersCsv(filters: OrderListFilters, user: SessionUs
       PAYMENT_STATUS_LABELS[paymentStatus(order.totalKopecks, order.paidKopecks)],
       order.manager?.name ?? "не назначен",
       orderSourceLabel(order.source, order.sourceItem?.name),
-      order.slaDueAt !== null && order.slaDueAt < now ? "да" : "",
+      ...(SLA_ENABLED ? [order.slaDueAt !== null && order.slaDueAt < now ? "да" : ""] : []),
     ]),
   ];
 

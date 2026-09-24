@@ -4,7 +4,7 @@ import { OrderStatusBadge, PaymentBadge } from "@/components/orders/status-badge
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatMoscowDateTime, formatPhone } from "@/domain/datetime";
 import { formatRub } from "@/domain/money";
-import { formatWorkingMinutes, workingMinutesBetween } from "@/domain/sla";
+import { formatWorkingMinutes, SLA_ENABLED, workingMinutesBetween } from "@/domain/sla";
 import { isTrackComplete } from "@/domain/supplier/stages";
 import { cn } from "@/lib/utils";
 import type { OrderListRow } from "@/server/orders/list";
@@ -90,7 +90,7 @@ export function OrdersTable({ rows, now }: { rows: OrderListRow[]; now: Date }) 
           {rows.map((order) => {
             // Просрочка — красным только в колонке «В статусе»: строку целиком не заливаем,
             // иначе в длинном списке красное забивает всё остальное (просьба владельца).
-            const isOverdue = order.slaDueAt !== null && order.slaDueAt < now;
+            const isOverdue = SLA_ENABLED && order.slaDueAt !== null && order.slaDueAt < now;
             const inStatus = workingMinutesBetween(order.statusChangedAt, now);
 
             return (
