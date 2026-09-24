@@ -9,6 +9,7 @@ import { MAILBOX_ROLES } from "@/domain/user/role";
 import {
   attachLetterToOrder,
   MailboxUnavailableError,
+  markLetterOpened,
   moveLetter,
   setLetterSeen,
   trashLetter,
@@ -159,4 +160,12 @@ export async function attachMailboxLetterAction(
   const result = await mailboxAction(() => attachLetterToOrder(parsed.data.folder, parsed.data.uid, orderNumber, user));
   if (result.ok) revalidatePath(`/orders/${orderNumber}`);
   return result;
+}
+
+/** Письмо ящика открыли в браузере — пометить прочитанным и обновить счётчики слева. */
+export async function markMailboxLetterOpenedAction(ref: z.input<typeof letterRefSchema>): Promise<MailActionResult> {
+  await requireUser(MAILBOX_ROLES);
+  const parsed = letterRefSchema.safeParse(ref);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+  return mailboxAction(() => markLetterOpened(parsed.data.folder, parsed.data.uid));
 }

@@ -7,7 +7,7 @@ import { formatMoscowDateTime } from "@/domain/datetime";
 import { buildFolderTree, flattenFolderTree, SPECIAL_FOLDER_LABELS } from "@/domain/email/folders";
 import { splitQuotedReply } from "@/domain/email/letters";
 import { MAILBOX_ROLES } from "@/domain/user/role";
-import { mailboxFolders, readMailboxLetter } from "@/server/emails/mailbox-browser";
+import { mailboxFolderList, readMailboxLetter } from "@/server/emails/mailbox-browser";
 import { requirePageUser } from "@/server/session";
 import { single } from "@/app/(app)/search-params";
 
@@ -20,7 +20,7 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} МБ`;
 }
 
-/** Письмо живого ящика целиком. Открытие помечает его прочитанным — как в Яндексе. */
+/** Письмо живого ящика целиком. Прочитанным его помечает открытие в браузере — как в Яндексе. */
 export default async function MailboxLetterPage({ searchParams }: PageProps<"/mail/box/letter">) {
   await requirePageUser(MAILBOX_ROLES);
   const params = await searchParams;
@@ -28,7 +28,7 @@ export default async function MailboxLetterPage({ searchParams }: PageProps<"/ma
   const uid = Number(single(params.uid));
   if (!folder || !Number.isSafeInteger(uid) || uid <= 0) notFound();
 
-  const [letter, folders] = await Promise.all([readMailboxLetter(folder, uid), mailboxFolders()]);
+  const [letter, folders] = await Promise.all([readMailboxLetter(folder, uid), mailboxFolderList()]);
   if (!letter) notFound();
 
   const { main, quoted } = splitQuotedReply(letter.body);
@@ -98,7 +98,7 @@ export default async function MailboxLetterPage({ searchParams }: PageProps<"/ma
         ) : null}
       </article>
 
-      <MailboxLetterActions folder={folder} uid={uid} folders={folderOptions} erp={letter.erp} />
+      <MailboxLetterActions folder={folder} uid={uid} folders={folderOptions} erp={letter.erp} seen={letter.seen} />
     </main>
   );
 }

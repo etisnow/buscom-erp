@@ -12,7 +12,7 @@ import {
 } from "@/domain/email/letters";
 import { db } from "@/server/db";
 import { linkEmailToOrder, storeMailboxLetter } from "@/server/emails/service";
-import { createClient, listMailboxFolders, resolveMailbox } from "@/server/integrations/mailbox";
+import { createClient, readFolders, resolveMailbox } from "@/server/integrations/mailbox";
 import { OrderConflictError } from "@/server/orders/internal";
 import type { SessionUser } from "@/server/session";
 
@@ -34,37 +34,144 @@ export class MailboxUnavailableError extends Error {
 
 export const MAILBOX_PAGE_SIZE = 50;
 
-/** Одно соединение на действие: подключились, сделали, вышли. */
-async function withMailbox<T>(action: (client: ImapFlow) => Promise<T>): Promise<T> {
+/**
+ * Одно соединение с ящиком на процесс, а не на каждое открытие: вход в Яндекс —
+ * лишние ~0,2 с в бою, и за одно открытие страницы их набиралось два-три.
+ * Параллельные запросы imapflow ставит в очередь сам, выбор папки — через
+ * `getMailboxLock`. Соединение пересоздаётся, если оборвалось или поменялись
+ * настройки ящика; оборвавшееся посреди действия — действие повторяется один раз.
+ */
+type Shared = { key: string; client: ImapFlow };
+const globalForMailbox = globalThis as unknown as { mailboxShared?: Shared; mailboxConnecting?: Promise<Shared> };
+
+async function sharedClient(): Promise<ImapFlow> {
   const connection = await resolveMailbox();
   if (!connection) throw new MailboxUnavailableError();
-  const client = createClient(connection);
-  await client.connect();
+  const key = `${connection.user}@${connection.host}:${connection.port}:${connection.password.length}:${connection.password}`;
+
+  const current = globalForMailbox.mailboxShared;
+  if (current && current.key === key && current.client.usable) return current.client;
+  if (current) {
+    globalForMailbox.mailboxShared = undefined;
+    current.client.close();
+  }
+
+  globalForMailbox.mailboxConnecting ??= (async () => {
+    const client = createClient(connection);
+    // Обрыв соединения — не падение процесса: следующее действие подключится заново
+    client.on("error", () => {});
+    client.on("close", () => {
+      if (globalForMailbox.mailboxShared?.client === client) globalForMailbox.mailboxShared = undefined;
+    });
+    await client.connect();
+    const shared = { key, client };
+    globalForMailbox.mailboxShared = shared;
+    return shared;
+  })().finally(() => {
+    globalForMailbox.mailboxConnecting = undefined;
+  });
+  return (await globalForMailbox.mailboxConnecting).client;
+}
+
+/**
+ * Предел ожидания одной операции. Соединение может тихо умереть (простой, сеть), и
+ * команда на нём ждала бы бесконечно — а за ней в очереди встали бы все следующие
+ * открытия «Почты». По истечении соединение закрывается, следующая операция
+ * откроет новое.
+ */
+const OPERATION_TIMEOUT_MS = 20_000;
+
+class MailboxTimeoutError extends MailboxUnavailableError {
+  constructor() {
+    super("Почтовый сервер не ответил за 20 секунд — попробуйте ещё раз");
+  }
+}
+
+async function withTimeout<T>(client: ImapFlow, action: (client: ImapFlow) => Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      client.close();
+      reject(new MailboxTimeoutError());
+    }, OPERATION_TIMEOUT_MS);
+  });
   try {
-    return await action(client);
+    return await Promise.race([action(client), timeout]);
   } finally {
-    await client.logout().catch(() => client.close());
+    clearTimeout(timer);
+  }
+}
+
+async function withMailbox<T>(action: (client: ImapFlow) => Promise<T>): Promise<T> {
+  const client = await sharedClient();
+  try {
+    return await withTimeout(client, action);
+  } catch (error) {
+    // Соединение умерло (Яндекс закрывает простаивающие) — один повтор на свежем.
+    // После истечения предела не повторяем: человек и так ждал 20 секунд
+    if (client.usable || error instanceof MailboxTimeoutError) throw error;
+    return withTimeout(await sharedClient(), action);
   }
 }
 
 /**
- * Дерево папок меняется редко, а спрашивать его на каждом переходе по разделу —
- * секунда ожидания. Держим 30 секунд; действия с письмами кеш сбрасывают.
+ * Два кеша папок. Список без счётчиков меняется редко и приходит быстро — им
+ * пользуются страницы (заголовок папки, «Переместить в…»). Счётчики нужны только
+ * левой колонке и стоят ~1 с: отдаём последние известные сразу, а свежие
+ * запрашиваем в фоне не чаще раза в 30 секунд, одним запросом на всех.
  */
-let foldersCache: { at: number; folders: MailFolder[] } | null = null;
-const FOLDERS_TTL_MS = 30_000;
+const STRUCTURE_TTL_MS = 5 * 60_000;
+const COUNTS_TTL_MS = 30_000;
+const globalForFolders = globalThis as unknown as {
+  mailboxStructure?: { at: number; folders: MailFolder[] };
+  mailboxCounts?: { at: number; folders: MailFolder[] };
+  mailboxCountsLoading?: Promise<MailFolder[]>;
+  /** Когда счётчики последний раз правились действием — пересчёт, начатый раньше, их не перетирает */
+  mailboxCountsChangedAt?: number;
+};
 
-export async function mailboxFolders(): Promise<MailFolder[]> {
-  if (foldersCache && Date.now() - foldersCache.at < FOLDERS_TTL_MS) return foldersCache.folders;
-  const connection = await resolveMailbox();
-  if (!connection) throw new MailboxUnavailableError();
-  const folders = await listMailboxFolders(connection);
-  foldersCache = { at: Date.now(), folders };
+/** Папки без счётчиков — для страниц. */
+export async function mailboxFolderList(): Promise<MailFolder[]> {
+  const cached = globalForFolders.mailboxStructure;
+  if (cached && Date.now() - cached.at < STRUCTURE_TTL_MS) return cached.folders;
+  const folders = await withMailbox((client) => readFolders(client, false));
+  globalForFolders.mailboxStructure = { at: Date.now(), folders };
   return folders;
 }
 
+function refreshCounts(): Promise<MailFolder[]> {
+  if (globalForFolders.mailboxCountsLoading) return globalForFolders.mailboxCountsLoading;
+  const startedAt = Date.now();
+  globalForFolders.mailboxCountsLoading = withMailbox((client) => readFolders(client, true))
+    .then((folders) => {
+      globalForFolders.mailboxStructure = { at: Date.now(), folders };
+      const changedAt = globalForFolders.mailboxCountsChangedAt ?? 0;
+      if (changedAt >= startedAt && globalForFolders.mailboxCounts) {
+        // Пока шёл пересчёт, действие поправило счётчики — эти цифры уже старые.
+        // Оставляем поправленные и пересчитываем ещё раз после этого
+        setTimeout(() => void refreshCounts().catch(() => {}), 0);
+        return globalForFolders.mailboxCounts.folders;
+      }
+      globalForFolders.mailboxCounts = { at: Date.now(), folders };
+      return folders;
+    })
+    .finally(() => {
+      globalForFolders.mailboxCountsLoading = undefined;
+    });
+  return globalForFolders.mailboxCountsLoading;
+}
+
+/** Папки со счётчиками — для левой колонки. Устаревшие отдаются сразу, свежие — в фоне. */
+export async function mailboxFolders(): Promise<MailFolder[]> {
+  const cached = globalForFolders.mailboxCounts;
+  if (!cached) return refreshCounts();
+  if (Date.now() - cached.at >= COUNTS_TTL_MS) void refreshCounts().catch(() => {});
+  return cached.folders;
+}
+
+/** После действия с письмом счётчики изменились — пересчитать в фоне. */
 function dropFoldersCache() {
-  foldersCache = null;
+  void refreshCounts().catch(() => {});
 }
 
 type Address = { name?: string; address?: string };
@@ -176,7 +283,10 @@ export type MailboxLetter = {
 /** Одно письмо целиком. Открытие помечает его прочитанным — как в веб-почте. */
 export async function readMailboxLetter(path: string, uid: number): Promise<MailboxLetter | null> {
   const letter = await withMailbox(async (client) => {
-    const lock = await client.getMailboxLock(path);
+    // Только на чтение (EXAMINE): скачивание текста письма (BODY[…]) в папке,
+    // открытой на запись, сервер сам помечает прочитанным — и отметку ставила бы
+    // отрисовка страницы, а не человек.
+    const lock = await client.getMailboxLock(path, { readOnly: true });
     try {
       const message = await client.fetchOne(
         String(uid),
@@ -209,12 +319,13 @@ export async function readMailboxLetter(path: string, uid: number): Promise<Mail
         body = (await readStream(content)).toString("utf8");
         if (text.html) body = htmlToText(body);
       }
-      const seen = message.flags?.has("\\Seen") ?? false;
-      if (!seen) await client.messageFlagsAdd(String(uid), ["\\Seen"], { uid: true });
+      // Отметку «прочитано» здесь не ставим: страницу письма сервер перерисовывает и
+      // после действий — «Пометить непрочитанным» тут же снова делало бы письмо
+      // прочитанным. Её ставит `markLetterOpened`, один раз при открытии в браузере.
       return {
         uid,
         path,
-        seen: true,
+        seen: message.flags?.has("\\Seen") ?? false,
         from: addressText(message.envelope.from),
         fromEmail: normalizeEmailAddress(message.envelope.from?.[0]?.address),
         to: addressText(message.envelope.to),
@@ -230,7 +341,6 @@ export async function readMailboxLetter(path: string, uid: number): Promise<Mail
     }
   });
   if (!letter) return null;
-  dropFoldersCache();
 
   const erp = letter.messageId
     ? await db.email.findUnique({
@@ -241,36 +351,74 @@ export async function readMailboxLetter(path: string, uid: number): Promise<Mail
   return { ...letter, erp: erp ? { id: erp.id, orderNumber: erp.order?.number ?? null } : null };
 }
 
+/**
+ * Сдвиг счётчиков папки в кеше сразу после действия — чтобы левая колонка,
+ * которую сервер перерисует в ответе на действие, уже была верной, не дожидаясь
+ * фонового пересчёта из ящика (он всё равно запускается и всё выверит).
+ */
+function adjustCounts(path: string, delta: { messages?: number; unseen?: number }) {
+  const cached = globalForFolders.mailboxCounts;
+  if (!cached) return;
+  globalForFolders.mailboxCountsChangedAt = Date.now();
+  cached.folders = cached.folders.map((folder) =>
+    folder.path === path
+      ? {
+          ...folder,
+          messages: folder.messages === null ? null : Math.max(0, folder.messages + (delta.messages ?? 0)),
+          unseen: folder.unseen === null ? null : Math.max(0, folder.unseen + (delta.unseen ?? 0)),
+        }
+      : folder,
+  );
+}
+
+/** Прочитано ли письмо сейчас — перед действием, чтобы сдвинуть счётчики точно. */
+async function isSeen(client: ImapFlow, uid: number): Promise<boolean> {
+  const message = await client.fetchOne(String(uid), { uid: true, flags: true }, { uid: true });
+  return message ? (message.flags?.has("\\Seen") ?? false) : true;
+}
+
 export async function setLetterSeen(path: string, uid: number, seen: boolean): Promise<void> {
-  await withMailbox(async (client) => {
+  const changed = await withMailbox(async (client) => {
     const lock = await client.getMailboxLock(path);
     try {
+      if ((await isSeen(client, uid)) === seen) return false;
       if (seen) await client.messageFlagsAdd(String(uid), ["\\Seen"], { uid: true });
       else await client.messageFlagsRemove(String(uid), ["\\Seen"], { uid: true });
+      return true;
     } finally {
       lock.release();
     }
   });
+  if (changed) adjustCounts(path, { unseen: seen ? -1 : 1 });
   dropFoldersCache();
+}
+
+/** Письмо открыли в браузере — прочитано, как в веб-почте. */
+export async function markLetterOpened(path: string, uid: number): Promise<void> {
+  await setLetterSeen(path, uid, true);
 }
 
 export async function moveLetter(path: string, uid: number, destination: string): Promise<void> {
   if (path === destination) return;
-  await withMailbox(async (client) => {
+  const wasSeen = await withMailbox(async (client) => {
     const lock = await client.getMailboxLock(path);
     try {
+      const seen = await isSeen(client, uid);
       const moved = await client.messageMove(String(uid), destination, { uid: true });
       if (!moved) throw new OrderConflictError("Письмо не перемещено — возможно, его уже нет в папке");
+      return seen;
     } finally {
       lock.release();
     }
   });
+  adjustCounts(path, { messages: -1, unseen: wasSeen ? 0 : -1 });
+  adjustCounts(destination, { messages: 1, unseen: wasSeen ? 0 : 1 });
   dropFoldersCache();
 }
 
 /** «Удалить» — перенос в «Удалённые»: оттуда письмо возвращается, как в Яндексе. */
 export async function trashLetter(path: string, uid: number): Promise<string> {
-  const trash = (await mailboxFolders()).find((folder) => folder.specialUse === "\\Trash");
+  const trash = (await mailboxFolderList()).find((folder) => folder.specialUse === "\\Trash");
   if (!trash) throw new OrderConflictError("В ящике нет папки «Удалённые» — удалите письмо в самой почте");
   if (trash.path === path)
     throw new OrderConflictError("Письмо уже в «Удалённых» — окончательно удаляется в самой почте");
@@ -306,7 +454,7 @@ export async function attachLetterToOrder(
   orderNumber: number,
   user: SessionUser,
 ): Promise<void> {
-  const folders = await mailboxFolders();
+  const folders = await mailboxFolderList();
   const direction = folders.find((folder) => folder.path === path)?.specialUse === "\\Sent" ? "OUTBOUND" : "INBOUND";
 
   const source = await withMailbox(async (client) => {

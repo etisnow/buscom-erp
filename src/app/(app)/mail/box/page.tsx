@@ -5,7 +5,7 @@ import { ListPagination } from "@/components/layout/list-pagination";
 import { formatMoscowDateTime } from "@/domain/datetime";
 import { SPECIAL_FOLDER_LABELS } from "@/domain/email/folders";
 import { MAILBOX_ROLES } from "@/domain/user/role";
-import { listFolderLetters, mailboxFolders, MAILBOX_PAGE_SIZE } from "@/server/emails/mailbox-browser";
+import { listFolderLetters, mailboxFolderList, MAILBOX_PAGE_SIZE } from "@/server/emails/mailbox-browser";
 import { requirePageUser } from "@/server/session";
 import { pageNumber, single } from "@/app/(app)/search-params";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,7 @@ export default async function MailboxFolderPage({ searchParams }: PageProps<"/ma
 
   let loaded;
   try {
-    loaded = await Promise.all([mailboxFolders(), listFolderLetters(path, page)]);
+    loaded = await Promise.all([mailboxFolderList(), listFolderLetters(path, page)]);
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     return (

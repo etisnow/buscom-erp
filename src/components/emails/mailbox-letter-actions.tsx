@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   attachMailboxLetterAction,
+  markMailboxLetterOpenedAction,
   moveMailboxLetterAction,
   setMailboxSeenAction,
   trashMailboxLetterAction,
@@ -33,9 +34,12 @@ export function MailboxLetterActions({
   uid,
   folders,
   erp,
+  seen,
 }: {
   folder: string;
   uid: number;
+  /** Прочитано ли письмо в ящике на момент открытия */
+  seen: boolean;
   folders: { path: string; label: string }[];
   erp: { id: string; orderNumber: number | null } | null;
 }) {
@@ -45,6 +49,16 @@ export function MailboxLetterActions({
   const [orderNumber, setOrderNumber] = useState("");
   const [confirmTrash, setConfirmTrash] = useState(false);
   const ref = { folder, uid };
+
+  // Открыли непрочитанное — помечаем прочитанным, как веб-почта. Отдельным
+  // действием, а не при отрисовке: иначе «Пометить непрочитанным» тут же
+  // откатывалось бы перерисовкой страницы. Ответ действия обновит счётчики слева.
+  const opened = useRef(false);
+  useEffect(() => {
+    if (seen || opened.current) return;
+    opened.current = true;
+    void markMailboxLetterOpenedAction({ folder, uid });
+  }, [seen, folder, uid]);
   const backToFolder = `/mail/box?folder=${encodeURIComponent(folder)}`;
 
   function run(action: () => Promise<{ ok: true } | { ok: false; error: string }>, success: string, leave: boolean) {

@@ -125,21 +125,30 @@ export async function testMailboxConnection(connection: ImapSettings): Promise<{
  * Папки ящика с числом писем — посмотреть, как почта разложена в клиенте.
  * Подключение из формы (в том числе несохранённое); ящик не меняет.
  */
+/**
+ * Папки уже подключённого клиента. `withCounts` — с числом писем и непрочитанных:
+ * Яндекс отдаёт их отдельным запросом на каждую папку, это секунда на ~20 папок;
+ * без счётчиков список приходит за десятки миллисекунд.
+ */
+export async function readFolders(client: ImapFlow, withCounts: boolean): Promise<MailFolder[]> {
+  const list = await client.list(withCounts ? { statusQuery: { messages: true, unseen: true } } : { listOnly: true });
+  return list.map((item) => ({
+    path: item.path,
+    name: item.name,
+    delimiter: item.delimiter,
+    // Яндекс не помечает INBOX флагом — узнаём по имени, оно в IMAP зарезервировано
+    specialUse: item.specialUse ?? (item.path.toUpperCase() === "INBOX" ? "\\Inbox" : null),
+    messages: item.status?.messages ?? null,
+    unseen: item.status?.unseen ?? null,
+    selectable: !item.flags.has("\\Noselect"),
+  }));
+}
+
 export async function listMailboxFolders(connection: ImapSettings): Promise<MailFolder[]> {
   const client = createClient(connection);
   await client.connect();
   try {
-    const list = await client.list({ statusQuery: { messages: true, unseen: true } });
-    return list.map((item) => ({
-      path: item.path,
-      name: item.name,
-      delimiter: item.delimiter,
-      // Яндекс не помечает INBOX флагом — узнаём по имени, оно в IMAP зарезервировано
-      specialUse: item.specialUse ?? (item.path.toUpperCase() === "INBOX" ? "\\Inbox" : null),
-      messages: item.status?.messages ?? null,
-      unseen: item.status?.unseen ?? null,
-      selectable: !item.flags.has("\\Noselect"),
-    }));
+    return await readFolders(client, true);
   } finally {
     await client.logout().catch(() => client.close());
   }
