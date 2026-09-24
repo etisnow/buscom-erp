@@ -41,7 +41,7 @@ export async function updateOrderDelivery(input: UpdateDeliveryInput): Promise<O
 
     await tx.order.update({ where: { id: order.id }, data });
     if (input.deliveryPriceKopecks !== undefined) {
-      await recalculateOrderTotals(tx, order.id);
+      await recalculateOrderTotals(tx, order.id, input.user);
     }
 
     await writeOrderEvent(tx, {

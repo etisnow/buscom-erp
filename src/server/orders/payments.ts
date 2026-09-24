@@ -1,5 +1,6 @@
 import "server-only";
 import type { Kopecks } from "@/domain/money";
+import { paymentStatus } from "@/domain/order/payment-status";
 import type { PaymentMethod } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
 import {
@@ -9,6 +10,7 @@ import {
   writeOrderEvent,
   type OrderWithItems,
 } from "@/server/orders/internal";
+import { notifyPaymentStatusChange } from "@/server/notifications/queue";
 import type { SessionUser } from "@/server/session";
 
 export type AddPaymentInput = {
@@ -63,6 +65,12 @@ export async function addPayment(input: AddPaymentInput): Promise<OrderWithItems
         amountKopecks: input.amountKopecks,
         reference: input.reference ?? null,
       },
+    });
+
+    await notifyPaymentStatusChange(tx, {
+      orderId: order.id,
+      actorId: input.user.id,
+      before: paymentStatus(order.totalKopecks, order.paidKopecks),
     });
 
     return tx.order.findUniqueOrThrow({ where: { id: order.id }, include: orderInclude });

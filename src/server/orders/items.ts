@@ -94,7 +94,7 @@ export async function updateOrderItems(input: UpdateItemsInput): Promise<OrderWi
       where: { id: order.id },
       data: { discountKopecks, deliveryPriceKopecks },
     });
-    await recalculateOrderTotals(tx, order.id);
+    await recalculateOrderTotals(tx, order.id, input.user);
 
     const updated = await tx.order.findUniqueOrThrow({ where: { id: order.id }, include: orderInclude });
 

@@ -16,6 +16,7 @@ import type { OrderItemDraft } from "@/server/orders/items";
 import { assertManualSource } from "@/server/orders/source";
 import { resolveItemOptions } from "@/server/orders/options";
 import { resolveItemSuppliers, syncSupplierTracks } from "@/server/orders/suppliers";
+import { notifyOrderCreated } from "@/server/notifications/queue";
 import { getSettings } from "@/server/settings/service";
 import type { SessionUser } from "@/server/session";
 
@@ -105,6 +106,13 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderWithIte
       type: "CREATED",
       toStatus: "IN_PROGRESS",
       comment: `Заказ создан вручную (${sourceItem?.name ?? ORDER_SOURCE_LABELS[input.source ?? "OTHER"]})`,
+    });
+
+    await notifyOrderCreated(tx, {
+      orderId: order.id,
+      actorId: input.user.id,
+      channel: "MANUAL",
+      sourceLabel: ORDER_SOURCE_LABELS[input.source ?? "OTHER"],
     });
 
     return tx.order.findUniqueOrThrow({ where: { id: order.id }, include: orderInclude });

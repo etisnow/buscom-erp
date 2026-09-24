@@ -6,6 +6,7 @@ import { calculateUnitCost, orderCostsTotal, parsePriceFormula } from "@/domain/
 import { assertStageMove, type TrackPosition } from "@/domain/supplier/stages";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/server/db";
+import { notifySupplierStage } from "@/server/notifications/queue";
 import { loadOrder, OrderConflictError, writeOrderEvent, type Tx } from "@/server/orders/internal";
 import type { SessionUser } from "@/server/session";
 
@@ -219,5 +220,15 @@ export async function changeSupplierStage(input: ChangeSupplierStageInput): Prom
       comment: `${track.supplier.name}: ${label(fromIndex)} → ${label(toIndex)}`,
       payload: { supplierId: input.supplierId, fromStageId: track.stageId, toStageId: input.toStageId },
     });
+
+    if (toIndex !== null && toIndex >= 0) {
+      await notifySupplierStage(tx, {
+        orderId: order.id,
+        actorId: input.user.id,
+        supplierName: track.supplier.name,
+        fromStageName: fromIndex === null || fromIndex < 0 ? null : stages[fromIndex].name,
+        toStage: stages[toIndex],
+      });
+    }
   });
 }

@@ -4,6 +4,7 @@ import { customerName, declaredItemsTotal, parseSiteOrder, type SiteOrderPayload
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/server/db";
 import { findOrCreateCustomer } from "@/server/customers/match";
+import { notifyOrderCreated } from "@/server/notifications/queue";
 import { recalculateOrderTotals, slaDueAtFor, writeOrderEvent, type Tx } from "@/server/orders/internal";
 import { resolveSystemSource } from "@/server/orders/source";
 import { readSettings } from "@/server/settings/service";
@@ -178,6 +179,9 @@ export async function createOrderFromPayload(
         payload: { method: payload.payment?.method ?? "ONLINE", amountKopecks: paidKopecks },
       });
     }
+
+    // После предоплаты — чтобы письмо показало статус оплаты с сайта.
+    await notifyOrderCreated(tx, { orderId: order.id, actorId: null, channel: "SITE", sourceLabel: "Сайт" });
 
     // Расхождение сумм не блокирует приём заказа, но должно быть видно (PRD).
     const declared = payload.totalKopecks;

@@ -29,10 +29,15 @@ model User {
   image         String?
   role          UserRole @default(MANAGER)
   isActive      Boolean  @default(true)
+  /// Почта для уведомлений из личных настроек. null — не задана, уведомления идут на `email` входа
+  notificationEmail String?
+  /// На что подписан: ключи тем из src/domain/notification/topics.ts
+  notificationTopics String[] @default([])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   sessions      Session[]
+  notifications Notification[]
   accounts      Account[]
   managedOrders Order[]      @relation("OrderManager")
   orderEvents   OrderEvent[]
@@ -449,6 +454,7 @@ model Order {
   items             OrderItem[]
   payments          Payment[]
   events            OrderEvent[]
+  notifications     Notification[]
   supplierTracks    OrderSupplierTrack[]
   supplierDocuments OrderSupplierDocument[]
 
@@ -586,6 +592,28 @@ model OrderEvent {
   createdAt  DateTime       @default(now())
 
   @@index([orderId, createdAt])
+}
+
+/// Письмо-уведомление одному сотруднику. Пишется в той же транзакции, что и
+/// событие (очередь), отправляется после — src/server/notifications/dispatch.ts.
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Ключ темы, по которой сотрудник подписан
+  topic     String
+  orderId   String?
+  order     Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  subject   String
+  text      String
+  createdAt DateTime  @default(now())
+  /// Отправитель взял письмо в работу; зависшее дольше 10 минут берётся снова
+  claimedAt DateTime?
+  sentAt    DateTime?
+  attempts  Int       @default(0)
+  lastError String?
+
+  @@index([sentAt, createdAt])
 }
 
 // ---------------------------------------------------------------------------

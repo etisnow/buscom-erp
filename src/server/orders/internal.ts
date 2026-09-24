@@ -1,8 +1,10 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import type { OrderEventType, OrderStatus } from "@/generated/prisma/enums";
+import { paymentStatus } from "@/domain/order/payment-status";
 import { calculateOrderTotals } from "@/domain/order/totals";
 import { addWorkingMinutes, DEFAULT_SLA_MINUTES } from "@/domain/sla";
+import { notifyPaymentStatusChange } from "@/server/notifications/queue";
 import type { SessionUser } from "@/server/session";
 
 /** Клиент внутри транзакции: все действия сервиса пишут заказ и событие одним куском. */
@@ -72,8 +74,12 @@ export async function writeOrderEvent(tx: Tx, input: EventInput): Promise<void> 
   });
 }
 
-/** Пересчитывает итоги из позиций заказа и сохраняет их. Суммы с клиента не принимаются. */
-export async function recalculateOrderTotals(tx: Tx, orderId: string): Promise<void> {
+/**
+ * Пересчитывает итоги из позиций заказа и сохраняет их. Суммы с клиента не принимаются.
+ * Новый итог может сдвинуть статус оплаты (добавили позицию к оплаченному заказу) —
+ * об этом уведомляются подписанные, кроме `actor`.
+ */
+export async function recalculateOrderTotals(tx: Tx, orderId: string, actor: SessionUser | null = null): Promise<void> {
   const order = await tx.order.findUniqueOrThrow({
     where: { id: orderId },
     include: { items: true },
@@ -95,6 +101,12 @@ export async function recalculateOrderTotals(tx: Tx, orderId: string): Promise<v
       itemsTotalKopecks: totals.itemsTotalKopecks,
       totalKopecks: totals.totalKopecks,
     },
+  });
+
+  await notifyPaymentStatusChange(tx, {
+    orderId,
+    actorId: actor?.id ?? null,
+    before: paymentStatus(order.totalKopecks, order.paidKopecks),
   });
 }
 

@@ -68,6 +68,11 @@ function getTransporter(smtp: SmtpSettings): Transporter {
   return cached.transporter;
 }
 
+/** Настроена ли почта — в интерфейсе или в окружении. Без неё `sendLetter` только пишет в лог. */
+export async function mailConfigured(): Promise<boolean> {
+  return (await resolveSmtp()) !== null;
+}
+
 /**
  * Отправка письма. Без настроенного SMTP письмо не теряется молча:
  * оно печатается в лог сервера — так работает локальная разработка,
@@ -131,4 +136,18 @@ export async function sendTestLetter(smtp: SmtpSettings, to: string): Promise<vo
   } finally {
     transporter.close();
   }
+}
+
+/** Проверка адреса уведомлений из личных настроек. */
+export function testNotificationLetter(to: string, name: string): Letter {
+  return {
+    to,
+    subject: "BusCom ERP: тестовое уведомление",
+    text: [
+      `${name}, это тестовое письмо из личных настроек BusCom ERP.`,
+      "",
+      "Раз оно дошло, уведомления о заказах будут приходить на этот адрес.",
+      "Если письмо попало в спам, отметьте его как «не спам».",
+    ].join("\n"),
+  };
 }
