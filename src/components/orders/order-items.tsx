@@ -68,6 +68,7 @@ export function OrderItems({
   products,
   suppliers,
   categories,
+  carModels,
   canEditCatalog,
 }: {
   orderId: string;
@@ -80,6 +81,8 @@ export function OrderItems({
   products: ProductRow[];
   suppliers: SupplierOption[];
   categories: CategoryRow[];
+  /** Модели авто для совместимости в карточке товара */
+  carModels: string[];
   canEditCatalog: boolean;
 }) {
   const [items, setItems] = useState<ItemRow[]>(initialItems);
@@ -363,6 +366,7 @@ export function OrderItems({
           product={cardProduct}
           suppliers={suppliers}
           categories={categories}
+          carModels={carModels}
           open
           onOpenChange={(open) => {
             if (!open) setCardProductId(null);

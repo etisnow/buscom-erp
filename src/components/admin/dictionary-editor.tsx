@@ -28,7 +28,7 @@ export function DictionaryEditor({
   items,
   fallbackNote,
 }: {
-  type: "CANCEL_REASON" | "CARRIER" | "ORDER_SOURCE";
+  type: "CANCEL_REASON" | "CARRIER" | "ORDER_SOURCE" | "CAR_MODEL";
   title: string;
   description: string;
   items: DictionaryEntry[];

@@ -17,10 +17,13 @@ export function ProductsToolbar({
   categories,
   canEditCatalog,
   suppliers,
+  carModels,
 }: {
   categories: CategoryRow[];
   canEditCatalog: boolean;
   suppliers: SupplierOption[];
+  /** Модели авто для совместимости в карточке товара */
+  carModels: string[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -78,7 +81,13 @@ export function ProductsToolbar({
             <Plus />
             Новый товар
           </Button>
-          <ProductDialog open={createOpen} onOpenChange={setCreateOpen} suppliers={suppliers} categories={categories} />
+          <ProductDialog
+            open={createOpen}
+            onOpenChange={setCreateOpen}
+            suppliers={suppliers}
+            categories={categories}
+            carModels={carModels}
+          />
         </>
       ) : null}
     </div>

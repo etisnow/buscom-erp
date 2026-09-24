@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { listCategories } from "@/server/products/categories";
 import { listProducts } from "@/server/products/list";
 import { canEditCatalog } from "@/server/products/service";
+import { getCarModels } from "@/server/settings/service";
 import { listSupplierOptions } from "@/server/suppliers/list";
 import { requirePageUser } from "@/server/session";
 import { parseProductListParams } from "./params";
@@ -22,10 +23,11 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
   const user = await requirePageUser();
   const params = await searchParams;
 
-  const [result, suppliers, categories] = await Promise.all([
+  const [result, suppliers, categories, carModels] = await Promise.all([
     listProducts(parseProductListParams(params)),
     listSupplierOptions(),
     listCategories(),
+    getCarModels(),
   ]);
   const urlParams = toSearchParams(params);
 
@@ -51,7 +53,12 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
       </div>
 
       <Suspense fallback={null}>
-        <ProductsToolbar categories={categories} canEditCatalog={canEditCatalog(user.role)} suppliers={suppliers} />
+        <ProductsToolbar
+          categories={categories}
+          canEditCatalog={canEditCatalog(user.role)}
+          suppliers={suppliers}
+          carModels={carModels}
+        />
       </Suspense>
 
       <ProductsTable
@@ -59,6 +66,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
         canEditCatalog={canEditCatalog(user.role)}
         suppliers={suppliers}
         categories={categories}
+        carModels={carModels}
       />
 
       <ListPagination

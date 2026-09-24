@@ -14,11 +14,12 @@ export default async function AdminDictionariesPage() {
   // Адрес администратора нужен разделу почты: проверочное письмо уходит ему
   const user = await requirePageUser(ADMIN_ROLES);
 
-  const [settings, orderSources, cancelReasons, carriers] = await Promise.all([
+  const [settings, orderSources, cancelReasons, carriers, carModels] = await Promise.all([
     getSettings(),
     listDictionary("ORDER_SOURCE"),
     listDictionary("CANCEL_REASON"),
     listDictionary("CARRIER"),
+    listDictionary("CAR_MODEL"),
   ]);
 
   return (
@@ -45,6 +46,13 @@ export default async function AdminDictionariesPage() {
         title="Транспортные компании"
         description="Из этого списка выбирается перевозчик в доставке заказа. Выключенная компания пропадает из выбора, но остаётся в старых заказах."
         items={carriers}
+      />
+
+      <DictionaryEditor
+        type="CAR_MODEL"
+        title="Модели авто"
+        description="Из этого списка выбирается совместимость в карточке товара. Переименование меняет название модели и у товаров. Выключенная модель пропадёт из выбора, но останется у товаров, где уже стоит; модель, указанную у товаров, удалить нельзя — только выключить."
+        items={carModels}
       />
 
       <DiscountLimitEditor percent={settings.discountLimitPercent} />

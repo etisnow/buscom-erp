@@ -1,5 +1,6 @@
 import "server-only";
 import type { Kopecks } from "@/domain/money";
+import { normalizeCompatibility, unknownModels } from "@/domain/product/compatibility";
 import { normalizeOptionGroups, type OptionGroupDraft } from "@/domain/product/options";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/server/db";
@@ -64,7 +65,7 @@ export async function createProduct(draft: ProductDraft, user: SessionUser): Pro
         description: draft.description?.trim() || null,
         categoryId: draft.categoryId || null,
         priceKopecks: draft.priceKopecks,
-        compatibility: draft.compatibility ?? [],
+        compatibility: await checkCompatibility(tx, draft.compatibility ?? []),
         isActive: draft.isActive ?? true,
       },
       select: { id: true },
@@ -90,7 +91,9 @@ export async function updateProduct(id: string, draft: Partial<ProductDraft>, us
         ...(draft.description !== undefined ? { description: draft.description?.trim() || null } : {}),
         ...(draft.categoryId !== undefined ? { categoryId: draft.categoryId || null } : {}),
         ...(draft.priceKopecks !== undefined ? { priceKopecks: draft.priceKopecks } : {}),
-        ...(draft.compatibility !== undefined ? { compatibility: draft.compatibility } : {}),
+        ...(draft.compatibility !== undefined
+          ? { compatibility: await checkCompatibility(tx, draft.compatibility, id) }
+          : {}),
         ...(draft.isActive !== undefined ? { isActive: draft.isActive } : {}),
       },
     });
@@ -99,6 +102,31 @@ export async function updateProduct(id: string, draft: Partial<ProductDraft>, us
     // После опций: закупки привязываются к вариантам по названию, новым нужен уже их id
     if (draft.suppliers) await replaceOptionPrices(tx, id, draft.suppliers);
   });
+}
+
+/**
+ * Модели совместимости — только из справочника «Модели авто» (включая выключенные).
+ * Названия, которые уже стоят у товара, пропускаются и без справочника: у старых
+ * товаров они вводились текстом, и сохранение карточки не должно на них падать.
+ */
+async function checkCompatibility(tx: Tx, models: string[], productId?: string): Promise<string[]> {
+  const dictionary = (
+    await tx.dictionaryItem.findMany({
+      where: { type: "CAR_MODEL" },
+      select: { name: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    })
+  ).map((item) => item.name);
+  const current = productId
+    ? ((await tx.product.findUnique({ where: { id: productId }, select: { compatibility: true } }))?.compatibility ??
+      [])
+    : [];
+
+  const unknown = unknownModels(models, [...dictionary, ...current]);
+  if (unknown.length > 0) {
+    throw new Error(`Нет в справочнике моделей авто: ${unknown.join(", ")}`);
+  }
+  return normalizeCompatibility(models, dictionary);
 }
 
 /**

@@ -24,6 +24,7 @@ import {
   type VariantOption,
   type VariantSelection,
 } from "@/domain/product/vanproject";
+import { toggleModel } from "@/domain/product/compatibility";
 import { calculateUnitCost } from "@/domain/supplier/price-economics";
 import { CategorySelect } from "@/components/products/category-select";
 import { ProductGalleryEditor } from "@/components/products/product-image";
@@ -92,12 +93,15 @@ export function ProductDialog({
   product,
   suppliers,
   categories,
+  carModels,
   open,
   onOpenChange,
 }: {
   product?: ProductRow;
   suppliers: SupplierOption[];
   categories: CategoryRow[];
+  /** Включённые модели из справочника «Модели авто», в его порядке */
+  carModels: string[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -106,8 +110,10 @@ export function ProductDialog({
   const [description, setDescription] = useState(product?.description ?? "");
   const [categoryId, setCategoryId] = useState<string | null>(product?.categoryId ?? null);
   const [price, setPrice] = useState(((product?.priceKopecks ?? 0) / 100).toFixed(2));
-  // Совместимые модели вводятся через запятую — так быстрее, чем тегами.
-  const [compatibility, setCompatibility] = useState((product?.compatibility ?? []).join(", "));
+  const [compatibility, setCompatibility] = useState<string[]>(product?.compatibility ?? []);
+  // Модели товара, которых нет среди включённых в справочнике (старый текст или выключенная
+  // модель), тоже показываем — иначе их нельзя было бы снять.
+  const modelChoices = [...carModels, ...compatibility.filter((model) => !carModels.includes(model))];
   const [links, setLinks] = useState<SupplierDraft[]>(
     (product?.suppliers ?? []).map((link) => ({
       supplierId: link.supplierId,
@@ -310,10 +316,7 @@ export function ProductDialog({
       description,
       categoryId,
       priceKopecks,
-      compatibility: compatibility
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
+      compatibility,
       suppliers: supplierLinks,
       options,
     };
@@ -385,16 +388,40 @@ export function ProductDialog({
             />
           </div>
           <div className="flex flex-col gap-1.5 sm:col-span-2">
-            <Label className="text-xs" htmlFor="product-compat">
-              Совместимость (через запятую)
-            </Label>
-            <Input
-              id="product-compat"
-              value={compatibility}
-              onChange={(event) => setCompatibility(event.target.value)}
-              placeholder="ГАЗель Next, Ford Transit"
-              className="h-8"
-            />
+            <span className="text-xs font-medium" id="product-compat">
+              Совместимость
+            </span>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby="product-compat">
+              {modelChoices.map((model) => {
+                const selected = compatibility.includes(model);
+                const known = carModels.includes(model);
+                return (
+                  <button
+                    key={model}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setCompatibility(toggleModel(compatibility, model))}
+                    title={
+                      known
+                        ? undefined
+                        : "Нет среди включённых моделей справочника — после снятия выбрать снова не выйдет"
+                    }
+                    className={
+                      selected
+                        ? "bg-primary text-primary-foreground border-primary rounded-md border px-2 py-0.5 text-xs"
+                        : "text-muted-foreground hover:bg-accent rounded-md border px-2 py-0.5 text-xs"
+                    }
+                  >
+                    {known ? model : `${model} (нет в справочнике)`}
+                  </button>
+                );
+              })}
+            </div>
+            {carModels.length === 0 ? (
+              <p className="text-muted-foreground text-xs">
+                Справочник моделей пуст — модели заводит администратор в «Справочниках и настройках».
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-col gap-1.5 sm:col-span-2">
             <Label className="text-xs" htmlFor="product-description">

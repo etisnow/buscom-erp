@@ -27,7 +27,7 @@ import { listManagers } from "@/server/orders/list";
 import { listCategories } from "@/server/products/categories";
 import { findProductRows } from "@/server/products/list";
 import { canEditCatalog } from "@/server/products/service";
-import { getCancelReasons, getCarriers, getOrderSources } from "@/server/settings/service";
+import { getCancelReasons, getCarModels, getCarriers, getOrderSources } from "@/server/settings/service";
 import { requirePageUser } from "@/server/session";
 import { listSupplierOptions } from "@/server/suppliers/list";
 
@@ -52,11 +52,12 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
   ]);
   if (!order) notFound();
 
-  // Товары позиций, поставщики и категории — для правки позиции и карточки товара прямо из заказа.
-  const [products, suppliers, categories] = await Promise.all([
+  // Товары позиций, поставщики, категории и модели — для правки позиции и карточки товара прямо из заказа.
+  const [products, suppliers, categories, carModels] = await Promise.all([
     findProductRows(order.items.map((item) => item.productId).filter((id): id is string => id !== null)),
     listSupplierOptions(),
     listCategories(),
+    getCarModels(),
   ]);
 
   const editable = canEditItems(order.status, user.role, order.paidKopecks);
@@ -164,6 +165,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
             products={products}
             suppliers={suppliers}
             categories={categories}
+            carModels={carModels}
             canEditCatalog={canEditCatalog(user.role)}
           />
 

@@ -33,11 +33,14 @@ export function ProductsTable({
   canEditCatalog,
   suppliers,
   categories,
+  carModels,
 }: {
   rows: ProductRow[];
   canEditCatalog: boolean;
   suppliers: SupplierOption[];
   categories: CategoryRow[];
+  /** Модели авто для совместимости в карточке товара */
+  carModels: string[];
 }) {
   const [pending, startTransition] = useTransition();
   const [editingProduct, setEditingProduct] = useState<ProductRow | null>(null);
@@ -158,6 +161,7 @@ export function ProductsTable({
           product={rows.find((row) => row.id === editingProduct.id) ?? editingProduct}
           suppliers={suppliers}
           categories={categories}
+          carModels={carModels}
           open
           onOpenChange={(open) => {
             if (!open) setEditingProduct(null);

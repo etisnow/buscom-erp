@@ -123,20 +123,42 @@ export async function setDictionaryItemActive(id: string, isActive: boolean): Pr
 export async function deleteDictionaryItem(id: string): Promise<void> {
   const item = await db.dictionaryItem.findUniqueOrThrow({
     where: { id },
-    select: { systemCode: true, _count: { select: { orders: true } } },
+    select: { type: true, name: true, systemCode: true, _count: { select: { orders: true } } },
   });
   if (item.systemCode) throw new Error("Системный источник удалить нельзя — его ставит сама система");
   if (item._count.orders > 0) {
     throw new Error(`Источник стоит в заказах (${item._count.orders}) — удалить нельзя, его можно выключить`);
   }
+  // Модель товар хранит названием: удалённая осталась бы у товаров «ничьей».
+  if (item.type === "CAR_MODEL") {
+    const products = await db.product.count({ where: { compatibility: { has: item.name } } });
+    if (products > 0) {
+      throw new Error(`Модель указана у товаров (${products}) — удалить нельзя, её можно выключить`);
+    }
+  }
 
   await db.dictionaryItem.delete({ where: { id } });
 }
 
+/**
+ * Переименование. Модель авто товар хранит названием, поэтому она переименовывается
+ * и у товаров — в той же транзакции, иначе товары остались бы со старым названием.
+ * ТК и причины отмены заказ хранит текстом как снимок: старые заказы не трогаем.
+ */
 export async function renameDictionaryItem(id: string, name: string): Promise<void> {
   const value = name.trim();
   if (!value) throw new Error("Название не может быть пустым");
-  await db.dictionaryItem.update({ where: { id }, data: { name: value } });
+
+  await db.$transaction(async (tx) => {
+    const item = await tx.dictionaryItem.findUniqueOrThrow({ where: { id }, select: { type: true, name: true } });
+    await tx.dictionaryItem.update({ where: { id }, data: { name: value } });
+    if (item.type === "CAR_MODEL" && item.name !== value) {
+      await tx.$executeRaw`
+        UPDATE "Product"
+        SET "compatibility" = array_replace("compatibility", ${item.name}, ${value}), "updatedAt" = now()
+        WHERE ${item.name} = ANY("compatibility")`;
+    }
+  });
 }
 
 /**
@@ -147,6 +169,15 @@ export async function renameDictionaryItem(id: string, name: string): Promise<vo
 export async function getCancelReasons(): Promise<string[]> {
   const items = await listDictionary("CANCEL_REASON", true);
   return items.length > 0 ? items.map((item) => item.name) : [...CANCEL_REASONS];
+}
+
+/**
+ * Модели авто для выбора совместимости в карточке товара — включённые, в порядке
+ * справочника. Выключенная модель пропадает из выбора, но остаётся у товаров.
+ */
+export async function getCarModels(): Promise<string[]> {
+  const items = await listDictionary("CAR_MODEL", true);
+  return items.map((item) => item.name);
 }
 
 /** Транспортные компании для подсказки в блоке доставки. */
