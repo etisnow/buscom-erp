@@ -18,7 +18,16 @@ import {
  * Текст собирает сервер (`buildSupplierRequest`), здесь он только показывается —
  * так формат один на всех и покрыт тестами.
  */
-export function SupplierRequestDialog({ supplierName, text }: { supplierName: string; text: string }) {
+export function SupplierRequestDialog({
+  supplierName,
+  text,
+  prices = "purchase",
+}: {
+  supplierName: string;
+  text: string;
+  /** Какие цены в тексте: закупочные или наши цены продажи — влияет только на подписи */
+  prices?: "purchase" | "ours";
+}) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -37,16 +46,18 @@ export function SupplierRequestDialog({ supplierName, text }: { supplierName: st
       <DialogTrigger asChild>
         <Button size="sm" variant="ghost">
           <Send />
-          Заказ поставщику
+          {prices === "ours" ? "Заказ поставщику (наши цены)" : "Заказ поставщику"}
         </Button>
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Заказ для «{supplierName}»</DialogTitle>
+          <DialogTitle>
+            Заказ для «{supplierName}»{prices === "ours" ? " — наши цены" : ""}
+          </DialogTitle>
           <DialogDescription>
-            Только позиции этого поставщика, цены закупочные. Скопируйте и отправьте — перед отправкой текст можно
-            поправить в мессенджере.
+            Только позиции этого поставщика, цены {prices === "ours" ? "наши, продажные" : "закупочные"}. Скопируйте и
+            отправьте — перед отправкой текст можно поправить в мессенджере.
           </DialogDescription>
         </DialogHeader>
 

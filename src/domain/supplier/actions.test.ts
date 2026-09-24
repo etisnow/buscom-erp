@@ -7,9 +7,10 @@ import {
 } from "@/domain/supplier/actions";
 
 describe("SUPPLIER_ACTIONS", () => {
-  it("содержит «Заказ поставщику» и «Прикрепить счёт поставщика клиенту»", () => {
+  it("содержит оба «Заказа поставщику» и «Прикрепить счёт поставщика клиенту»", () => {
     const keys = SUPPLIER_ACTIONS.map((action) => action.key);
     expect(keys).toContain("SUPPLIER_REQUEST");
+    expect(keys).toContain("SUPPLIER_REQUEST_OUR_PRICES");
     expect(keys).toContain("SUPPLIER_INVOICE");
   });
 
@@ -23,6 +24,7 @@ describe("SUPPLIER_ACTIONS", () => {
 describe("isSupplierActionKey", () => {
   it("принимает известные ключи и отклоняет прочее", () => {
     expect(isSupplierActionKey("SUPPLIER_REQUEST")).toBe(true);
+    expect(isSupplierActionKey("SUPPLIER_REQUEST_OUR_PRICES")).toBe(true);
     expect(isSupplierActionKey("SUPPLIER_INVOICE")).toBe(true);
     expect(isSupplierActionKey("НЕИЗВЕСТНО")).toBe(false);
     expect(isSupplierActionKey("")).toBe(false);

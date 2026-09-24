@@ -28,6 +28,12 @@ export const SUPPLIER_ACTIONS = [
     kind: "button",
   },
   {
+    key: "SUPPLIER_REQUEST_OUR_PRICES",
+    label: "Заказ поставщику (наши цены)",
+    description: "То же, что «Заказ поставщику», но в позициях наши цены продажи вместо закупочных",
+    kind: "button",
+  },
+  {
     key: "SUPPLIER_INVOICE",
     label: "Прикрепить счёт поставщика клиенту",
     description: "Прямой счёт от поставщика клиенту с заложенной туда прибылью",

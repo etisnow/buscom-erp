@@ -234,41 +234,51 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
                   (item) => item.supplierId === track.supplier.id && item.kind === "SUPPLIER_INVOICE",
                 );
 
+                // Текст собирается на сервере: формат один на всех и покрыт тестами.
+                // Строится, только если включено действие — незачем считать зря.
+                // «Наши цены» — цена продажи за штуку из позиции (до скидки на позицию:
+                // скидка задана на строку целиком). Расходов на заказ там нет — это
+                // закупочная статья, к нашим ценам не относится.
+                const buildRequest = (prices: "purchase" | "ours") =>
+                  buildSupplierRequest({
+                    orderNumber: order.number,
+                    orderCreatedAt: order.createdAt,
+                    items: order.items
+                      .filter((item) => item.supplierId === track.supplier.id)
+                      .map((item) => ({
+                        name: item.name,
+                        quantity: item.quantity,
+                        priceKopecks:
+                          prices === "ours"
+                            ? item.priceKopecks
+                            : // Конечная стоимость с экономикой цены; у позиций без снимка — номинал
+                              (item.purchaseCostKopecks ?? item.purchasePriceKopecks),
+                        options: parseOrderItemOptions(item.options),
+                      })),
+                    orderCostKopecks: prices === "ours" ? 0 : track.orderCostKopecks,
+                    delivery: {
+                      method: order.deliveryMethod,
+                      carrier: order.carrier,
+                      address: order.deliveryAddress,
+                    },
+                    customer: {
+                      name: order.customer.name,
+                      phone: order.customer.phone,
+                      inn: order.customer.inn,
+                      kpp: order.customer.kpp,
+                      requisites: parseCustomerRequisites(order.customer.requisites),
+                    },
+                  });
+
                 return {
                   supplierId: track.supplier.id,
                   supplierName: track.supplier.name,
                   stageId: track.stageId,
                   stages: track.supplier.stages,
                   enabledActions,
-                  // Текст собирается на сервере: формат один на всех и покрыт тестами.
-                  // Строится, только если включено действие — незачем считать зря.
-                  requestText: hasSupplierAction(enabledActions, "SUPPLIER_REQUEST")
-                    ? buildSupplierRequest({
-                        orderNumber: order.number,
-                        orderCreatedAt: order.createdAt,
-                        items: order.items
-                          .filter((item) => item.supplierId === track.supplier.id)
-                          .map((item) => ({
-                            name: item.name,
-                            quantity: item.quantity,
-                            // Конечная стоимость с экономикой цены; у позиций без снимка — номинал
-                            priceKopecks: item.purchaseCostKopecks ?? item.purchasePriceKopecks,
-                            options: parseOrderItemOptions(item.options),
-                          })),
-                        orderCostKopecks: track.orderCostKopecks,
-                        delivery: {
-                          method: order.deliveryMethod,
-                          carrier: order.carrier,
-                          address: order.deliveryAddress,
-                        },
-                        customer: {
-                          name: order.customer.name,
-                          phone: order.customer.phone,
-                          inn: order.customer.inn,
-                          kpp: order.customer.kpp,
-                          requisites: parseCustomerRequisites(order.customer.requisites),
-                        },
-                      })
+                  requestText: hasSupplierAction(enabledActions, "SUPPLIER_REQUEST") ? buildRequest("purchase") : null,
+                  ourPricesRequestText: hasSupplierAction(enabledActions, "SUPPLIER_REQUEST_OUR_PRICES")
+                    ? buildRequest("ours")
                     : null,
                   invoiceDocument: document
                     ? { id: document.id, fileName: document.fileName, byteSize: document.byteSize }

@@ -19,6 +19,8 @@ export type SupplierTrackView = {
   enabledActions: string[];
   /** Готовый текст заказа этому поставщику — есть, только если включено действие «Заказ поставщику» */
   requestText: string | null;
+  /** То же с нашими ценами продажи — есть, только если включено «Заказ поставщику (наши цены)» */
+  ourPricesRequestText: string | null;
   /** Прикреплённый счёт поставщика — есть, только если включено действие «Прикрепить счёт…» */
   invoiceDocument: SupplierDocumentView;
 };
@@ -114,6 +116,15 @@ export function SupplierTracks({
               <div className="flex flex-wrap items-center gap-2">
                 {hasSupplierAction(track.enabledActions, "SUPPLIER_REQUEST") && track.requestText ? (
                   <SupplierRequestDialog supplierName={track.supplierName} text={track.requestText} />
+                ) : null}
+
+                {hasSupplierAction(track.enabledActions, "SUPPLIER_REQUEST_OUR_PRICES") &&
+                track.ourPricesRequestText ? (
+                  <SupplierRequestDialog
+                    supplierName={track.supplierName}
+                    text={track.ourPricesRequestText}
+                    prices="ours"
+                  />
                 ) : null}
 
                 {hasSupplierAction(track.enabledActions, "SUPPLIER_INVOICE") ? (
