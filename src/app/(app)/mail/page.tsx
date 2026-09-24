@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowDownLeft, ArrowUpRight, Paperclip } from "lucide-react";
 import { ListPagination } from "@/components/layout/list-pagination";
 import { formatMoscowDateTime } from "@/domain/datetime";
+import { splitQuotedReply } from "@/domain/email/letters";
 import { listMailbox, MAILBOX_PAGE_SIZE, MAILBOX_VIEWS, type MailboxView } from "@/server/emails/service";
 import { isMailboxConfigured } from "@/server/integrations/mailbox";
 import { requirePageUser } from "@/server/session";
@@ -90,7 +91,7 @@ export default async function MailPage({ searchParams }: PageProps<"/mail">) {
                   </span>
                   <span className="min-w-0 truncate max-sm:col-start-2 max-sm:row-start-2">
                     <span className={cn(unread && "font-semibold")}>{email.subject}</span>
-                    <span className="text-muted-foreground"> — {email.body.slice(0, 160)}</span>
+                    <span className="text-muted-foreground"> — {splitQuotedReply(email.body).main.slice(0, 160)}</span>
                   </span>
                   <span className="text-muted-foreground flex items-center gap-2 text-xs whitespace-nowrap">
                     {email.attachments.length > 0 ? <Paperclip className="size-3" aria-label="Есть вложения" /> : null}

@@ -54,7 +54,8 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplates = {
 
 /** Подстановки с пояснениями — для подсказки в редакторе шаблонов. */
 export const TEMPLATE_PLACEHOLDERS: { key: string; description: string }[] = [
-  { key: "номер", description: "номер заказа" },
+  { key: "номер", description: "номер заказа для клиента: на сайте, если заказ с сайта, иначе в ERP" },
+  { key: "номер_в_erp", description: "номер заказа в ERP" },
   { key: "клиент", description: "имя или название клиента" },
   { key: "сумма", description: "итог заказа" },
   { key: "оплачено", description: "сколько оплачено" },
@@ -69,6 +70,8 @@ export const TEMPLATE_PLACEHOLDERS: { key: string; description: string }[] = [
 
 export type TemplateOrder = {
   number: number;
+  /** Номер на сайте — у заказа с сайта; клиент знает заказ по нему */
+  siteNumber: string | null;
   customerName: string;
   totalKopecks: Kopecks;
   paidKopecks: Kopecks;
@@ -78,6 +81,11 @@ export type TemplateOrder = {
   shippedAt: Date | null;
 };
 
+/** Номер заказа, который знает клиент: на сайте, если заказ оттуда, иначе номер в ERP. */
+export function clientOrderNumber(order: { number: number; siteNumber: string | null }): string {
+  return order.siteNumber?.trim() || String(order.number);
+}
+
 export type TemplateSeller = { name: string; phone: string };
 
 export function templateVariables(
@@ -86,7 +94,8 @@ export function templateVariables(
   now = new Date(),
 ): Record<string, string> {
   return {
-    номер: String(order.number),
+    номер: clientOrderNumber(order),
+    номер_в_erp: String(order.number),
     клиент: order.customerName,
     сумма: formatRub(order.totalKopecks),
     оплачено: formatRub(order.paidKopecks),

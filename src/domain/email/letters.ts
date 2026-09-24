@@ -94,3 +94,45 @@ export function suggestedTemplates(order: SuggestionOrder, sentTemplates: string
   if (order.trackingNumber?.trim() && !sentTemplates.includes("shipped")) result.push("shipped");
   return result;
 }
+
+/** Разделители цитаты в стиле Outlook и почтовых клиентов, которые не ставят «>». */
+const QUOTE_SEPARATOR_RE =
+  /^\s*(-{2,}\s*(original message|исходное сообщение|пересылаемое сообщение|forwarded message)\s*-{2,}|_{10,})\s*$/i;
+
+/**
+ * Текст ответа без цитаты: клиенты отвечают поверх всей переписки, и в ленте её
+ * надо свернуть. Цитата — хвост письма, где каждая непустая строка начинается с
+ * «>», вместе со строкой-шапкой перед ним («чт, 25 сент. 2026 г. в 00:13, Имя <адрес>:»),
+ * либо всё после разделителя Outlook («-----Original Message-----»).
+ *
+ * Если цитатой оказалось всё письмо, ничего не сворачиваем — иначе на экране
+ * была бы пустота.
+ */
+export function splitQuotedReply(body: string): { main: string; quoted: string | null } {
+  const lines = body.replace(/\r\n?/g, "\n").split("\n");
+
+  let start = lines.findIndex((line) => QUOTE_SEPARATOR_RE.test(line));
+  if (start === -1) {
+    // Хвост из «>»-строк: идём с конца, пустые строки хвост не прерывают
+    let i = lines.length - 1;
+    while (i >= 0 && (lines[i].trim() === "" || lines[i].trimStart().startsWith(">"))) i--;
+    start = lines.slice(i + 1).some((line) => line.trimStart().startsWith(">")) ? i + 1 : -1;
+    // Шапка цитаты — одна-две строки, заканчивающиеся двоеточием
+    if (start > 0) {
+      let j = start - 1;
+      while (j >= 0 && lines[j].trim() === "") j--;
+      if (j >= 0 && lines[j].trimEnd().endsWith(":")) {
+        start = j;
+        if (j > 0 && lines[j - 1].trim() !== "" && !lines[j - 1].trimEnd().endsWith(".")) {
+          // Шапка, перенесённая на две строки: «25.09.2026 00:13, Басском.\nКомплектующие <info@…>:»
+          if (/\d{1,2}[:.]\d{2}|@/.test(lines[j - 1] + lines[j])) start = j - 1;
+        }
+      }
+    }
+  }
+  if (start <= 0) return { main: body.trim(), quoted: null };
+
+  const main = lines.slice(0, start).join("\n").trim();
+  const quoted = lines.slice(start).join("\n").trim();
+  return main ? { main, quoted: quoted || null } : { main: body.trim(), quoted: null };
+}

@@ -172,12 +172,23 @@ async function matchIncoming(email: IncomingEmail) {
       return { orderId: null, orderNumber: null, customerId: parent.customerId, by: "thread" as const };
   }
 
+  // Номер в теме — тот, что знает клиент. У заказа с сайта это номер на сайте:
+  // клиент отвечает на письмо OpenCart «… - Заказ 2828». У заказа, заведённого
+  // руками, номера сайта нет — клиенту сообщают номер в ERP. Архивные заказы в
+  // поиск не попадают: номера прежней ERP пересекаются с номерами сайта.
   const number = orderNumberFromSubject(email.subject);
   if (number !== null) {
-    const order = await db.order.findFirst({
-      where: { number, deletedAt: null },
-      select: { id: true, number: true, customerId: true },
-    });
+    const select = { id: true, number: true, customerId: true } as const;
+    const order =
+      (await db.order.findFirst({
+        where: { source: "SITE", externalId: String(number), deletedAt: null },
+        orderBy: { createdAt: "desc" },
+        select,
+      })) ??
+      (await db.order.findFirst({
+        where: { number, source: { notIn: ["SITE", "LEGACY"] }, deletedAt: null },
+        select,
+      }));
     if (order)
       return { orderId: order.id, orderNumber: order.number, customerId: order.customerId, by: "subject" as const };
   }

@@ -156,6 +156,24 @@ describeDb("переписка с клиентом (живая БД)", () => {
     expect(mailbox.unread).toBe(2);
   });
 
+  it("номер в теме — номер на сайте; архивные заказы по номеру не ищутся", async () => {
+    const make = (source: "SITE" | "LEGACY", externalId: string) =>
+      db.order.create({
+        data: { customerId: order.customerId, source, externalId, status: "IN_PROGRESS" },
+        select: { id: true, number: true },
+      });
+    const site = await make("SITE", "2828");
+    // Номер прежней ERP совпал с номером сайта — ответ клиенту сайта не должен уйти к архиву
+    await make("LEGACY", "2828");
+    const legacy = await make("LEGACY", "9999");
+
+    const bySite = await ingestClientEmail(incoming({ subject: "Re: Басском - Заказ 2828" }));
+    expect(bySite).toMatchObject({ orderNumber: site.number, matchedBy: "subject" });
+
+    const byLegacyNumber = await ingestClientEmail(incoming({ subject: `Заказ №${legacy.number}` }));
+    expect(byLegacyNumber).toMatchObject({ orderNumber: null });
+  });
+
   it("большое вложение не хранится, но отмечается", async () => {
     await ingestClientEmail(
       incoming({

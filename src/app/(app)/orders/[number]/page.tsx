@@ -32,7 +32,12 @@ import { getCancelReasons, getCarModels, getCarriers, getOrderSources } from "@/
 import { requirePageUser } from "@/server/session";
 import { OrderEmails } from "@/components/emails/order-emails";
 import { replySubject, suggestedTemplates } from "@/domain/email/letters";
-import { EMAIL_TEMPLATE_KEYS, renderEmailTemplate, templateVariables } from "@/domain/email/templates";
+import {
+  clientOrderNumber,
+  EMAIL_TEMPLATE_KEYS,
+  renderEmailTemplate,
+  templateVariables,
+} from "@/domain/email/templates";
 import { requisitesReady } from "@/domain/settings";
 import { listOrderEmails, sentTemplates } from "@/server/emails/service";
 import { mailConfigured } from "@/server/mail";
@@ -74,9 +79,12 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
   ]);
 
   // Шаблоны писем заполняются данными заказа здесь, на сервере; в форме их только правят.
+  // Клиент знает заказ с сайта по номеру на сайте — его и подставляем в письма.
+  const siteNumber = order.source === "SITE" ? order.externalId : null;
   const templateVars = templateVariables(
     {
       number: order.number,
+      siteNumber,
       customerName: order.customer.contactPerson || order.customer.name,
       totalKopecks: order.totalKopecks,
       paidKopecks: order.paidKopecks,
@@ -245,7 +253,11 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
             orderNumber={order.number}
             emails={emails.map(toEmailView)}
             defaultTo={lastInbound?.fromEmail ?? order.customer.email}
-            replySubject={lastInbound ? replySubject(lastInbound.subject) : `Заказ №${order.number}`}
+            replySubject={
+              lastInbound
+                ? replySubject(lastInbound.subject)
+                : `Заказ №${clientOrderNumber({ number: order.number, siteNumber })}`
+            }
             templates={renderedTemplates}
             suggestions={suggestedTemplates(
               {

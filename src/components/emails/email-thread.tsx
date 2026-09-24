@@ -1,6 +1,7 @@
 import { ArrowDownLeft, ArrowUpRight, Paperclip } from "lucide-react";
 import Link from "next/link";
 import { formatMoscowDateTime } from "@/domain/datetime";
+import { splitQuotedReply } from "@/domain/email/letters";
 import { EMAIL_TEMPLATE_LABELS, type EmailTemplateKey } from "@/domain/email/templates";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +58,25 @@ export function EmailAttachments({ attachments }: { attachments: EmailView["atta
   );
 }
 
+/** Текст письма: ответ целиком, процитированная переписка под ним — свёрнута. */
+function EmailBody({ body }: { body: string }) {
+  const { main, quoted } = splitQuotedReply(body);
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-sm break-words whitespace-pre-line">{main || "(письмо без текста)"}</p>
+      {quoted ? (
+        <details className="group">
+          <summary className="text-muted-foreground hover:text-foreground w-fit cursor-pointer list-none text-xs">
+            <span className="group-open:hidden">··· Показать цитату</span>
+            <span className="hidden group-open:inline">Скрыть цитату</span>
+          </summary>
+          <p className="text-muted-foreground mt-1 border-l-2 pl-3 text-sm break-words whitespace-pre-line">{quoted}</p>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
 /** Одно письмо переписки: кто, кому, когда, текст и вложения. */
 export function EmailMessage({ email, showOrder = false }: { email: EmailView; showOrder?: boolean }) {
   const inbound = email.direction === "INBOUND";
@@ -94,7 +114,7 @@ export function EmailMessage({ email, showOrder = false }: { email: EmailView; s
         </div>
       </header>
       <div className="text-sm font-medium">{email.subject}</div>
-      <p className="text-sm break-words whitespace-pre-line">{email.body || "(письмо без текста)"}</p>
+      <EmailBody body={email.body} />
       <EmailAttachments attachments={email.attachments} />
     </article>
   );

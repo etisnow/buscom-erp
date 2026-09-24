@@ -6,6 +6,7 @@ import {
   parseAddressList,
   referencedMessageIds,
   replySubject,
+  splitQuotedReply,
   suggestedTemplates,
 } from "./letters";
 import {
@@ -77,6 +78,7 @@ describe("шаблоны", () => {
   const variables = templateVariables(
     {
       number: 3016,
+      siteNumber: null,
       customerName: "ООО Ромашка",
       totalKopecks: 2_772_000,
       paidKopecks: 2_772_000,
@@ -105,5 +107,52 @@ describe("шаблоны", () => {
     const parsed = parseEmailTemplates({ paid: { subject: "Оплачено", body: "Спасибо" }, shipped: { subject: "" } });
     expect(parsed.paid).toEqual({ subject: "Оплачено", body: "Спасибо" });
     expect(parsed.shipped).toEqual(DEFAULT_EMAIL_TEMPLATES.shipped);
+  });
+});
+
+describe("splitQuotedReply", () => {
+  it("mail.ru: ответ сверху, цитата целиком из «>»-строк", () => {
+    const body = [
+      "Когда отправите?",
+      "",
+      ">",
+      "> Пятница, 25 сентября 2026, 00:13 +03:00 от Басском <info@bus-com.ru>:",
+      "> Ваш заказ был получен",
+      ">",
+    ].join("\n");
+    expect(splitQuotedReply(body)).toEqual({
+      main: "Когда отправите?",
+      quoted: ">\n> Пятница, 25 сентября 2026, 00:13 +03:00 от Басском <info@bus-com.ru>:\n> Ваш заказ был получен\n>",
+    });
+  });
+
+  it("Gmail и Яндекс: шапка без «>» перед цитатой уходит в цитату", () => {
+    const body = "Спасибо!\n\nчт, 25 сент. 2026 г. в 00:13, Басском <info@bus-com.ru>:\n\n> Заказ оплачен\n> Трек: 123";
+    const result = splitQuotedReply(body);
+    expect(result.main).toBe("Спасибо!");
+    expect(result.quoted?.startsWith("чт, 25 сент.")).toBe(true);
+  });
+
+  it("шапка, перенесённая на две строки", () => {
+    const body = "Ок\n\n25.09.2026, 00:13, Басском. Комплектующие для\nмикроавтобусов <info@bus-com.ru>:\n> текст";
+    expect(splitQuotedReply(body).main).toBe("Ок");
+  });
+
+  it("Outlook: всё после «-----Original Message-----»", () => {
+    const body = "Реквизиты во вложении.\n\n-----Original Message-----\nFrom: info@bus-com.ru\nSubject: Счёт";
+    expect(splitQuotedReply(body)).toEqual({
+      main: "Реквизиты во вложении.",
+      quoted: "-----Original Message-----\nFrom: info@bus-com.ru\nSubject: Счёт",
+    });
+  });
+
+  it("цитата посередине письма не сворачивается — только хвост", () => {
+    const body = "> ваш вопрос\nмой ответ";
+    expect(splitQuotedReply(body)).toEqual({ main: body, quoted: null });
+  });
+
+  it("письмо из одной цитаты и письмо без цитаты — как есть", () => {
+    expect(splitQuotedReply("> только цитата")).toEqual({ main: "> только цитата", quoted: null });
+    expect(splitQuotedReply("Просто текст:\nбез цитат")).toEqual({ main: "Просто текст:\nбез цитат", quoted: null });
   });
 });
