@@ -71,7 +71,7 @@ export default async function MailboxFolderPage({ searchParams }: PageProps<"/ma
                   {letter.hasAttachments ? <Paperclip className="size-3" aria-label="Есть вложения" /> : null}
                   {letter.erp ? (
                     <span className="bg-primary/10 text-primary rounded px-1.5">
-                      {letter.erp.orderNumber ? `№${letter.erp.orderNumber}` : "в ERP"}
+                      {letter.erp.customer ? "в переписке" : "в ERP"}
                     </span>
                   ) : null}
                   {letter.date ? formatMoscowDateTime(letter.date) : ""}
@@ -91,8 +91,8 @@ export default async function MailboxFolderPage({ searchParams }: PageProps<"/ma
         label="Всего писем"
       />
       <p className="text-muted-foreground text-xs">
-        Жирным — непрочитанные в ящике. Метка «№…» — письмо уже в переписке этого заказа в ERP. По {MAILBOX_PAGE_SIZE}{" "}
-        на странице.
+        Жирным — непрочитанные в ящике. Метка «в переписке» — письмо уже в переписке клиента в ERP. По{" "}
+        {MAILBOX_PAGE_SIZE} на странице.
       </p>
     </main>
   );

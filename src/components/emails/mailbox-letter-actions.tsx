@@ -14,10 +14,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  attachMailboxLetterAction,
+  addMailboxLetterAction,
   markMailboxLetterOpenedAction,
   moveMailboxLetterAction,
   setMailboxSeenAction,
@@ -41,12 +40,11 @@ export function MailboxLetterActions({
   /** Прочитано ли письмо в ящике на момент открытия */
   seen: boolean;
   folders: { path: string; label: string }[];
-  erp: { id: string; orderNumber: number | null } | null;
+  erp: { id: string; customer: { id: string; name: string } | null } | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [destination, setDestination] = useState("");
-  const [orderNumber, setOrderNumber] = useState("");
   const [confirmTrash, setConfirmTrash] = useState(false);
   const ref = { folder, uid };
 
@@ -122,50 +120,47 @@ export function MailboxLetterActions({
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-        {erp?.orderNumber ? (
-          <span className="text-sm">
-            В переписке заказа{" "}
-            <Link href={`/orders/${erp.orderNumber}`} className="text-primary hover:underline">
-              №{erp.orderNumber}
-            </Link>
-            . Перепривязать:
-          </span>
-        ) : erp ? (
-          <span className="text-sm">
-            Письмо уже в ERP, без заказа (
-            <Link href={`/mail/${erp.id}`} className="text-primary hover:underline">
-              открыть
-            </Link>
-            ). Привязать к заказу:
+      <div className="flex flex-wrap items-center gap-2 border-t pt-3 text-sm">
+        {erp ? (
+          <span>
+            Письмо в переписке ERP
+            {erp.customer ? (
+              <>
+                {" "}
+                клиента{" "}
+                <Link href={`/customers/${erp.customer.id}`} className="text-primary hover:underline">
+                  {erp.customer.name}
+                </Link>
+              </>
+            ) : (
+              <>
+                , клиент не определён —{" "}
+                <Link href={`/mail/${erp.id}`} className="text-primary hover:underline">
+                  привязать
+                </Link>
+              </>
+            )}
+            .
           </span>
         ) : (
-          <span className="text-sm">Привязать к заказу — письмо с вложениями ляжет в его переписку:</span>
+          <>
+            <span>Письма нет в переписке ERP.</span>
+            <Button
+              size="sm"
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  const result = await addMailboxLetterAction(ref);
+                  if (result.ok) toast.success(result.message);
+                  else toast.error(result.error);
+                  router.refresh();
+                })
+              }
+            >
+              Добавить в переписку
+            </Button>
+          </>
         )}
-        <form
-          className="flex items-center gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const number = Number(orderNumber.replace(/\D/g, ""));
-            if (!(number > 0)) {
-              toast.error("Введите номер заказа в ERP");
-              return;
-            }
-            run(() => attachMailboxLetterAction(ref, number), `Письмо в переписке заказа №${number}`, false);
-          }}
-        >
-          <Input
-            value={orderNumber}
-            onChange={(event) => setOrderNumber(event.target.value)}
-            placeholder="№ заказа в ERP"
-            inputMode="numeric"
-            className="h-8 w-36"
-            aria-label="Номер заказа в ERP"
-          />
-          <Button type="submit" size="sm" disabled={pending}>
-            Привязать
-          </Button>
-        </form>
       </div>
 
       <Dialog open={confirmTrash} onOpenChange={setConfirmTrash}>

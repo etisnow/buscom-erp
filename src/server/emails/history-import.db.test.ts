@@ -195,19 +195,18 @@ describeDb("импорт истории переписки (живая БД, IMA
     ];
   });
 
-  it("переносит письма с клиентами за 3 года, привязывает к заказам и не дублирует при повторе", async () => {
+  it("переносит письма с клиентами за 3 года, находит клиента и не дублирует при повторе", async () => {
     await startHistoryImport(null);
     const state = await waitForImport();
     expect(state).toMatchObject({ status: "done", imported: 3, skipped: 1, duplicates: 0 });
     expect(state.folders.map((f) => f.path)).toEqual(["INBOX", "Sent"]);
 
     const emails = await db.email.findMany({ orderBy: { sentAt: "asc" }, include: { attachments: true } });
-    expect(
-      emails.map((e) => [e.messageId, e.direction, e.orderId === siteOrder.id, e.customerId === customerId]),
-    ).toEqual([
-      ["q1@mail.ru", "INBOUND", true, true],
-      ["s1@bus-com.ru", "OUTBOUND", true, true],
-      ["q2@mail.ru", "INBOUND", true, true],
+    // Письма к заказам не привязываются — только к клиенту
+    expect(emails.map((e) => [e.messageId, e.direction, e.orderId, e.customerId === customerId])).toEqual([
+      ["q1@mail.ru", "INBOUND", null, true],
+      ["s1@bus-com.ru", "OUTBOUND", null, true],
+      ["q2@mail.ru", "INBOUND", null, true],
     ]);
     expect(emails.every((e) => e.importedAt !== null && e.readAt !== null)).toBe(true);
     expect(emails[0].attachments.map((a) => [a.fileName, a.data])).toEqual([["платёжка.pdf", null]]);

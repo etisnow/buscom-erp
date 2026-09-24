@@ -15,6 +15,7 @@ import { db } from "@/server/db";
 import { sendClientLetter, senderAddress } from "@/server/mail";
 import { findOrderByNumber } from "@/server/orders/details";
 import { OrderConflictError, OrderNotFoundError, writeOrderEvent } from "@/server/orders/internal";
+import { normalizePhone } from "@/domain/customer/phone";
 import { readSettings } from "@/server/settings/service";
 import type { SessionUser } from "@/server/session";
 
@@ -57,7 +58,7 @@ export type SendOrderEmailInput = {
 export async function sendOrderEmail(input: SendOrderEmailInput): Promise<{ id: string }> {
   const order = await db.order.findFirst({
     where: { id: input.orderId, deletedAt: null },
-    select: { id: true, number: true, customerId: true },
+    select: { id: true, number: true, customerId: true, customer: { select: { email: true } } },
   });
   if (!order) throw new OrderNotFoundError();
   if (input.to.length === 0) throw new OrderConflictError("Укажите адрес клиента");
@@ -76,12 +77,14 @@ export async function sendOrderEmail(input: SendOrderEmailInput): Promise<{ id: 
     });
   }
 
-  // Ответ продолжает цепочку последнего письма по заказу: у клиента письма
+  // Ответ продолжает цепочку последнего письма переписки с клиентом: у клиента письма
   // собираются в один разговор, а его ответ мы узнаем по References.
   // Последнее — по времени попадания в ERP, а не по заголовку Date: часы у
   // почтового сервера клиента бывают сбиты.
   const previous = await db.email.findFirst({
-    where: { orderId: order.id, messageId: { not: null } },
+    where: {
+      AND: [customerEmailsWhere({ id: order.customerId, email: order.customer.email }), { messageId: { not: null } }],
+    },
     orderBy: { createdAt: "desc" },
     select: { messageId: true, references: true },
   });
@@ -152,9 +155,14 @@ export type IncomingEmail = {
 
 export type IncomingResult =
   | { status: "duplicate" }
-  | { status: "stored"; emailId: string; orderNumber: number | null; matchedBy: "thread" | "subject" | null };
+  | { status: "stored"; emailId: string; customerLinked: boolean; matchedBy: "thread" | "subject" | "address" | null };
 
-/** Привязка входящего: заказ и клиент. Порядок — от надёжного к догадке. */
+/**
+ * С каким клиентом письмо (решение владельца 2026-09-25: письма к заказам не
+ * привязываются, переписка — у клиента). Порядок — от надёжного к догадке:
+ * ответ на письмо, чей клиент известен; номер заказа в теме — клиент этого
+ * заказа; адрес — если он ровно у одного клиента.
+ */
 type MatchInput = {
   references: string[];
   subject: string;
@@ -163,33 +171,22 @@ type MatchInput = {
   counterparts: string[];
 };
 
-async function matchIncoming(email: MatchInput) {
+async function matchCustomer(email: MatchInput): Promise<{ customerId: string | null; by: IncomingMatch }> {
   if (email.references.length > 0) {
     const parent = await db.email.findFirst({
-      where: { messageId: { in: email.references }, OR: [{ orderId: { not: null } }, { customerId: { not: null } }] },
-      orderBy: { sentAt: "desc" },
-      select: { orderId: true, customerId: true, order: { select: { number: true, deletedAt: true } } },
+      where: { messageId: { in: email.references }, customerId: { not: null } },
+      orderBy: { createdAt: "desc" },
+      select: { customerId: true },
     });
-    if (parent?.order && !parent.order.deletedAt) {
-      return {
-        orderId: parent.orderId,
-        orderNumber: parent.order.number,
-        customerId: parent.customerId,
-        by: "thread" as const,
-      };
-    }
-    if (parent?.customerId)
-      return { orderId: null, orderNumber: null, customerId: parent.customerId, by: "thread" as const };
+    if (parent?.customerId) return { customerId: parent.customerId, by: "thread" };
   }
 
   // Номер в теме — тот, что знает клиент: номер на сайте (`siteNumber` — у заказов
-  // с сайта и у архивных). Клиент отвечает на письмо OpenCart «… - Заказ 2828».
-  // Номера в архиве повторяются («10» — у девяти заказов разных лет), поэтому
-  // берём самый свежий заказ, созданный за год до письма и не позже дня после.
-  // У заказа, заведённого руками, номера сайта нет — клиенту сообщают номер в ERP.
+  // с сайта и у архивных; «… - Заказ 2828» в письме OpenCart). Номера в архиве
+  // повторяются, поэтому берём самый свежий заказ за год до письма. У заказа,
+  // заведённого руками, номера сайта нет — клиенту сообщают номер в ERP.
   const number = orderNumberFromSubject(email.subject);
   if (number !== null) {
-    const select = { id: true, number: true, customerId: true } as const;
     const at = (email.date ?? new Date()).getTime();
     const order =
       (await db.order.findFirst({
@@ -199,18 +196,16 @@ async function matchIncoming(email: MatchInput) {
           createdAt: { gte: new Date(at - 365 * DAY_MS), lte: new Date(at + DAY_MS) },
         },
         orderBy: { createdAt: "desc" },
-        select,
+        select: { customerId: true },
       })) ??
       (await db.order.findFirst({
         where: { number, source: { notIn: ["SITE", "LEGACY"] }, deletedAt: null },
-        select,
+        select: { customerId: true },
       }));
-    if (order)
-      return { orderId: order.id, orderNumber: order.number, customerId: order.customerId, by: "subject" as const };
+    if (order) return { customerId: order.customerId, by: "subject" };
   }
 
-  // Заказа не нашли — хотя бы клиент по адресу. Если адрес у нескольких клиентов,
-  // не угадываем: пусть человек выберет заказ сам.
+  // Адрес у нескольких клиентов — не угадываем, человек выберет в «Почте»
   const customers =
     email.counterparts.length === 0
       ? []
@@ -221,17 +216,13 @@ async function matchIncoming(email: MatchInput) {
           select: { id: true },
           take: 2,
         });
-  return { orderId: null, orderNumber: null, customerId: customers.length === 1 ? customers[0].id : null, by: null };
+  return customers.length === 1 ? { customerId: customers[0].id, by: "address" } : { customerId: null, by: null };
 }
 
-export async function ingestClientEmail(email: IncomingEmail): Promise<IncomingResult> {
-  const messageId = normalizeMessageId(email.messageId);
-  if (messageId && (await db.email.findUnique({ where: { messageId }, select: { id: true } }))) {
-    return { status: "duplicate" };
-  }
+type IncomingMatch = "thread" | "subject" | "address" | null;
 
-  const match = await matchIncoming({ ...email, counterparts: [email.fromEmail] });
-  const attachments: Prisma.EmailAttachmentCreateWithoutEmailInput[] = email.attachments.map((file) =>
+function attachmentsToStore(files: { fileName: string; contentType: string; content: Buffer }[]) {
+  return files.map((file) =>
     file.content.length > MAX_ATTACHMENT_BYTES
       ? {
           fileName: file.fileName,
@@ -246,73 +237,66 @@ export async function ingestClientEmail(email: IncomingEmail): Promise<IncomingR
           data: new Uint8Array(file.content),
         },
   );
-
-  return db.$transaction(async (tx) => {
-    const stored = await tx.email.create({
-      data: {
-        direction: "INBOUND",
-        orderId: match.orderId,
-        customerId: match.customerId,
-        messageId,
-        references: email.references,
-        fromEmail: email.fromEmail,
-        fromName: email.fromName,
-        toEmails: email.toEmails,
-        subject: email.subject,
-        body: email.body,
-        sentAt: email.date ?? new Date(),
-        attachments: { create: attachments },
-      },
-      select: { id: true },
-    });
-    if (match.orderId) {
-      await writeOrderEvent(tx, {
-        orderId: match.orderId,
-        user: null,
-        type: "EMAIL_RECEIVED",
-        comment: `${email.fromEmail}: ${email.subject}`,
-        payload: { emailId: stored.id, matchedBy: match.by },
-      });
-    }
-    return { status: "stored" as const, emailId: stored.id, orderNumber: match.orderNumber, matchedBy: match.by };
-  });
 }
 
-/** Ручная привязка входящего к заказу из «Почты». Можно и перепривязать ошибочно привязанное. */
-/**
- * `allowOutbound` — для писем из «Отправленных» ящика: они наши, но пришли не из
- * ERP (история или привязка из живого ящика) и заказа могут не иметь. Письма,
- * отправленные из карточки заказа, так не перепривязываются.
- */
-export async function linkEmailToOrder(
-  emailId: string,
-  orderNumber: number,
-  user: SessionUser,
-  options: { allowOutbound?: boolean } = {},
-): Promise<void> {
-  await db.$transaction(async (tx) => {
-    const email = await tx.email.findUnique({
-      where: { id: emailId },
-      select: { id: true, direction: true, orderId: true, fromEmail: true, subject: true },
-    });
-    if (!email) throw new EmailNotFoundError();
-    if (email.direction !== "INBOUND" && !options.allowOutbound)
-      throw new OrderConflictError("Отправленное письмо уже привязано к своему заказу");
-    const order = await tx.order.findFirst({
-      where: { number: orderNumber, deletedAt: null },
-      select: { id: true, customerId: true },
-    });
-    if (!order) throw new OrderNotFoundError();
-    if (order.id === email.orderId) return;
+export async function ingestClientEmail(email: IncomingEmail): Promise<IncomingResult> {
+  const messageId = normalizeMessageId(email.messageId);
+  if (messageId && (await db.email.findUnique({ where: { messageId }, select: { id: true } }))) {
+    return { status: "duplicate" };
+  }
 
-    await tx.email.update({ where: { id: email.id }, data: { orderId: order.id, customerId: order.customerId } });
-    await writeOrderEvent(tx, {
-      orderId: order.id,
-      user,
-      type: email.direction === "OUTBOUND" ? "EMAIL_SENT" : "EMAIL_RECEIVED",
-      comment: `Привязано вручную — ${email.fromEmail}: ${email.subject}`,
-      payload: { emailId: email.id, matchedBy: "manual" },
-    });
+  const match = await matchCustomer({ ...email, counterparts: [email.fromEmail] });
+  const stored = await db.email.create({
+    data: {
+      direction: "INBOUND",
+      customerId: match.customerId,
+      messageId,
+      references: email.references,
+      fromEmail: email.fromEmail,
+      fromName: email.fromName,
+      toEmails: email.toEmails,
+      subject: email.subject,
+      body: email.body,
+      sentAt: email.date ?? new Date(),
+      attachments: { create: attachmentsToStore(email.attachments) },
+    },
+    select: { id: true },
+  });
+  return { status: "stored", emailId: stored.id, customerLinked: match.customerId !== null, matchedBy: match.by };
+}
+
+/**
+ * Ручная привязка письма к клиенту из «Почты» — для писем с незнакомого адреса.
+ * Можно и перепривязать ошибочно определённого. Это не изменение заказа — журнал
+ * заказа не трогается.
+ */
+export async function linkEmailToCustomer(emailId: string, customerId: string): Promise<void> {
+  const [email, customer] = await Promise.all([
+    db.email.findUnique({ where: { id: emailId }, select: { id: true } }),
+    db.customer.findUnique({ where: { id: customerId }, select: { id: true } }),
+  ]);
+  if (!email) throw new EmailNotFoundError();
+  if (!customer) throw new OrderConflictError("Клиент не найден");
+  await db.email.update({ where: { id: email.id }, data: { customerId: customer.id } });
+}
+
+/** Клиенты для ручной привязки письма: по имени, телефону, email или ИНН. */
+export async function searchCustomersForEmail(query: string) {
+  const text = query.trim();
+  if (text.length < 2) return [];
+  const phone = normalizePhone(text);
+  return db.customer.findMany({
+    where: {
+      OR: [
+        { name: { contains: text, mode: "insensitive" } },
+        { email: { contains: text, mode: "insensitive" } },
+        { inn: { contains: text } },
+        ...(phone ? [{ phone }] : []),
+      ],
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 8,
+    select: { id: true, name: true, email: true, phone: true },
   });
 }
 
@@ -337,16 +321,38 @@ const listSelect = {
   readAt: true,
   sentAt: true,
   user: { select: { name: true } },
-  order: { select: { number: true } },
   customer: { select: { id: true, name: true } },
   attachments: { select: { id: true, fileName: true, byteSize: true, skippedReason: true } },
 } satisfies Prisma.EmailSelect;
 
 export type EmailListItem = Prisma.EmailGetPayload<{ select: typeof listSelect }>;
 
-/** Переписка по заказу — по времени, старые сверху, как читается разговор. */
-export async function listOrderEmails(orderId: string): Promise<EmailListItem[]> {
-  return db.email.findMany({ where: { orderId }, orderBy: { sentAt: "asc" }, select: listSelect });
+/**
+ * Переписка клиента: письма, где он указан, и письма с его адреса или на его
+ * адрес — так подтягиваются и письма, пришедшие до того, как адрес вписали в
+ * карточку.
+ */
+function customerEmailsWhere(customer: { id: string; email: string | null }): Prisma.EmailWhereInput {
+  const address = normalizeEmailAddress(customer.email);
+  return {
+    OR: [{ customerId: customer.id }, ...(address ? [{ fromEmail: address }, { toEmails: { has: address } }] : [])],
+  };
+}
+
+/** В карточке заказа — столько последних писем переписки с клиентом. */
+export const ORDER_EMAILS_LIMIT = 10;
+
+/** Последние письма клиента для карточки заказа — по времени, старые сверху, как читается разговор. */
+export async function recentCustomerEmails(customer: {
+  id: string;
+  email: string | null;
+}): Promise<{ items: EmailListItem[]; total: number }> {
+  const where = customerEmailsWhere(customer);
+  const [items, total] = await Promise.all([
+    db.email.findMany({ where, orderBy: { sentAt: "desc" }, take: ORDER_EMAILS_LIMIT, select: listSelect }),
+    db.email.count({ where }),
+  ]);
+  return { items: items.reverse(), total };
 }
 
 /** Какими шаблонами по заказу уже писали — для подсказок «Сообщить клиенту?». */
@@ -366,14 +372,13 @@ export type MailboxView = (typeof MAILBOX_VIEWS)[number];
 
 export const MAILBOX_PAGE_SIZE = 50;
 
+/** Входящие без клиента, ждущие ручной привязки. История из ящика сюда не попадает. */
+const UNLINKED_WHERE: Prisma.EmailWhereInput = { direction: "INBOUND", customerId: null, importedAt: null };
+
 export async function listMailbox(view: MailboxView, page: number) {
   const where: Prisma.EmailWhereInput =
-    view === "sent"
-      ? { direction: "OUTBOUND" }
-      : view === "unlinked"
-        ? { direction: "INBOUND", orderId: null, importedAt: null }
-        : { direction: "INBOUND" };
-  const [items, total, counts] = await Promise.all([
+    view === "sent" ? { direction: "OUTBOUND" } : view === "unlinked" ? UNLINKED_WHERE : { direction: "INBOUND" };
+  const [items, total] = await Promise.all([
     db.email.findMany({
       where,
       // Непрочитанные — сверху: раздел нужен, чтобы ни один ответ не потерялся
@@ -384,12 +389,8 @@ export async function listMailbox(view: MailboxView, page: number) {
       select: listSelect,
     }),
     db.email.count({ where }),
-    Promise.all([
-      db.email.count({ where: { direction: "INBOUND", readAt: null } }),
-      db.email.count({ where: { direction: "INBOUND", orderId: null, importedAt: null } }),
-    ]),
   ]);
-  return { items, total, unread: counts[0], unlinked: counts[1] };
+  return { items, total };
 }
 
 export async function getEmail(id: string) {
@@ -400,16 +401,6 @@ export async function readEmailAttachment(id: string) {
   return db.emailAttachment.findUnique({
     where: { id },
     select: { fileName: true, contentType: true, data: true },
-  });
-}
-
-/** Последние заказы клиента — быстрый выбор при ручной привязке письма. */
-export async function recentCustomerOrders(customerId: string) {
-  return db.order.findMany({
-    where: { customerId, deletedAt: null },
-    orderBy: { createdAt: "desc" },
-    take: 6,
-    select: { number: true, status: true, totalKopecks: true, createdAt: true },
   });
 }
 
@@ -429,24 +420,18 @@ export type HistoryLetter = {
   attachments: { fileName: string; contentType: string; size: number }[];
 };
 
-export type HistoryStoreResult = { status: "duplicate" } | { status: "stored"; linkedToOrder: boolean };
+export type HistoryStoreResult = { status: "duplicate" } | { status: "stored"; linkedToCustomer: boolean };
 
-/**
- * Письмо из истории ящика. Привязка — та же, что у живых писем, но письмо сразу
- * прочитано, помечено `importedAt` и события в истории заказа не пишет: это не
- * изменение заказа, а перенос архива, и тысяча строк «Письмо от клиента» за три
- * года завалила бы журнал.
- */
+/** Письмо из истории ящика: клиент — как у живых писем, письмо сразу прочитано и помечено `importedAt`. */
 export async function storeHistoryEmail(letter: HistoryLetter, importedAt: Date): Promise<HistoryStoreResult> {
   const messageId = normalizeMessageId(letter.messageId);
   if (messageId && (await db.email.findUnique({ where: { messageId }, select: { id: true } }))) {
     return { status: "duplicate" };
   }
-  const match = await matchIncoming(letter);
+  const match = await matchCustomer(letter);
   await db.email.create({
     data: {
       direction: letter.direction,
-      orderId: match.orderId,
       customerId: match.customerId,
       messageId,
       references: letter.references,
@@ -468,43 +453,39 @@ export async function storeHistoryEmail(letter: HistoryLetter, importedAt: Date)
       },
     },
   });
-  return { status: "stored", linkedToOrder: match.orderId !== null };
+  return { status: "stored", linkedToCustomer: match.customerId !== null };
 }
 
 /**
- * Достраивает цепочки в перенесённой истории: письмо без заказа получает заказ
- * другого письма той же переписки — и ответ от исходного, и исходное от ответа
- * (номер заказа часто есть только в теме одного из них). Повторяет, пока что-то
- * меняется, но не больше пяти раз: цепочки длиннее встречаются редко.
+ * Достраивает цепочки в перенесённой истории: письмо без клиента получает клиента
+ * другого письма той же переписки — и ответ от исходного, и исходное от ответа.
+ * Повторяет, пока что-то меняется, но не больше пяти раз.
  */
 export async function relinkHistoryThreads(): Promise<number> {
   let total = 0;
   for (let round = 0; round < 5; round++) {
     const linked = await db.email.findMany({
-      where: { importedAt: { not: null }, orderId: { not: null } },
-      select: { orderId: true, customerId: true, messageId: true, references: true },
+      where: { importedAt: { not: null }, customerId: { not: null } },
+      select: { customerId: true, messageId: true, references: true },
     });
-    const orderByMessage = new Map<string, { orderId: string; customerId: string | null }>();
+    const customerByMessage = new Map<string, string>();
     for (const email of linked) {
-      const target = { orderId: email.orderId as string, customerId: email.customerId };
-      for (const id of [email.messageId, ...email.references]) if (id) orderByMessage.set(id, target);
+      for (const id of [email.messageId, ...email.references])
+        if (id) customerByMessage.set(id, email.customerId as string);
     }
 
     const loose = await db.email.findMany({
-      where: { importedAt: { not: null }, orderId: null },
-      select: { id: true, customerId: true, messageId: true, references: true },
+      where: { importedAt: { not: null }, customerId: null },
+      select: { id: true, messageId: true, references: true },
     });
     let changed = 0;
     for (const email of loose) {
-      const target = [email.messageId, ...email.references]
+      const customerId = [email.messageId, ...email.references]
         .filter((id): id is string => id !== null)
-        .map((id) => orderByMessage.get(id))
+        .map((id) => customerByMessage.get(id))
         .find((item) => item !== undefined);
-      if (!target) continue;
-      await db.email.update({
-        where: { id: email.id },
-        data: { orderId: target.orderId, customerId: email.customerId ?? target.customerId },
-      });
+      if (!customerId) continue;
+      await db.email.update({ where: { id: email.id }, data: { customerId } });
       changed++;
     }
     total += changed;
@@ -516,15 +497,14 @@ export async function relinkHistoryThreads(): Promise<number> {
 /** Переписка клиента — все письма, свежие сверху; у старых клиентов их может быть много. */
 export const CUSTOMER_EMAILS_LIMIT = 200;
 
-export async function listCustomerEmails(customerId: string): Promise<{ items: EmailListItem[]; total: number }> {
+export async function listCustomerEmails(customer: {
+  id: string;
+  email: string | null;
+}): Promise<{ items: EmailListItem[]; total: number }> {
+  const where = customerEmailsWhere(customer);
   const [items, total] = await Promise.all([
-    db.email.findMany({
-      where: { customerId },
-      orderBy: { sentAt: "desc" },
-      take: CUSTOMER_EMAILS_LIMIT,
-      select: listSelect,
-    }),
-    db.email.count({ where: { customerId } }),
+    db.email.findMany({ where, orderBy: { sentAt: "desc" }, take: CUSTOMER_EMAILS_LIMIT, select: listSelect }),
+    db.email.count({ where }),
   ]);
   return { items, total };
 }
@@ -543,69 +523,36 @@ export type MailboxLetterInput = {
 };
 
 /**
- * Письмо из живого ящика, которое человек сам привязал к заказу: целиком, с
- * вложениями до 15 МБ, прочитанное, с записью в журнал заказа.
+ * Письмо из живого ящика, которое человек добавил в переписку: целиком, с
+ * вложениями до 15 МБ, прочитанное. Клиент — по цепочке, номеру в теме или адресу.
  */
-export async function storeMailboxLetter(
-  letter: MailboxLetterInput,
-  orderNumber: number,
-  user: SessionUser,
-): Promise<void> {
-  await db.$transaction(async (tx) => {
-    const order = await tx.order.findFirst({
-      where: { number: orderNumber, deletedAt: null },
-      select: { id: true, customerId: true },
-    });
-    if (!order) throw new OrderNotFoundError();
-    const email = await tx.email.create({
-      data: {
-        direction: letter.direction,
-        orderId: order.id,
-        customerId: order.customerId,
-        messageId: letter.messageId,
-        references: letter.references,
-        fromEmail: letter.fromEmail,
-        fromName: letter.fromName,
-        toEmails: letter.toEmails,
-        subject: letter.subject,
-        body: letter.body,
-        readAt: new Date(),
-        sentAt: letter.date,
-        attachments: {
-          create: letter.attachments.map((file) =>
-            file.content.length > MAX_ATTACHMENT_BYTES
-              ? {
-                  fileName: file.fileName,
-                  contentType: file.contentType,
-                  byteSize: file.content.length,
-                  skippedReason: "Файл больше 15 МБ — не сохранён, он есть в ящике",
-                }
-              : {
-                  fileName: file.fileName,
-                  contentType: file.contentType,
-                  byteSize: file.content.length,
-                  data: new Uint8Array(file.content),
-                },
-          ),
-        },
-      },
-      select: { id: true },
-    });
-    await writeOrderEvent(tx, {
-      orderId: order.id,
-      user,
-      type: letter.direction === "OUTBOUND" ? "EMAIL_SENT" : "EMAIL_RECEIVED",
-      comment: `Добавлено из ящика вручную — ${letter.fromEmail}: ${letter.subject}`,
-      payload: { emailId: email.id, matchedBy: "manual" },
-    });
+export async function storeMailboxLetter(letter: MailboxLetterInput): Promise<{ customerLinked: boolean }> {
+  const counterparts = letter.direction === "INBOUND" ? [letter.fromEmail] : letter.toEmails;
+  const match = await matchCustomer({ ...letter, counterparts });
+  await db.email.create({
+    data: {
+      direction: letter.direction,
+      customerId: match.customerId,
+      messageId: letter.messageId,
+      references: letter.references,
+      fromEmail: letter.fromEmail,
+      fromName: letter.fromName,
+      toEmails: letter.toEmails,
+      subject: letter.subject,
+      body: letter.body,
+      readAt: new Date(),
+      sentAt: letter.date,
+      attachments: { create: attachmentsToStore(letter.attachments) },
+    },
   });
+  return { customerLinked: match.customerId !== null };
 }
 
-/** Счётчики вкладок ERP в «Почте»: непрочитанные входящие и ждущие привязки. */
+/** Счётчики вкладок ERP в «Почте»: непрочитанные входящие и ждущие привязки к клиенту. */
 export async function mailboxCounts(): Promise<{ unread: number; unlinked: number }> {
   const [unread, unlinked] = await Promise.all([
     db.email.count({ where: { direction: "INBOUND", readAt: null } }),
-    db.email.count({ where: { direction: "INBOUND", orderId: null, importedAt: null } }),
+    db.email.count({ where: UNLINKED_WHERE }),
   ]);
   return { unread, unlinked };
 }

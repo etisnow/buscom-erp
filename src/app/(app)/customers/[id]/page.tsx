@@ -28,8 +28,9 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
   const user = await requirePageUser();
   const { id } = await params;
 
-  const [customer, emails] = await Promise.all([findCustomer(id), listCustomerEmails(id)]);
+  const customer = await findCustomer(id);
   if (!customer) notFound();
+  const emails = await listCustomerEmails({ id: customer.id, email: customer.email });
 
   const editable = canEditCustomers(user.role);
   const purchased = customer.orders
@@ -154,13 +155,13 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
         ) : (
           <div className="flex max-h-[40rem] flex-col gap-2 overflow-y-auto">
             {emails.items.map((email) => (
-              <EmailMessage key={email.id} email={toEmailView(email)} showOrder />
+              <EmailMessage key={email.id} email={toEmailView(email)} />
             ))}
           </div>
         )}
         <p className="text-muted-foreground text-xs">
-          Все письма клиента, свежие сверху, со ссылкой на заказ, если письмо к нему привязано. Написать клиенту — из
-          карточки заказа.
+          Все письма с клиентом, свежие сверху: и те, где он указан, и с его адреса или на его адрес. Написать клиенту —
+          из карточки заказа.
         </p>
       </section>
     </main>

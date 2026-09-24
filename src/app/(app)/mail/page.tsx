@@ -16,13 +16,13 @@ export const metadata: Metadata = {
 
 const VIEW_LABELS: Record<MailboxView, string> = {
   inbox: "Входящие от клиентов",
-  unlinked: "Без заказа",
+  unlinked: "Без клиента",
   sent: "Отправленные из ERP",
 };
 
 /**
  * Раздел «Почта» (PRD, M6.2): все письма клиентов из общего ящика, чтобы ни один
- * ответ не потерялся, — в том числе те, что не удалось привязать к заказу.
+ * ответ не потерялся, — в том числе с незнакомых адресов, ждущие привязки к клиенту.
  * Непрочитанные сверху. Отвечают из карточки заказа: там шаблоны и счёт.
  */
 export default async function MailPage({ searchParams }: PageProps<"/mail">) {
@@ -71,10 +71,8 @@ export default async function MailPage({ searchParams }: PageProps<"/mail">) {
                   </span>
                   <span className="text-muted-foreground flex items-center gap-2 text-xs whitespace-nowrap">
                     {email.attachments.length > 0 ? <Paperclip className="size-3" aria-label="Есть вложения" /> : null}
-                    {email.order ? (
-                      <span className="text-foreground">№{email.order.number}</span>
-                    ) : email.direction === "INBOUND" ? (
-                      <span className="text-amber-700 dark:text-amber-400">без заказа</span>
+                    {!email.customer && email.direction === "INBOUND" ? (
+                      <span className="text-amber-700 dark:text-amber-400">без клиента</span>
                     ) : null}
                     {formatMoscowDateTime(email.sentAt)}
                   </span>

@@ -15,7 +15,7 @@ export function toEmailView(email: EmailListItem): EmailView {
     unread: email.direction === "INBOUND" && email.readAt === null,
     sentAt: email.sentAt,
     authorName: email.user?.name ?? null,
-    orderNumber: email.order?.number ?? null,
+    customer: email.customer,
     attachments: email.attachments,
   };
 }

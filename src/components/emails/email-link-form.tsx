@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { linkEmailAction, markEmailsReadAction } from "@/app/(app)/mail/actions";
+import {
+  linkEmailToCustomerAction,
+  markEmailsReadAction,
+  searchCustomersAction,
+  type CustomerOption,
+} from "@/app/(app)/mail/actions";
 
 /** Открыли письмо — оно прочитано. */
 export function MarkEmailRead({ id, unread }: { id: string; unread: boolean }) {
@@ -16,28 +21,31 @@ export function MarkEmailRead({ id, unread }: { id: string; unread: boolean }) {
 }
 
 /**
- * Привязка входящего к заказу: номер руками или один из заказов этого клиента.
- * Перепривязать можно и уже привязанное — автоматика по теме письма иногда ошибается.
+ * Привязка письма к клиенту — для писем с незнакомого адреса (или чтобы поправить
+ * ошибочно определённого). Письма к заказам не привязываются: переписка — у
+ * клиента, в заказе видны его последние письма.
  */
-export function EmailLinkForm({
-  emailId,
-  currentOrderNumber,
-  candidates,
-}: {
-  emailId: string;
-  currentOrderNumber: number | null;
-  candidates: { number: number; label: string }[];
-}) {
+export function EmailCustomerForm({ emailId, hasCustomer }: { emailId: string; hasCustomer: boolean }) {
   const router = useRouter();
-  const [value, setValue] = useState("");
+  const [query, setQuery] = useState("");
+  const [options, setOptions] = useState<CustomerOption[] | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function link(orderNumber: number) {
+  function search() {
     startTransition(async () => {
-      const result = await linkEmailAction(emailId, orderNumber);
+      const found = await searchCustomersAction(query);
+      setOptions(found);
+      if (found.length === 0) toast.error("Клиент не найден");
+    });
+  }
+
+  function link(customer: CustomerOption) {
+    startTransition(async () => {
+      const result = await linkEmailToCustomerAction(emailId, customer.id);
       if (result.ok) {
-        toast.success(`Письмо привязано к заказу №${orderNumber}`);
-        setValue("");
+        toast.success(`Письмо в переписке клиента «${customer.name}»`);
+        setOptions(null);
+        setQuery("");
         router.refresh();
       } else toast.error(result.error);
     });
@@ -45,47 +53,43 @@ export function EmailLinkForm({
 
   return (
     <section className="flex flex-col gap-2 rounded-lg border p-4">
-      <h2 className="font-heading font-medium">
-        {currentOrderNumber ? "Перепривязать к заказу" : "Привязать к заказу"}
-      </h2>
-      {candidates.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {candidates
-            .filter((order) => order.number !== currentOrderNumber)
-            .map((order) => (
-              <Button
-                key={order.number}
-                size="sm"
-                variant="outline"
-                disabled={pending}
-                onClick={() => link(order.number)}
-              >
-                {order.label}
-              </Button>
-            ))}
-        </div>
-      ) : null}
+      <h2 className="font-heading font-medium">{hasCustomer ? "Другой клиент" : "Привязать к клиенту"}</h2>
       <form
         className="flex items-center gap-2"
         onSubmit={(event) => {
           event.preventDefault();
-          const number = Number(value.replace(/\D/g, ""));
-          if (number > 0) link(number);
-          else toast.error("Введите номер заказа");
+          if (query.trim().length >= 2) search();
+          else toast.error("Введите хотя бы два символа");
         }}
       >
         <Input
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          placeholder="№ заказа"
-          inputMode="numeric"
-          className="h-8 w-32"
-          aria-label="Номер заказа"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Имя, телефон, email или ИНН"
+          className="h-8 w-72"
+          aria-label="Поиск клиента"
         />
-        <Button type="submit" size="sm" disabled={pending}>
-          Привязать
+        <Button type="submit" size="sm" variant="outline" disabled={pending}>
+          Найти
         </Button>
       </form>
+      {options && options.length > 0 ? (
+        <ul className="flex flex-col gap-1">
+          {options.map((customer) => (
+            <li key={customer.id} className="flex items-center justify-between gap-2 text-sm">
+              <span className="min-w-0 truncate">
+                {customer.name}
+                <span className="text-muted-foreground ml-2 text-xs">
+                  {[customer.phone, customer.email].filter(Boolean).join(" · ")}
+                </span>
+              </span>
+              <Button size="sm" disabled={pending} onClick={() => link(customer)}>
+                Привязать
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </section>
   );
 }

@@ -11,10 +11,9 @@ import {
   referencedMessageIds,
 } from "@/domain/email/letters";
 import { db } from "@/server/db";
-import { linkEmailToOrder, storeMailboxLetter } from "@/server/emails/service";
+import { storeMailboxLetter } from "@/server/emails/service";
 import { createClient, readFolders, resolveMailbox } from "@/server/integrations/mailbox";
 import { OrderConflictError } from "@/server/orders/internal";
-import type { SessionUser } from "@/server/session";
 
 /**
  * Живой просмотр общего ящика в разделе «Почта» (решение владельца 2026-09-25):
@@ -200,7 +199,7 @@ export type MailboxListItem = {
   date: Date | null;
   hasAttachments: boolean;
   /** Письмо уже лежит в ERP — ссылка на него и номер заказа, если привязано */
-  erp: { id: string; orderNumber: number | null } | null;
+  erp: { id: string; customer: { id: string; name: string } | null } | null;
 };
 
 /** Письма папки, свежие сверху, по 50. Номер страницы вне диапазона — последняя. */
@@ -237,7 +236,7 @@ export async function listFolderLetters(path: string, page: number) {
   const known = ids.length
     ? await db.email.findMany({
         where: { messageId: { in: ids } },
-        select: { id: true, messageId: true, order: { select: { number: true } } },
+        select: { id: true, messageId: true, customer: { select: { id: true, name: true } } },
       })
     : [];
   const byMessageId = new Map(known.map((row) => [row.messageId, row]));
@@ -252,7 +251,7 @@ export async function listFolderLetters(path: string, page: number) {
       subject: message.envelope?.subject || "(без темы)",
       date: message.envelope?.date ? new Date(message.envelope.date) : null,
       hasAttachments: hasAttachments(message.bodyStructure),
-      erp: erp ? { id: erp.id, orderNumber: erp.order?.number ?? null } : null,
+      erp: erp ? { id: erp.id, customer: erp.customer } : null,
     };
   });
   return { total: result.total, page: result.page, pageCount: result.pageCount, items };
@@ -277,7 +276,7 @@ export type MailboxLetter = {
   body: string;
   attachments: { part: string; fileName: string; contentType: string; size: number }[];
   messageId: string | null;
-  erp: { id: string; orderNumber: number | null } | null;
+  erp: { id: string; customer: { id: string; name: string } | null } | null;
 };
 
 /** Одно письмо целиком. Открытие помечает его прочитанным — как в веб-почте. */
@@ -345,10 +344,10 @@ export async function readMailboxLetter(path: string, uid: number): Promise<Mail
   const erp = letter.messageId
     ? await db.email.findUnique({
         where: { messageId: letter.messageId },
-        select: { id: true, order: { select: { number: true } } },
+        select: { id: true, customer: { select: { id: true, name: true } } },
       })
     : null;
-  return { ...letter, erp: erp ? { id: erp.id, orderNumber: erp.order?.number ?? null } : null };
+  return { ...letter, erp: erp ? { id: erp.id, customer: erp.customer } : null };
 }
 
 /**
@@ -444,16 +443,15 @@ export async function downloadLetterPart(path: string, uid: number, part: string
 }
 
 /**
- * Привязать письмо ящика к заказу: письмо целиком (с вложениями до 15 МБ) ложится
- * в переписку заказа с записью в его журнал. Если оно уже в ERP (пришло опросом
- * или из истории) — только перепривязывается. Письмо из «Отправленных» — наше.
+ * Добавить письмо ящика в переписку ERP: целиком, с вложениями до 15 МБ. Клиент —
+ * по цепочке, номеру заказа в теме или адресу; не нашёлся — письмо ждёт в «Почте →
+ * Без клиента». Уже лежащее в ERP (опрос, история) второй раз не добавляется.
+ * Письмо из «Отправленных» — наше.
  */
-export async function attachLetterToOrder(
+export async function addLetterToCorrespondence(
   path: string,
   uid: number,
-  orderNumber: number,
-  user: SessionUser,
-): Promise<void> {
+): Promise<{ status: "exists" } | { status: "added"; customerLinked: boolean }> {
   const folders = await mailboxFolderList();
   const direction = folders.find((folder) => folder.path === path)?.specialUse === "\\Sent" ? "OUTBOUND" : "INBOUND";
 
@@ -473,33 +471,27 @@ export async function attachLetterToOrder(
   const existing = messageId
     ? await db.email.findUnique({ where: { messageId }, select: { id: true, direction: true } })
     : null;
-  if (existing) {
-    await linkEmailToOrder(existing.id, orderNumber, user, { allowOutbound: true });
-    return;
-  }
+  if (existing) return { status: "exists" };
 
   const to = Array.isArray(mail.to) ? mail.to : mail.to ? [mail.to] : [];
   const rawHeaders = [...mail.headerLines].map((line) => line.line).join("\r\n");
-  await storeMailboxLetter(
-    {
-      direction,
-      messageId,
-      references: referencedMessageIds(headerValue(rawHeaders, "In-Reply-To"), headerValue(rawHeaders, "References")),
-      fromEmail: normalizeEmailAddress(mail.from?.value[0]?.address) ?? "",
-      fromName: mail.from?.value[0]?.name || null,
-      toEmails: to.flatMap((item) => addresses(item.value)),
-      subject: mail.subject ?? "(без темы)",
-      body: (mail.text ?? (typeof mail.html === "string" ? htmlToText(mail.html) : "")).trim(),
-      date: mail.date ?? new Date(),
-      attachments: mail.attachments
-        .filter((file) => !file.related)
-        .map((file) => ({
-          fileName: file.filename ?? "вложение",
-          contentType: file.contentType,
-          content: file.content,
-        })),
-    },
-    orderNumber,
-    user,
-  );
+  const stored = await storeMailboxLetter({
+    direction,
+    messageId,
+    references: referencedMessageIds(headerValue(rawHeaders, "In-Reply-To"), headerValue(rawHeaders, "References")),
+    fromEmail: normalizeEmailAddress(mail.from?.value[0]?.address) ?? "",
+    fromName: mail.from?.value[0]?.name || null,
+    toEmails: to.flatMap((item) => addresses(item.value)),
+    subject: mail.subject ?? "(без темы)",
+    body: (mail.text ?? (typeof mail.html === "string" ? htmlToText(mail.html) : "")).trim(),
+    date: mail.date ?? new Date(),
+    attachments: mail.attachments
+      .filter((file) => !file.related)
+      .map((file) => ({
+        fileName: file.filename ?? "вложение",
+        contentType: file.contentType,
+        content: file.content,
+      })),
+  });
+  return { status: "added", customerLinked: stored.customerLinked };
 }

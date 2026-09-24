@@ -39,7 +39,7 @@ import {
   templateVariables,
 } from "@/domain/email/templates";
 import { requisitesReady } from "@/domain/settings";
-import { listOrderEmails, sentTemplates } from "@/server/emails/service";
+import { recentCustomerEmails, sentTemplates } from "@/server/emails/service";
 import { mailConfigured } from "@/server/mail";
 import { getSettings } from "@/server/settings/service";
 import { toEmailView } from "@/app/(app)/mail/email-view";
@@ -72,7 +72,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
     listSupplierOptions(),
     listCategories(),
     getCarModels(),
-    listOrderEmails(order.id),
+    recentCustomerEmails({ id: order.customer.id, email: order.customer.email }),
     sentTemplates(order.id),
     getSettings(),
     mailConfigured(),
@@ -98,7 +98,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
   const renderedTemplates = Object.fromEntries(
     EMAIL_TEMPLATE_KEYS.map((key) => [key, renderEmailTemplate(settings.emailTemplates[key], templateVars)]),
   ) as Record<(typeof EMAIL_TEMPLATE_KEYS)[number], { subject: string; body: string }>;
-  const lastInbound = emails.findLast((email) => email.direction === "INBOUND");
+  const lastInbound = emails.items.findLast((email) => email.direction === "INBOUND");
 
   const editable = canEditItems(order.status, user.role, order.paidKopecks);
   const isClosed = TERMINAL_STATUSES.includes(order.status);
@@ -251,7 +251,9 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
           <OrderEmails
             orderId={order.id}
             orderNumber={order.number}
-            emails={emails.map(toEmailView)}
+            emails={emails.items.map(toEmailView)}
+            totalEmails={emails.total}
+            customerId={order.customer.id}
             defaultTo={lastInbound?.fromEmail ?? order.customer.email}
             replySubject={
               lastInbound

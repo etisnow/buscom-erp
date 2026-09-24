@@ -4,10 +4,16 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { parseAddressList } from "@/domain/email/letters";
 import { EMAIL_TEMPLATE_KEYS } from "@/domain/email/templates";
-import { EmailNotFoundError, linkEmailToOrder, markEmailsRead, sendOrderEmail } from "@/server/emails/service";
+import {
+  EmailNotFoundError,
+  linkEmailToCustomer,
+  markEmailsRead,
+  searchCustomersForEmail,
+  sendOrderEmail,
+} from "@/server/emails/service";
 import { MAILBOX_ROLES } from "@/domain/user/role";
 import {
-  attachLetterToOrder,
+  addLetterToCorrespondence,
   MailboxUnavailableError,
   markLetterOpened,
   moveLetter,
@@ -88,18 +94,27 @@ export async function markEmailsReadAction(ids: string[]): Promise<void> {
   revalidatePath("/", "layout");
 }
 
-export async function linkEmailAction(emailId: string, orderNumber: number): Promise<MailActionResult> {
-  const user = await requireUser();
-  if (!Number.isSafeInteger(orderNumber) || orderNumber <= 0) return { ok: false, error: "Некорректный номер заказа" };
+export type CustomerOption = { id: string; name: string; email: string | null; phone: string | null };
+
+/** Клиенты для ручной привязки письма: по имени, телефону, email или ИНН. */
+export async function searchCustomersAction(query: string): Promise<CustomerOption[]> {
+  await requireUser();
+  return searchCustomersForEmail(String(query).slice(0, 100));
+}
+
+/** Привязать письмо к клиенту — для писем с незнакомого адреса. */
+export async function linkEmailToCustomerAction(emailId: string, customerId: string): Promise<MailActionResult> {
+  await requireUser();
+  if (!emailId || !customerId) return { ok: false, error: "Не выбран клиент" };
   try {
-    await linkEmailToOrder(emailId, orderNumber, user);
+    await linkEmailToCustomer(emailId, customerId);
   } catch (error) {
     const known = errorText(error);
     if (known) return { ok: false, error: known };
     throw error;
   }
-  revalidatePath(`/orders/${orderNumber}`);
   revalidatePath("/mail", "layout");
+  revalidatePath(`/customers/${customerId}`);
   return { ok: true };
 }
 
@@ -149,17 +164,26 @@ export async function trashMailboxLetterAction(ref: z.input<typeof letterRefSche
   return mailboxAction(() => trashLetter(parsed.data.folder, parsed.data.uid));
 }
 
-export async function attachMailboxLetterAction(
-  ref: z.input<typeof letterRefSchema>,
-  orderNumber: number,
-): Promise<MailActionResult> {
-  const user = await requireUser(MAILBOX_ROLES);
+export type AddLetterResult = { ok: true; message: string } | { ok: false; error: string };
+
+/** Добавить письмо живого ящика в переписку ERP — клиент определяется сам. */
+export async function addMailboxLetterAction(ref: z.input<typeof letterRefSchema>): Promise<AddLetterResult> {
+  await requireUser(MAILBOX_ROLES);
   const parsed = letterRefSchema.safeParse(ref);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
-  if (!Number.isSafeInteger(orderNumber) || orderNumber <= 0) return { ok: false, error: "Некорректный номер заказа" };
-  const result = await mailboxAction(() => attachLetterToOrder(parsed.data.folder, parsed.data.uid, orderNumber, user));
-  if (result.ok) revalidatePath(`/orders/${orderNumber}`);
-  return result;
+  let outcome: Awaited<ReturnType<typeof addLetterToCorrespondence>> | null = null;
+  const result = await mailboxAction(async () => {
+    outcome = await addLetterToCorrespondence(parsed.data.folder, parsed.data.uid);
+  });
+  if (!result.ok) return result;
+  const done = outcome as Awaited<ReturnType<typeof addLetterToCorrespondence>> | null;
+  if (done?.status === "exists") return { ok: true, message: "Письмо уже есть в переписке" };
+  return {
+    ok: true,
+    message: done?.customerLinked
+      ? "Письмо добавлено в переписку клиента"
+      : "Письмо добавлено; клиент не определился — привяжите его в «Почта → Без клиента»",
+  };
 }
 
 /** Письмо ящика открыли в браузере — пометить прочитанным и обновить счётчики слева. */

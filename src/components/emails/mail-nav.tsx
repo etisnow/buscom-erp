@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 const ERP_VIEWS = [
   { view: "inbox", href: "/mail", label: "Входящие от клиентов", count: "unread" },
-  { view: "unlinked", href: "/mail?view=unlinked", label: "Без заказа", count: "unlinked" },
+  { view: "unlinked", href: "/mail?view=unlinked", label: "Без клиента", count: "unlinked" },
   { view: "sent", href: "/mail?view=sent", label: "Отправленные из ERP", count: null },
 ] as const;
 

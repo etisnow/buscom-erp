@@ -265,7 +265,7 @@ async function pollOnce(options: PollOptions): Promise<PollSummary> {
           const letter = incoming ? await ingestClientEmail(incoming) : null;
           if (letter?.status === "stored") {
             summary.letters++;
-            if (letter.orderNumber !== null) summary.lettersLinked++;
+            if (letter.customerLinked) summary.lettersLinked++;
           } else summary.skipped++;
         } else {
           if (result.status === 201) summary.created.push(result.orderNumber);
@@ -306,7 +306,7 @@ export function describePoll(summary: PollSummary): string {
   if (summary.duplicates) parts.push(`уже принятых: ${summary.duplicates}`);
   if (summary.failed) parts.push(`с ошибкой разбора: ${summary.failed} — см. журнал`);
   if (summary.letters)
-    parts.push(`писем в переписку: ${summary.letters}, из них привязано к заказам: ${summary.lettersLinked}`);
+    parts.push(`писем в переписку: ${summary.letters}, из них с известным клиентом: ${summary.lettersLinked}`);
   if (summary.skipped) parts.push(`пропущено: ${summary.skipped}`);
   if (summary.more) parts.push("остальные письма — следующим проходом");
   return parts.length ? parts.join("; ") : "Новых писем нет";

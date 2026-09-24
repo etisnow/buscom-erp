@@ -1,6 +1,7 @@
 "use client";
 
 import { Mail, Send } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,8 @@ export function OrderEmails({
   orderId,
   orderNumber,
   emails,
+  totalEmails,
+  customerId,
   defaultTo,
   replySubject,
   templates,
@@ -39,7 +42,10 @@ export function OrderEmails({
 }: {
   orderId: string;
   orderNumber: number;
+  /** Последние письма переписки с клиентом — не только по этому заказу */
   emails: EmailView[];
+  totalEmails: number;
+  customerId: string;
   /** Кому по умолчанию: тому, кто написал последним, иначе адрес из карточки клиента */
   defaultTo: string | null;
   /** Тема по умолчанию: ответ на последнее входящее или «Заказ №…» */
@@ -98,7 +104,17 @@ export function OrderEmails({
   return (
     <section className="flex flex-col gap-3 rounded-lg border p-4">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="font-heading font-medium">Переписка</h2>
+        <h2 className="font-heading font-medium">
+          Переписка с клиентом
+          {totalEmails > emails.length ? (
+            <span className="text-muted-foreground ml-2 text-sm font-normal">
+              последние {emails.length} из {totalEmails} ·{" "}
+              <Link href={`/customers/${customerId}`} className="hover:text-foreground underline">
+                вся в карточке клиента
+              </Link>
+            </span>
+          ) : null}
+        </h2>
         {!open ? (
           <Button size="sm" variant="outline" onClick={() => startLetter(null)}>
             <Mail />
@@ -127,7 +143,7 @@ export function OrderEmails({
 
       {emails.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          Писем по заказу пока нет.{defaultTo ? "" : " У клиента не указан email — адрес впишите в форме письма."}
+          Переписки с клиентом пока нет.{defaultTo ? "" : " У клиента не указан email — адрес впишите в форме письма."}
         </p>
       ) : (
         <div className="flex max-h-[32rem] flex-col gap-2 overflow-y-auto">

@@ -2,8 +2,12 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { db } from "@/server/db";
 import {
   ingestClientEmail,
-  linkEmailToOrder,
+  linkEmailToCustomer,
+  listCustomerEmails,
   listMailbox,
+  mailboxCounts,
+  recentCustomerEmails,
+  searchCustomersForEmail,
   sendOrderEmail,
   sentTemplates,
   storeMailboxLetter,
@@ -113,7 +117,7 @@ describeDb("переписка с клиентом (живая БД)", () => {
     expect(sent).toHaveLength(0);
   });
 
-  it("ответ клиента находит заказ по цепочке, наше следующее письмо продолжает её", async () => {
+  it("ответ клиента находит клиента по цепочке, наше следующее письмо продолжает её; журнал заказа не трогается", async () => {
     await sendOrderEmail({
       orderId: order.id,
       to: ["client@mail.ru"],
@@ -124,9 +128,14 @@ describeDb("переписка с клиентом (живая БД)", () => {
     });
     const ours = sent[0].messageId;
 
-    const reply = await ingestClientEmail(incoming({ references: [ours], subject: "Re: Т" }));
-    expect(reply).toMatchObject({ status: "stored", orderNumber: order.number, matchedBy: "thread" });
-    expect(await db.orderEvent.count({ where: { orderId: order.id, type: "EMAIL_RECEIVED" } })).toBe(1);
+    // Ответ с другого адреса — клиента находит только цепочка
+    const reply = await ingestClientEmail(
+      incoming({ fromEmail: "boss@other.ru", references: [ours], subject: "Re: Т" }),
+    );
+    expect(reply).toMatchObject({ status: "stored", customerLinked: true, matchedBy: "thread" });
+    expect(await db.orderEvent.count({ where: { orderId: order.id, type: "EMAIL_RECEIVED" } })).toBe(0);
+    const replyRow = await db.email.findFirstOrThrow({ where: { direction: "INBOUND" } });
+    expect(replyRow).toMatchObject({ customerId: order.customerId, orderId: null });
 
     await sendOrderEmail({
       orderId: order.id,
@@ -136,90 +145,91 @@ describeDb("переписка с клиентом (живая БД)", () => {
       attachInvoice: false,
       user: manager,
     });
-    const replyRow = await db.email.findFirstOrThrow({ where: { direction: "INBOUND" } });
     expect(sent[1].inReplyTo).toBe(replyRow.messageId);
     expect(sent[1].references).toContain(ours);
   });
 
-  it("по номеру в теме — к заказу; без номера — только клиент по адресу; повтор не дублируется", async () => {
-    const bySubject = await ingestClientEmail(incoming({ subject: `Вопрос по заказу №${order.number}` }));
-    expect(bySubject).toMatchObject({ orderNumber: order.number, matchedBy: "subject" });
+  it("клиент по номеру заказа в теме или по адресу; незнакомый адрес — во «Без клиента»; повтор не дублируется", async () => {
+    const other = await db.customer.create({ data: { name: "Другой" } });
+    const otherOrder = await db.order.create({
+      data: { customerId: other.id, source: "PHONE" },
+      select: { number: true },
+    });
+    const bySubject = await ingestClientEmail(
+      incoming({ fromEmail: "unknown@x.ru", subject: `Вопрос по заказу №${otherOrder.number}` }),
+    );
+    expect(bySubject).toMatchObject({ customerLinked: true, matchedBy: "subject" });
+    expect((await db.email.findFirstOrThrow({ where: { fromEmail: "unknown@x.ru" } })).customerId).toBe(other.id);
 
-    const message = incoming({ messageId: "same@mail.ru" });
-    const loose = await ingestClientEmail(message);
-    expect(loose).toMatchObject({ status: "stored", orderNumber: null });
-    const looseRow = await db.email.findUniqueOrThrow({ where: { messageId: "same@mail.ru" } });
-    expect(looseRow.customerId).toBe(order.customerId);
-    expect(await ingestClientEmail(message)).toEqual({ status: "duplicate" });
+    const byAddress = await ingestClientEmail(incoming({ messageId: "same@mail.ru" }));
+    expect(byAddress).toMatchObject({ customerLinked: true, matchedBy: "address" });
+    expect(await ingestClientEmail(incoming({ messageId: "same@mail.ru" }))).toEqual({ status: "duplicate" });
 
-    const mailbox = await listMailbox("unlinked", 1);
-    expect(mailbox.items.map((item) => item.id)).toEqual([looseRow.id]);
-    expect(mailbox.unread).toBe(2);
+    const stranger = await ingestClientEmail(incoming({ fromEmail: "stranger@x.ru", subject: "Вопрос" }));
+    expect(stranger).toMatchObject({ customerLinked: false, matchedBy: null });
+    const unlinked = await listMailbox("unlinked", 1);
+    expect(unlinked.items.map((item) => item.fromEmail)).toEqual(["stranger@x.ru"]);
+    expect(await mailboxCounts()).toEqual({ unread: 3, unlinked: 1 });
   });
 
   it("номер в теме — номер на сайте, самый свежий заказ в пределах года до письма", async () => {
-    const make = (source: "SITE" | "LEGACY", externalId: string, siteNumber: string, createdAt: string) =>
-      db.order.create({
-        data: { customerId: order.customerId, source, externalId, siteNumber, createdAt: new Date(createdAt) },
-        select: { id: true, number: true },
-      });
-    const site = await make("SITE", "2828", "2828", "2026-09-20T10:00:00Z");
+    const siteCustomer = await db.customer.create({ data: { name: "С сайта" } });
+    const oldCustomer = await db.customer.create({ data: { name: "Старый" } });
+    const make = (customerId: string, source: "SITE" | "LEGACY", externalId: string, siteNumber: string, at: string) =>
+      db.order.create({ data: { customerId, source, externalId, siteNumber, createdAt: new Date(at) } });
+    await make(siteCustomer.id, "SITE", "2828", "2828", "2026-09-20T10:00:00Z");
     // Тот же номер у архивного заказа трёхлетней давности — не он
-    await make("LEGACY", "1001", "2828", "2023-05-01T10:00:00Z");
-    const legacy = await make("LEGACY", "3239", "2780", "2026-08-09T10:00:00Z");
+    await make(oldCustomer.id, "LEGACY", "1001", "2828", "2023-05-01T10:00:00Z");
 
-    const bySite = await ingestClientEmail(
-      incoming({ subject: "Re: Басском - Заказ 2828", date: new Date("2026-09-24T10:00:00Z") }),
+    await ingestClientEmail(
+      incoming({ fromEmail: "a@x.ru", subject: "Re: Басском - Заказ 2828", date: new Date("2026-09-24T10:00:00Z") }),
     );
-    expect(bySite).toMatchObject({ orderNumber: site.number, matchedBy: "subject" });
-
-    // Архивный заказ находится по номеру сайта из «Номер там»
-    const byLegacySite = await ingestClientEmail(
-      incoming({ subject: "Заказ 2780", date: new Date("2026-08-12T10:00:00Z") }),
-    );
-    expect(byLegacySite).toMatchObject({ orderNumber: legacy.number });
-
-    // Номер архивного заказа в ERP — не номер для клиента
-    const byErpNumber = await ingestClientEmail(incoming({ subject: `Заказ №${legacy.number}` }));
-    expect(byErpNumber).toMatchObject({ orderNumber: null });
+    expect((await db.email.findFirstOrThrow({ where: { fromEmail: "a@x.ru" } })).customerId).toBe(siteCustomer.id);
   });
 
-  it("письмо из ящика, привязанное руками, ложится в заказ с вложениями и событием", async () => {
-    await storeMailboxLetter(
-      {
-        direction: "OUTBOUND",
-        messageId: "sent-from-yandex@bus-com.ru",
-        references: [],
-        fromEmail: "info@bus-com.ru",
-        fromName: null,
-        toEmails: ["client@mail.ru"],
-        subject: "Счёт",
-        body: "Во вложении",
-        date: new Date("2026-09-01T10:00:00Z"),
-        attachments: [{ fileName: "счёт.pdf", contentType: "application/pdf", content: Buffer.from("pdf") }],
+  it("в заказе — последние 10 писем клиента, в том числе по его адресу без привязки", async () => {
+    // Письмо с адреса клиента, пришедшее, когда клиента ещё не знали
+    await db.email.create({
+      data: {
+        direction: "INBOUND",
+        fromEmail: "client@mail.ru",
+        toEmails: ["info@bus-com.ru"],
+        subject: "Давнее",
+        body: "…",
+        sentAt: new Date("2026-01-01T10:00:00Z"),
       },
-      order.number,
-      manager,
-    );
+    });
+    for (let i = 0; i < 11; i++) {
+      await ingestClientEmail(incoming({ subject: `Письмо ${i}`, date: new Date(Date.UTC(2026, 8, 1 + i)) }));
+    }
+    const customer = { id: order.customerId, email: "Client@Mail.ru" };
+    const recent = await recentCustomerEmails(customer);
+    expect(recent.total).toBe(12);
+    expect(recent.items.map((item) => item.subject)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => `Письмо ${i}`));
+    expect((await listCustomerEmails(customer)).items.at(-1)?.subject).toBe("Давнее");
+  });
+
+  it("письмо из ящика добавляется в переписку клиента с вложениями, без события заказа", async () => {
+    const result = await storeMailboxLetter({
+      direction: "OUTBOUND",
+      messageId: "sent-from-yandex@bus-com.ru",
+      references: [],
+      fromEmail: "info@bus-com.ru",
+      fromName: null,
+      toEmails: ["client@mail.ru"],
+      subject: "Счёт",
+      body: "Во вложении",
+      date: new Date("2026-09-01T10:00:00Z"),
+      attachments: [{ fileName: "счёт.pdf", contentType: "application/pdf", content: Buffer.from("pdf") }],
+    });
+    expect(result).toEqual({ customerLinked: true });
     const email = await db.email.findUniqueOrThrow({
       where: { messageId: "sent-from-yandex@bus-com.ru" },
       include: { attachments: true },
     });
-    expect(email).toMatchObject({ direction: "OUTBOUND", orderId: order.id, customerId: order.customerId });
+    expect(email).toMatchObject({ direction: "OUTBOUND", orderId: null, customerId: order.customerId });
     expect(email.attachments.map((a) => [a.fileName, a.data !== null])).toEqual([["счёт.pdf", true]]);
-    const event = await db.orderEvent.findFirstOrThrow({ where: { orderId: order.id, type: "EMAIL_SENT" } });
-    expect(event.comment).toContain("Добавлено из ящика вручную");
-
-    // Наше письмо из «Отправленных» перепривязывается только с явным разрешением
-    const other = await createOrder({
-      source: "PHONE",
-      customer: { name: "Другой", phone: "8 916 000-00-01" },
-      items: [{ sku: "B", name: "Стол", priceKopecks: 1, quantity: 1 }],
-      user: manager,
-    });
-    await expect(linkEmailToOrder(email.id, other.number, manager)).rejects.toThrow("Отправленное письмо");
-    await linkEmailToOrder(email.id, other.number, manager, { allowOutbound: true });
-    expect((await db.email.findUniqueOrThrow({ where: { id: email.id } })).orderId).toBe(other.id);
+    expect(await db.orderEvent.count({ where: { type: { in: ["EMAIL_SENT", "EMAIL_RECEIVED"] } } })).toBe(0);
   });
 
   it("большое вложение не хранится, но отмечается", async () => {
@@ -238,14 +248,13 @@ describeDb("переписка с клиентом (живая БД)", () => {
     ]);
   });
 
-  it("ручная привязка к заказу пишет событие", async () => {
+  it("ручная привязка к клиенту и поиск клиента", async () => {
     const result = await ingestClientEmail(incoming({ fromEmail: "stranger@mail.ru" }));
     if (result.status !== "stored") throw new Error("письмо не сохранилось");
-    await linkEmailToOrder(result.emailId, order.number, manager);
-
-    const email = await db.email.findUniqueOrThrow({ where: { id: result.emailId } });
-    expect(email).toMatchObject({ orderId: order.id, customerId: order.customerId });
-    const event = await db.orderEvent.findFirstOrThrow({ where: { orderId: order.id, type: "EMAIL_RECEIVED" } });
-    expect(event.comment).toContain("Привязано вручную");
+    const found = await searchCustomersForEmail("Клиент");
+    expect(found.map((row) => row.id)).toContain(order.customerId);
+    await linkEmailToCustomer(result.emailId, order.customerId);
+    expect((await db.email.findUniqueOrThrow({ where: { id: result.emailId } })).customerId).toBe(order.customerId);
+    expect(await db.orderEvent.count({ where: { type: "EMAIL_RECEIVED" } })).toBe(0);
   });
 });

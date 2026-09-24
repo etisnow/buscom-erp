@@ -17,7 +17,8 @@ export type EmailView = {
   unread: boolean;
   sentAt: Date;
   authorName: string | null;
-  orderNumber: number | null;
+  /** Клиент письма — если он определён */
+  customer: { id: string; name: string } | null;
   attachments: { id: string; fileName: string; byteSize: number; skippedReason: string | null }[];
 };
 
@@ -78,7 +79,7 @@ function EmailBody({ body }: { body: string }) {
 }
 
 /** Одно письмо переписки: кто, кому, когда, текст и вложения. */
-export function EmailMessage({ email, showOrder = false }: { email: EmailView; showOrder?: boolean }) {
+export function EmailMessage({ email, showCustomer = false }: { email: EmailView; showCustomer?: boolean }) {
   const inbound = email.direction === "INBOUND";
   const Icon = inbound ? ArrowDownLeft : ArrowUpRight;
   return (
@@ -105,9 +106,9 @@ export function EmailMessage({ email, showOrder = false }: { email: EmailView; s
           {email.template ? (
             <span>{EMAIL_TEMPLATE_LABELS[email.template as EmailTemplateKey] ?? email.template}</span>
           ) : null}
-          {showOrder && email.orderNumber !== null ? (
-            <Link href={`/orders/${email.orderNumber}`} className="text-foreground hover:underline">
-              Заказ №{email.orderNumber}
+          {showCustomer && email.customer ? (
+            <Link href={`/customers/${email.customer.id}`} className="text-foreground hover:underline">
+              {email.customer.name}
             </Link>
           ) : null}
           <time dateTime={email.sentAt.toISOString()}>{formatMoscowDateTime(email.sentAt)}</time>

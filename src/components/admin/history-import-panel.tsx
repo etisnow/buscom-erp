@@ -80,7 +80,7 @@ export function HistoryImportPanel({ state, running }: { state: HistoryImportSta
         <p className="text-muted-foreground text-sm">
           Письма с клиентами за последние {HISTORY_YEARS} года из выбранных папок ящика: входящие и «Отправленные».
           Берутся только письма, где собеседник есть среди клиентов; рассылки, поставщики и сервисы не переносятся.
-          Письмо привязывается к заказу по цепочке и номеру на сайте в теме, иначе — к клиенту. Вложения переносятся
+          Клиент письма определяется по цепочке, номеру заказа на сайте в теме или адресу. Вложения переносятся
           названиями, файлы остаются в ящике. Повторный запуск дублей не создаёт.
         </p>
       </div>
@@ -174,8 +174,8 @@ function HistoryProgress({ state }: { state: HistoryImportState }) {
           <dd className="tabular-nums">{n(state.imported)}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-xs">Привязано к заказам</dt>
-          <dd className="tabular-nums">{n(state.linkedToOrders + state.relinked)}</dd>
+          <dt className="text-muted-foreground text-xs">С известным клиентом</dt>
+          <dd className="tabular-nums">{n(state.linkedToCustomers + state.relinked)}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground text-xs">Не с клиентами / уже были</dt>

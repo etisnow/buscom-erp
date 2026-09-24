@@ -50,7 +50,8 @@ const stateSchema = z.object({
   since: z.string(),
   folders: z.array(folderStateSchema),
   imported: z.number().int(),
-  linkedToOrders: z.number().int(),
+  /** Письма, у которых нашёлся клиент. У импортов до 25.09 поля нет — там считались заказы */
+  linkedToCustomers: z.number().int().default(0),
   duplicates: z.number().int(),
   skipped: z.number().int(),
   relinked: z.number().int(),
@@ -117,7 +118,7 @@ export async function startHistoryImport(folderPaths: string[] | null): Promise<
       done: false,
     })),
     imported: 0,
-    linkedToOrders: 0,
+    linkedToCustomers: 0,
     duplicates: 0,
     skipped: 0,
     relinked: 0,
@@ -262,7 +263,7 @@ async function run(state: HistoryImportState): Promise<void> {
               if (result.status === "duplicate") state.duplicates++;
               else {
                 state.imported++;
-                if (result.linkedToOrder) state.linkedToOrders++;
+                if (result.linkedToCustomer) state.linkedToCustomers++;
               }
             }
             folder.processed++;
@@ -283,7 +284,7 @@ async function run(state: HistoryImportState): Promise<void> {
     state.finishedAt = new Date().toISOString();
     await writeState(state);
     console.log(
-      `[mail] Импорт истории закончен: писем ${state.imported}, к заказам ${state.linkedToOrders + state.relinked}`,
+      `[mail] Импорт истории закончен: писем ${state.imported}, с клиентом ${state.linkedToCustomers + state.relinked}`,
     );
   } catch (error) {
     client.close();
