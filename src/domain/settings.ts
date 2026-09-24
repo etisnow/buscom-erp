@@ -4,6 +4,7 @@
  * поэтому пустая база сразу работоспособна.
  */
 import { z } from "zod";
+import { DEFAULT_EMAIL_TEMPLATES, parseEmailTemplates, type EmailTemplates } from "@/domain/email/templates";
 import { DEFAULT_DISCOUNT_LIMIT_PERCENT } from "@/domain/order/discount";
 import { DEFAULT_SLA_MINUTES } from "@/domain/sla";
 import type { OrderStatus } from "@/generated/prisma/enums";
@@ -13,6 +14,7 @@ export const SETTING_KEYS = {
   slaMinutes: "slaMinutes",
   sellerRequisites: "sellerRequisites",
   smtp: "smtp",
+  emailTemplates: "emailTemplates",
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
@@ -113,6 +115,7 @@ export type AppSettings = {
   slaMinutes: Record<OrderStatus, number | null>;
   sellerRequisites: SellerRequisites;
   smtp: SmtpSettings;
+  emailTemplates: EmailTemplates;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -120,6 +123,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   slaMinutes: DEFAULT_SLA_MINUTES,
   sellerRequisites: DEFAULT_SELLER_REQUISITES,
   smtp: DEFAULT_SMTP_SETTINGS,
+  emailTemplates: DEFAULT_EMAIL_TEMPLATES,
 };
 
 /** Разбор значения из БД: негодное значение не роняет систему, а откатывается к умолчанию. */
@@ -143,6 +147,8 @@ export function parseSetting<K extends keyof AppSettings>(key: K, raw: unknown):
       const parsed = smtpSettingsSchema.safeParse(raw);
       return (parsed.success ? parsed.data : DEFAULT_SMTP_SETTINGS) as AppSettings[K];
     }
+    case "emailTemplates":
+      return parseEmailTemplates(raw) as AppSettings[K];
     default:
       return DEFAULT_SETTINGS[key];
   }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DictionaryEditor } from "@/components/admin/dictionary-editor";
+import { EmailTemplatesEditor } from "@/components/admin/email-templates-editor";
 import { DiscountLimitEditor, RequisitesEditor, SlaEditor, SmtpEditor } from "@/components/admin/settings-editor";
 import { SLA_ENABLED } from "@/domain/sla";
 import { ADMIN_ROLES } from "@/domain/user/role";
@@ -64,6 +65,7 @@ export default async function AdminDictionariesPage() {
         hasPassword={settings.smtp.password.length > 0}
         testRecipient={user.email}
       />
+      <EmailTemplatesEditor templates={settings.emailTemplates} />
     </main>
   );
 }

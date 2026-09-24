@@ -27,7 +27,8 @@ export function startMailPolling(): void {
   const tick = async () => {
     try {
       const summary = await pollMailbox();
-      const quiet = !summary.baseline && !summary.created.length && !summary.failed && !summary.duplicates;
+      const quiet =
+        !summary.baseline && !summary.created.length && !summary.failed && !summary.duplicates && !summary.letters;
       if (!quiet) console.log(`[mail] ${describePoll(summary)}`);
       if (lastError) console.log("[mail] Ящик снова доступен");
       lastError = null;

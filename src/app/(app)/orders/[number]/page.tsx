@@ -30,6 +30,14 @@ import { findProductRows } from "@/server/products/list";
 import { canEditCatalog } from "@/server/products/service";
 import { getCancelReasons, getCarModels, getCarriers, getOrderSources } from "@/server/settings/service";
 import { requirePageUser } from "@/server/session";
+import { OrderEmails } from "@/components/emails/order-emails";
+import { replySubject, suggestedTemplates } from "@/domain/email/letters";
+import { EMAIL_TEMPLATE_KEYS, renderEmailTemplate, templateVariables } from "@/domain/email/templates";
+import { requisitesReady } from "@/domain/settings";
+import { listOrderEmails, sentTemplates } from "@/server/emails/service";
+import { mailConfigured } from "@/server/mail";
+import { getSettings } from "@/server/settings/service";
+import { toEmailView } from "@/app/(app)/mail/email-view";
 import { listSupplierOptions } from "@/server/suppliers/list";
 
 export async function generateMetadata({ params }: PageProps<"/orders/[number]">): Promise<Metadata> {
@@ -54,12 +62,35 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
   if (!order) notFound();
 
   // Товары позиций, поставщики, категории и модели — для правки позиции и карточки товара прямо из заказа.
-  const [products, suppliers, categories, carModels] = await Promise.all([
+  const [products, suppliers, categories, carModels, emails, usedTemplates, settings, mailReady] = await Promise.all([
     findProductRows(order.items.map((item) => item.productId).filter((id): id is string => id !== null)),
     listSupplierOptions(),
     listCategories(),
     getCarModels(),
+    listOrderEmails(order.id),
+    sentTemplates(order.id),
+    getSettings(),
+    mailConfigured(),
   ]);
+
+  // Шаблоны писем заполняются данными заказа здесь, на сервере; в форме их только правят.
+  const templateVars = templateVariables(
+    {
+      number: order.number,
+      customerName: order.customer.contactPerson || order.customer.name,
+      totalKopecks: order.totalKopecks,
+      paidKopecks: order.paidKopecks,
+      carrier: order.carrier,
+      trackingNumber: order.trackingNumber,
+      deliveryAddress: order.deliveryAddress,
+      shippedAt: order.shippedAt,
+    },
+    { name: settings.sellerRequisites.name, phone: settings.sellerRequisites.phone },
+  );
+  const renderedTemplates = Object.fromEntries(
+    EMAIL_TEMPLATE_KEYS.map((key) => [key, renderEmailTemplate(settings.emailTemplates[key], templateVars)]),
+  ) as Record<(typeof EMAIL_TEMPLATE_KEYS)[number], { subject: string; body: string }>;
+  const lastInbound = emails.findLast((email) => email.direction === "INBOUND");
 
   const editable = canEditItems(order.status, user.role, order.paidKopecks);
   const isClosed = TERMINAL_STATUSES.includes(order.status);
@@ -207,6 +238,26 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
               authorName: payment.createdBy?.name ?? null,
             }))}
             canAdd={order.status !== "CANCELLED"}
+          />
+
+          <OrderEmails
+            orderId={order.id}
+            orderNumber={order.number}
+            emails={emails.map(toEmailView)}
+            defaultTo={lastInbound?.fromEmail ?? order.customer.email}
+            replySubject={lastInbound ? replySubject(lastInbound.subject) : `Заказ №${order.number}`}
+            templates={renderedTemplates}
+            suggestions={suggestedTemplates(
+              {
+                totalKopecks: order.totalKopecks,
+                paidKopecks: order.paidKopecks,
+                trackingNumber: order.trackingNumber,
+                customerEmail: order.customer.email ?? lastInbound?.fromEmail ?? null,
+              },
+              usedTemplates,
+            )}
+            invoiceAvailable={requisitesReady(settings.sellerRequisites)}
+            mailReady={mailReady}
           />
 
           <OrderHistory

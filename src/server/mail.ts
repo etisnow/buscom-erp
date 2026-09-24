@@ -151,3 +151,52 @@ export function testNotificationLetter(to: string, name: string): Letter {
     ].join("\n"),
   };
 }
+
+export class MailNotConfiguredError extends Error {
+  constructor() {
+    super("Почта не настроена: заполните раздел «Почта» в справочниках — без него письмо клиенту не уйдёт");
+    this.name = "MailNotConfiguredError";
+  }
+}
+
+export type ClientLetter = {
+  to: string[];
+  subject: string;
+  text: string;
+  /** Наш Message-ID без скобок — по нему потом узнаём ответ клиента */
+  messageId: string;
+  inReplyTo?: string | null;
+  references?: string[];
+  attachments?: { fileName: string; contentType: string; content: Buffer }[];
+};
+
+/** Адрес «От кого» для писем клиенту — тот же, что у остальных писем. */
+export async function senderAddress(): Promise<string | null> {
+  const smtp = await resolveSmtp();
+  return smtp ? smtp.from || env.SMTP_FROM : null;
+}
+
+/**
+ * Письмо клиенту. В отличие от `sendLetter`, без настроенной почты не пишет в лог,
+ * а бросает ошибку: человек нажал «Отправить» и должен узнать, что письмо не ушло.
+ * Ошибку SMTP тоже не глушит — её показывают в форме.
+ */
+export async function sendClientLetter(letter: ClientLetter): Promise<void> {
+  const smtp = await resolveSmtp();
+  if (!smtp) throw new MailNotConfiguredError();
+
+  await getTransporter(smtp).sendMail({
+    from: smtp.from || env.SMTP_FROM,
+    to: letter.to,
+    subject: letter.subject,
+    text: letter.text,
+    messageId: `<${letter.messageId}>`,
+    ...(letter.inReplyTo ? { inReplyTo: `<${letter.inReplyTo}>` } : {}),
+    ...(letter.references?.length ? { references: letter.references.map((id) => `<${id}>`) } : {}),
+    attachments: letter.attachments?.map((file) => ({
+      filename: file.fileName,
+      contentType: file.contentType,
+      content: file.content,
+    })),
+  });
+}

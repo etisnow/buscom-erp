@@ -10,12 +10,14 @@ import {
   smtpConfigured,
   smtpSettingsSchema,
 } from "@/domain/settings";
+import { emailTemplatesSchema } from "@/domain/email/templates";
 import { ADMIN_ROLES } from "@/domain/user/role";
 import {
   addDictionaryItem,
   deleteDictionaryItem,
   renameDictionaryItem,
   saveDiscountLimit,
+  saveEmailTemplates,
   readSettings,
   saveSellerRequisites,
   saveSlaMinutes,
@@ -132,4 +134,13 @@ export async function sendTestMailAction(settings: z.input<typeof smtpSettingsSc
     const reason = error instanceof Error ? error.message : "неизвестная ошибка";
     return { ok: false, error: `Не удалось отправить: ${reason}` };
   }
+}
+
+export async function saveEmailTemplatesAction(
+  templates: z.input<typeof emailTemplatesSchema>,
+): Promise<SettingsResult> {
+  const user = await requireUser(ADMIN_ROLES);
+  const parsed = emailTemplatesSchema.safeParse(templates);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+  return run(() => saveEmailTemplates(parsed.data, user.id), "Шаблоны писем сохранены");
 }

@@ -28,6 +28,8 @@ export function dbTestsEnabled(): boolean {
 export const describeDb = dbTestsEnabled() ? describe : describe.skip;
 
 const TABLES = [
+  '"EmailAttachment"',
+  '"Email"',
   '"Notification"',
   '"ProductImage"',
   '"OrderSupplierTrack"',

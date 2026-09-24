@@ -5,6 +5,7 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { ADMIN_SECTION_ROLES, ANALYTICS_ROLES, hasRole, roleLabel } from "@/domain/user/role";
+import { unreadEmailCount } from "@/server/emails/service";
 import { requireUser } from "@/server/session";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
@@ -16,6 +17,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     { href: "/customers", label: "Клиенты", icon: "customers" },
     { href: "/products", label: "Товары", icon: "products" },
     { href: "/suppliers", label: "Поставщики", icon: "suppliers" },
+    { href: "/mail", label: "Почта", icon: "mail", badge: await unreadEmailCount() },
   ];
   if (hasRole(user.role, ANALYTICS_ROLES)) {
     items.push({ href: "/analytics", label: "Аналитика", icon: "analytics" });

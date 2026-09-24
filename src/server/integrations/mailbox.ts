@@ -1,9 +1,11 @@
 import "server-only";
 import { ImapFlow } from "imapflow";
-import { simpleParser } from "mailparser";
+import { simpleParser, type AddressObject, type ParsedMail } from "mailparser";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { env } from "@/server/env";
+import { normalizeEmailAddress, referencedMessageIds } from "@/domain/email/letters";
+import { ingestClientEmail, type IncomingEmail } from "@/server/emails/service";
 import { ingestSiteEmail, type StoredEmail } from "@/server/integrations/site-email";
 
 /**
@@ -31,6 +33,9 @@ export type PollSummary = {
   duplicates: number;
   failed: number;
   skipped: number;
+  /** Письма клиентов, легшие в переписку; из них привязаны к заказу */
+  letters: number;
+  lettersLinked: number;
   /** Остались письма сверх BATCH — заберём следующим проходом */
   more: boolean;
 };
@@ -67,8 +72,7 @@ function createClient(): ImapFlow {
   });
 }
 
-async function toStoredEmail(source: Buffer): Promise<StoredEmail> {
-  const mail = await simpleParser(source);
+function toStoredEmail(mail: ParsedMail): StoredEmail {
   return {
     messageId: mail.messageId ?? null,
     from: mail.from?.text ?? null,
@@ -76,6 +80,37 @@ async function toStoredEmail(source: Buffer): Promise<StoredEmail> {
     date: mail.date ? mail.date.toISOString() : null,
     html: typeof mail.html === "string" ? mail.html : "",
     text: mail.text ?? "",
+  };
+}
+
+function addresses(value: AddressObject | AddressObject[] | undefined): string[] {
+  const list = Array.isArray(value) ? value : value ? [value] : [];
+  return list.flatMap((item) =>
+    item.value.map((entry) => normalizeEmailAddress(entry.address)).filter((a): a is string => a !== null),
+  );
+}
+
+/** Письмо клиента для переписки. Встроенные в HTML картинки (подписи, логотипы) вложениями не считаем. */
+function toIncomingEmail(mail: ParsedMail): IncomingEmail | null {
+  const sender = mail.from?.value[0];
+  const fromEmail = normalizeEmailAddress(sender?.address);
+  if (!fromEmail) return null;
+  return {
+    messageId: mail.messageId ?? null,
+    references: referencedMessageIds(mail.inReplyTo, mail.references),
+    fromEmail,
+    fromName: sender?.name || null,
+    toEmails: addresses(mail.to),
+    subject: mail.subject ?? "(без темы)",
+    body: (mail.text ?? "").trim(),
+    date: mail.date ?? null,
+    attachments: mail.attachments
+      .filter((file) => !file.related)
+      .map((file) => ({
+        fileName: file.filename ?? "вложение",
+        contentType: file.contentType || "application/octet-stream",
+        content: file.content,
+      })),
   };
 }
 
@@ -91,7 +126,16 @@ export type PollOptions = {
 async function pollOnce(options: PollOptions): Promise<PollSummary> {
   if (!isMailboxConfigured()) throw new Error("Ящик заказов не настроен: нужны IMAP_HOST, IMAP_USER и IMAP_PASSWORD");
 
-  const summary: PollSummary = { baseline: false, created: [], duplicates: 0, failed: 0, skipped: 0, more: false };
+  const summary: PollSummary = {
+    baseline: false,
+    created: [],
+    duplicates: 0,
+    failed: 0,
+    skipped: 0,
+    letters: 0,
+    lettersLinked: 0,
+    more: false,
+  };
   const client = createClient();
   await client.connect();
 
@@ -125,10 +169,19 @@ async function pollOnce(options: PollOptions): Promise<PollSummary> {
       for (const message of messages.slice(0, BATCH)) {
         // Ошибка здесь — не про письмо (его разбор ошибок не бросает), а про базу
         // или сеть: курсор не двигаем, письмо заберём следующим проходом.
-        const result = await ingestSiteEmail(await toStoredEmail(message.source));
+        const mail = await simpleParser(message.source);
+        const result = await ingestSiteEmail(toStoredEmail(mail));
 
-        if (result.status === "skipped") summary.skipped++;
-        else {
+        if (result.status === "skipped") {
+          // Не заказ с сайта — значит, письмо клиента. Отметку «прочитано» не ставим:
+          // ящик читают и люди, а в ERP у письма своя отметка.
+          const incoming = toIncomingEmail(mail);
+          const letter = incoming ? await ingestClientEmail(incoming) : null;
+          if (letter?.status === "stored") {
+            summary.letters++;
+            if (letter.orderNumber !== null) summary.lettersLinked++;
+          } else summary.skipped++;
+        } else {
           if (result.status === 201) summary.created.push(result.orderNumber);
           else if (result.status === 200) summary.duplicates++;
           else summary.failed++;
@@ -166,7 +219,9 @@ export function describePoll(summary: PollSummary): string {
   if (summary.created.length) parts.push(`новых заказов: ${summary.created.length} (№${summary.created.join(", №")})`);
   if (summary.duplicates) parts.push(`уже принятых: ${summary.duplicates}`);
   if (summary.failed) parts.push(`с ошибкой разбора: ${summary.failed} — см. журнал`);
-  if (summary.skipped) parts.push(`не о заказах: ${summary.skipped}`);
+  if (summary.letters)
+    parts.push(`писем в переписку: ${summary.letters}, из них привязано к заказам: ${summary.lettersLinked}`);
+  if (summary.skipped) parts.push(`пропущено: ${summary.skipped}`);
   if (summary.more) parts.push("остальные письма — следующим проходом");
   return parts.length ? parts.join("; ") : "Новых писем нет";
 }

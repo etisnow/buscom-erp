@@ -19,6 +19,8 @@ const EVENT_LABELS: Record<OrderEventType, string> = {
   COMMENT: "Комментарий",
   SUPPLIER_STAGE_CHANGED: "Этап поставщика",
   SUPPLIER_DOCUMENT_CHANGED: "Файл поставщика",
+  EMAIL_SENT: "Письмо клиенту",
+  EMAIL_RECEIVED: "Письмо от клиента",
 };
 
 export type HistoryEvent = {

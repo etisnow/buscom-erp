@@ -42,6 +42,7 @@ model User {
   managedOrders Order[]        @relation("OrderManager")
   orderEvents   OrderEvent[]
   payments      Payment[]
+  sentEmails    Email[]
 
   @@map("user")
 }
@@ -141,6 +142,7 @@ model Customer {
 
   addresses CustomerAddress[]
   orders    Order[]
+  emails    Email[]
 
   @@index([email])
   @@index([inn])
@@ -463,6 +465,7 @@ model Order {
   notifications     Notification[]
   supplierTracks    OrderSupplierTrack[]
   supplierDocuments OrderSupplierDocument[]
+  emails            Email[]
 
   @@unique([source, externalId])
   @@index([status])
@@ -580,6 +583,10 @@ enum OrderEventType {
   SUPPLIER_STAGE_CHANGED
   /// Артефакт по поставщику прикреплён, заменён или удалён (OrderSupplierDocument)
   SUPPLIER_DOCUMENT_CHANGED
+  /// Письмо клиенту отправлено из карточки заказа (Email)
+  EMAIL_SENT
+  /// Письмо клиента пришло в общий ящик и привязано к заказу (Email)
+  EMAIL_RECEIVED
 }
 
 /// Журнал заказа: история в карточке и аудит. Только добавление, без правок.
@@ -693,4 +700,68 @@ model IntegrationInbox {
 
   @@unique([source, externalId])
   @@index([status])
+}
+
+enum EmailDirection {
+  /// Письмо клиента, пришедшее в общий ящик
+  INBOUND
+  /// Письмо клиенту, отправленное из ERP
+  OUTBOUND
+}
+
+/// Переписка с клиентом по почте (PRD, M6.2). Входящие приходят из общего ящика
+/// (тот же IMAP-опрос, что принимает заказы с сайта), исходящие уходят через SMTP.
+/// Письмо без заказа — входящее, которое не удалось привязать: его привязывают руками
+/// в разделе «Почта».
+model Email {
+  id         String         @id @default(cuid())
+  direction  EmailDirection
+  orderId    String?
+  order      Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  customerId String?
+  customer   Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  /// Message-ID без угловых скобок: у входящих — от почтового сервера клиента,
+  /// у исходящих — наш. По нему узнаём ответы на наши письма и не принимаем письмо дважды
+  messageId  String?        @unique
+  /// Message-ID из In-Reply-To и References — цепочка, по которой ответ находит заказ
+  references String[]       @default([])
+  /// Адрес отправителя в нижнем регистре; имя — отдельно
+  fromEmail  String
+  fromName   String?
+  toEmails   String[]
+  subject    String
+  /// Текст письма. У HTML-писем — текстовая версия, которую собирает mailparser
+  body       String
+  /// Шаблон, которым написано исходящее: invoice / paid / shipped (src/domain/email/templates.ts)
+  template   String?
+  /// Кто отправил исходящее
+  userId     String?
+  user       User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// Входящее прочитано в ERP; у исходящих всегда заполнено
+  readAt     DateTime?
+  /// Дата письма: у входящих — из заголовка Date, у исходящих — время отправки
+  sentAt     DateTime
+  createdAt  DateTime       @default(now())
+
+  attachments EmailAttachment[]
+
+  @@index([orderId, sentAt])
+  @@index([customerId])
+  @@index([direction, readAt])
+  @@index([sentAt])
+}
+
+/// Вложение письма. Файлы входящих больше лимита не храним — только отметку о них в `skippedReason`
+model EmailAttachment {
+  id            String  @id @default(cuid())
+  emailId       String
+  email         Email   @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  fileName      String
+  contentType   String
+  byteSize      Int
+  /// null — файл не сохранён (слишком большой); причина — в `skippedReason`
+  data          Bytes?
+  skippedReason String?
+
+  @@index([emailId])
 }

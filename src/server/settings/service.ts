@@ -1,5 +1,6 @@
 import "server-only";
 import { cache } from "react";
+import type { EmailTemplates } from "@/domain/email/templates";
 import { CANCEL_REASONS } from "@/domain/order/cancel-reasons";
 import {
   DEFAULT_SETTINGS,
@@ -32,6 +33,9 @@ export async function readSettings(): Promise<AppSettings> {
       ? parseSetting("sellerRequisites", stored.get(SETTING_KEYS.sellerRequisites))
       : DEFAULT_SETTINGS.sellerRequisites,
     smtp: stored.has(SETTING_KEYS.smtp) ? parseSetting("smtp", stored.get(SETTING_KEYS.smtp)) : DEFAULT_SETTINGS.smtp,
+    emailTemplates: stored.has(SETTING_KEYS.emailTemplates)
+      ? parseSetting("emailTemplates", stored.get(SETTING_KEYS.emailTemplates))
+      : DEFAULT_SETTINGS.emailTemplates,
   };
 }
 
@@ -59,6 +63,10 @@ export async function saveSlaMinutes(
   userId: string,
 ): Promise<void> {
   await writeSetting(SETTING_KEYS.slaMinutes, minutes as Prisma.InputJsonValue, userId);
+}
+
+export async function saveEmailTemplates(templates: EmailTemplates, userId: string): Promise<void> {
+  await writeSetting(SETTING_KEYS.emailTemplates, templates, userId);
 }
 
 export async function saveSellerRequisites(requisites: SellerRequisites, userId: string): Promise<void> {

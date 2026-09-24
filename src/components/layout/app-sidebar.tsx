@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, ChartColumn, ClipboardList, Factory, Package, Settings, Users } from "lucide-react";
+import { Boxes, ChartColumn, ClipboardList, Mail, Factory, Package, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,6 +10,7 @@ import {
   SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
@@ -18,7 +19,9 @@ import {
 export type NavItem = {
   href: string;
   label: string;
-  icon: "orders" | "customers" | "products" | "suppliers" | "analytics" | "admin";
+  icon: "orders" | "customers" | "products" | "suppliers" | "mail" | "analytics" | "admin";
+  /** Число рядом с пунктом — непрочитанные письма; 0 не показывается */
+  badge?: number;
 };
 
 const ICONS = {
@@ -26,6 +29,7 @@ const ICONS = {
   customers: Users,
   products: Package,
   suppliers: Factory,
+  mail: Mail,
   analytics: ChartColumn,
   admin: Settings,
 } as const;
@@ -63,6 +67,7 @@ export function AppSidebar({ items }: { items: NavItem[] }) {
                         <span>{item.label}</span>
                       </Link>
                     </SidebarMenuButton>
+                    {item.badge ? <SidebarMenuBadge>{item.badge}</SidebarMenuBadge> : null}
                   </SidebarMenuItem>
                 );
               })}
