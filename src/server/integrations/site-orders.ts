@@ -125,6 +125,7 @@ export async function createOrderFromPayload(
         source: "SITE",
         sourceItemId,
         externalId: payload.externalId,
+        siteNumber: payload.externalId,
         status: "NEW",
         statusChangedAt: createdAt,
         slaDueAt: slaDueAtFor("NEW", createdAt, slaMinutes),

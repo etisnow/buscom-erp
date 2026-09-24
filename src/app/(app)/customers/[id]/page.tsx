@@ -13,6 +13,9 @@ import { findCustomer } from "@/server/customers/list";
 import { CUSTOMER_DELETE_ROLES, ORDER_CREATE_ROLES, hasRole } from "@/domain/user/role";
 import { canEditCustomers } from "@/server/customers/service";
 import { requirePageUser } from "@/server/session";
+import { EmailMessage } from "@/components/emails/email-thread";
+import { listCustomerEmails } from "@/server/emails/service";
+import { toEmailView } from "@/app/(app)/mail/email-view";
 
 export const metadata: Metadata = {
   title: "Клиент — BusCom ERP",
@@ -25,7 +28,7 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
   const user = await requirePageUser();
   const { id } = await params;
 
-  const customer = await findCustomer(id);
+  const [customer, emails] = await Promise.all([findCustomer(id), listCustomerEmails(id)]);
   if (!customer) notFound();
 
   const editable = canEditCustomers(user.role);
@@ -135,6 +138,30 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
             </Table>
           </div>
         )}
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-lg border p-4">
+        <h2 className="font-heading font-medium">
+          Переписка
+          <span className="text-muted-foreground ml-2 text-sm font-normal">
+            {emails.total > emails.items.length
+              ? `последние ${emails.items.length} из ${emails.total}`
+              : emails.total || ""}
+          </span>
+        </h2>
+        {emails.items.length === 0 ? (
+          <p className="text-muted-foreground text-sm">Писем с клиентом нет.</p>
+        ) : (
+          <div className="flex max-h-[40rem] flex-col gap-2 overflow-y-auto">
+            {emails.items.map((email) => (
+              <EmailMessage key={email.id} email={toEmailView(email)} showOrder />
+            ))}
+          </div>
+        )}
+        <p className="text-muted-foreground text-xs">
+          Все письма клиента, свежие сверху, со ссылкой на заказ, если письмо к нему привязано. Написать клиенту — из
+          карточки заказа.
+        </p>
       </section>
     </main>
   );

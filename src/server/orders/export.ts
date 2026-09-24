@@ -48,7 +48,7 @@ export async function exportOrdersCsv(filters: OrderListFilters, user: SessionUs
     where,
     select: {
       number: true,
-      externalId: true,
+      siteNumber: true,
       createdAt: true,
       status: true,
       source: true,
@@ -70,7 +70,7 @@ export async function exportOrdersCsv(filters: OrderListFilters, user: SessionUs
     HEADERS,
     ...rows.map((order) => [
       order.number,
-      order.externalId ?? "",
+      order.siteNumber ?? "",
       csvDateTime(order.createdAt),
       ORDER_STATUS_LABELS[order.status],
       order.customer.name,

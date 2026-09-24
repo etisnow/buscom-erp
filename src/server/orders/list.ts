@@ -45,7 +45,7 @@ export const PAGE_SIZE = 50;
 const listSelect = {
   id: true,
   number: true,
-  externalId: true,
+  siteNumber: true,
   status: true,
   createdAt: true,
   statusChangedAt: true,
@@ -105,6 +105,8 @@ function searchWhere(raw: string): Prisma.OrderWhereInput | null {
     const number = Number(digits);
     if (Number.isSafeInteger(number)) or.push({ number });
   }
+  // Номер на сайте и ID прежней ERP у архивных заказов
+  or.push({ siteNumber: { contains: query, mode: "insensitive" } });
   or.push({ externalId: { contains: query, mode: "insensitive" } });
 
   const phone = normalizePhone(query);

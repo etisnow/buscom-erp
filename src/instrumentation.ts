@@ -8,5 +8,13 @@ export async function register() {
     startMailPolling();
     const { startNotificationDispatch } = await import("@/server/notifications/dispatch");
     startNotificationDispatch();
+    // Импорт истории почты, оборванный выкатом, продолжается сам. Только в бою:
+    // базу разработки делят две машины, и продолжили бы его обе
+    if (process.env.NODE_ENV === "production") {
+      const { resumeHistoryImport } = await import("@/server/emails/history-import");
+      void resumeHistoryImport(true).catch((error: unknown) =>
+        console.error("[mail] Импорт истории не продолжен", error),
+      );
+    }
   }
 }

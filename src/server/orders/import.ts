@@ -171,6 +171,7 @@ export async function importLegacyOrders(
         source: "LEGACY",
         sourceItemId,
         externalId: draft.externalId,
+        siteNumber: draft.siteNumber,
         status: "COMPLETED",
         customerId,
         itemsTotalKopecks: draft.totalKopecks + draft.discountKopecks,

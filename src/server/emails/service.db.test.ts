@@ -156,22 +156,31 @@ describeDb("переписка с клиентом (живая БД)", () => {
     expect(mailbox.unread).toBe(2);
   });
 
-  it("номер в теме — номер на сайте; архивные заказы по номеру не ищутся", async () => {
-    const make = (source: "SITE" | "LEGACY", externalId: string) =>
+  it("номер в теме — номер на сайте, самый свежий заказ в пределах года до письма", async () => {
+    const make = (source: "SITE" | "LEGACY", externalId: string, siteNumber: string, createdAt: string) =>
       db.order.create({
-        data: { customerId: order.customerId, source, externalId, status: "IN_PROGRESS" },
+        data: { customerId: order.customerId, source, externalId, siteNumber, createdAt: new Date(createdAt) },
         select: { id: true, number: true },
       });
-    const site = await make("SITE", "2828");
-    // Номер прежней ERP совпал с номером сайта — ответ клиенту сайта не должен уйти к архиву
-    await make("LEGACY", "2828");
-    const legacy = await make("LEGACY", "9999");
+    const site = await make("SITE", "2828", "2828", "2026-09-20T10:00:00Z");
+    // Тот же номер у архивного заказа трёхлетней давности — не он
+    await make("LEGACY", "1001", "2828", "2023-05-01T10:00:00Z");
+    const legacy = await make("LEGACY", "3239", "2780", "2026-08-09T10:00:00Z");
 
-    const bySite = await ingestClientEmail(incoming({ subject: "Re: Басском - Заказ 2828" }));
+    const bySite = await ingestClientEmail(
+      incoming({ subject: "Re: Басском - Заказ 2828", date: new Date("2026-09-24T10:00:00Z") }),
+    );
     expect(bySite).toMatchObject({ orderNumber: site.number, matchedBy: "subject" });
 
-    const byLegacyNumber = await ingestClientEmail(incoming({ subject: `Заказ №${legacy.number}` }));
-    expect(byLegacyNumber).toMatchObject({ orderNumber: null });
+    // Архивный заказ находится по номеру сайта из «Номер там»
+    const byLegacySite = await ingestClientEmail(
+      incoming({ subject: "Заказ 2780", date: new Date("2026-08-12T10:00:00Z") }),
+    );
+    expect(byLegacySite).toMatchObject({ orderNumber: legacy.number });
+
+    // Номер архивного заказа в ERP — не номер для клиента
+    const byErpNumber = await ingestClientEmail(incoming({ subject: `Заказ №${legacy.number}` }));
+    expect(byErpNumber).toMatchObject({ orderNumber: null });
   });
 
   it("большое вложение не хранится, но отмечается", async () => {

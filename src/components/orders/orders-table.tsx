@@ -100,7 +100,7 @@ export function OrdersTable({ rows, now }: { rows: OrderListRow[]; now: Date }) 
                     {order.number}
                   </Link>
                 </TableCell>
-                <TableCell className="text-muted-foreground">{order.externalId ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground">{order.siteNumber ?? "—"}</TableCell>
                 <TableCell className="text-muted-foreground whitespace-nowrap">
                   {formatMoscowDateTime(order.createdAt)}
                 </TableCell>

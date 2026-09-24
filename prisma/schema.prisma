@@ -419,6 +419,10 @@ model Order {
   sourceItem   DictionaryItem? @relation(fields: [sourceItemId], references: [id], onDelete: Restrict)
   /// Номер/ID заказа во внешней системе (на сайте)
   externalId   String?
+  /// Номер заказа на сайте — тот, что знает клиент (письма OpenCart «… - Заказ 2828»).
+  /// У заказов с сайта совпадает с externalId, у архивных — «Номер» прежней ERP,
+  /// у заведённых руками — null. По нему письмо клиента находит заказ
+  siteNumber   String?
   status       OrderStatus     @default(NEW)
 
   customerId String
@@ -468,6 +472,7 @@ model Order {
   emails            Email[]
 
   @@unique([source, externalId])
+  @@index([siteNumber])
   @@index([status])
   @@index([managerId])
   @@index([sourceItemId])
@@ -741,6 +746,9 @@ model Email {
   readAt     DateTime?
   /// Дата письма: у входящих — из заголовка Date, у исходящих — время отправки
   sentAt     DateTime
+  /// Письмо перенесено импортом истории из ящика, а не пришло опросом или ушло из ERP.
+  /// Такие сразу прочитаны, не ждут привязки во «Без заказа» и не пишут событий заказа
+  importedAt DateTime?
   createdAt  DateTime       @default(now())
 
   attachments EmailAttachment[]

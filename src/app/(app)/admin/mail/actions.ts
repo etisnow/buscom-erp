@@ -13,7 +13,10 @@ import {
 } from "@/domain/settings";
 import { ADMIN_ROLES } from "@/domain/user/role";
 import type { MailFolder } from "@/domain/email/folders";
-import { listMailboxFolders, testMailboxConnection } from "@/server/integrations/mailbox";
+import { defaultHistoryFolders, type HistoryFolder } from "@/domain/email/history";
+import { resumeHistoryImport, startHistoryImport } from "@/server/emails/history-import";
+import { listMailboxFolders, resolveMailbox, testMailboxConnection } from "@/server/integrations/mailbox";
+import { OrderConflictError } from "@/server/orders/internal";
 import { sendTestLetter } from "@/server/mail";
 import { readSettings, saveEmailTemplates, saveImapSettings, saveSmtpSettings } from "@/server/settings/service";
 import { requireUser } from "@/server/session";
@@ -143,4 +146,41 @@ export async function listImapFoldersAction(settings: z.input<typeof imapSetting
     const reason = error instanceof Error ? error.message : "неизвестная ошибка";
     return { ok: false, error: `Не удалось получить папки: ${reason}` };
   }
+}
+
+export type HistoryFoldersResult = { ok: true; folders: HistoryFolder[] } | { ok: false; error: string };
+
+/** Папки для импорта истории — из сохранённого подключения, с выбором по умолчанию. */
+export async function historyFoldersAction(): Promise<HistoryFoldersResult> {
+  await requireUser(ADMIN_ROLES);
+  const connection = await resolveMailbox();
+  if (!connection) return { ok: false, error: "Сначала сохраните входящую почту" };
+  try {
+    return { ok: true, folders: defaultHistoryFolders(await listMailboxFolders(connection)) };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "неизвестная ошибка";
+    return { ok: false, error: `Не удалось получить папки: ${reason}` };
+  }
+}
+
+export async function startHistoryImportAction(folderPaths: string[]): Promise<SettingsResult> {
+  await requireUser(ADMIN_ROLES);
+  const parsed = z.array(z.string().min(1)).min(1, { error: "Отметьте хотя бы одну папку" }).safeParse(folderPaths);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+  try {
+    await startHistoryImport(parsed.data);
+  } catch (error) {
+    if (error instanceof OrderConflictError) return { ok: false, error: error.message };
+    const reason = error instanceof Error ? error.message : "неизвестная ошибка";
+    return { ok: false, error: `Импорт не запущен: ${reason}` };
+  }
+  revalidatePath("/admin/mail");
+  return { ok: true, message: "Импорт запущен — прогресс ниже, страница обновляется сама" };
+}
+
+export async function resumeHistoryImportAction(): Promise<SettingsResult> {
+  await requireUser(ADMIN_ROLES);
+  await resumeHistoryImport();
+  revalidatePath("/admin/mail");
+  return { ok: true, message: "Импорт продолжен с места остановки" };
 }

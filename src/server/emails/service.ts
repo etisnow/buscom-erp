@@ -30,6 +30,8 @@ import type { SessionUser } from "@/server/session";
  * заказа в теме, иначе остаётся без заказа — его привязывают руками в «Почте».
  */
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 export class EmailNotFoundError extends Error {
   constructor() {
     super("Письмо не найдено");
@@ -153,7 +155,15 @@ export type IncomingResult =
   | { status: "stored"; emailId: string; orderNumber: number | null; matchedBy: "thread" | "subject" | null };
 
 /** Привязка входящего: заказ и клиент. Порядок — от надёжного к догадке. */
-async function matchIncoming(email: IncomingEmail) {
+type MatchInput = {
+  references: string[];
+  subject: string;
+  date: Date | null;
+  /** С кем письмо: отправитель входящего или получатели нашего */
+  counterparts: string[];
+};
+
+async function matchIncoming(email: MatchInput) {
   if (email.references.length > 0) {
     const parent = await db.email.findFirst({
       where: { messageId: { in: email.references }, OR: [{ orderId: { not: null } }, { customerId: { not: null } }] },
@@ -172,16 +182,22 @@ async function matchIncoming(email: IncomingEmail) {
       return { orderId: null, orderNumber: null, customerId: parent.customerId, by: "thread" as const };
   }
 
-  // Номер в теме — тот, что знает клиент. У заказа с сайта это номер на сайте:
-  // клиент отвечает на письмо OpenCart «… - Заказ 2828». У заказа, заведённого
-  // руками, номера сайта нет — клиенту сообщают номер в ERP. Архивные заказы в
-  // поиск не попадают: номера прежней ERP пересекаются с номерами сайта.
+  // Номер в теме — тот, что знает клиент: номер на сайте (`siteNumber` — у заказов
+  // с сайта и у архивных). Клиент отвечает на письмо OpenCart «… - Заказ 2828».
+  // Номера в архиве повторяются («10» — у девяти заказов разных лет), поэтому
+  // берём самый свежий заказ, созданный за год до письма и не позже дня после.
+  // У заказа, заведённого руками, номера сайта нет — клиенту сообщают номер в ERP.
   const number = orderNumberFromSubject(email.subject);
   if (number !== null) {
     const select = { id: true, number: true, customerId: true } as const;
+    const at = (email.date ?? new Date()).getTime();
     const order =
       (await db.order.findFirst({
-        where: { source: "SITE", externalId: String(number), deletedAt: null },
+        where: {
+          siteNumber: String(number),
+          deletedAt: null,
+          createdAt: { gte: new Date(at - 365 * DAY_MS), lte: new Date(at + DAY_MS) },
+        },
         orderBy: { createdAt: "desc" },
         select,
       })) ??
@@ -195,11 +211,16 @@ async function matchIncoming(email: IncomingEmail) {
 
   // Заказа не нашли — хотя бы клиент по адресу. Если адрес у нескольких клиентов,
   // не угадываем: пусть человек выберет заказ сам.
-  const customers = await db.customer.findMany({
-    where: { email: { equals: email.fromEmail, mode: "insensitive" } },
-    select: { id: true },
-    take: 2,
-  });
+  const customers =
+    email.counterparts.length === 0
+      ? []
+      : await db.customer.findMany({
+          where: {
+            OR: email.counterparts.map((address) => ({ email: { equals: address, mode: "insensitive" as const } })),
+          },
+          select: { id: true },
+          take: 2,
+        });
   return { orderId: null, orderNumber: null, customerId: customers.length === 1 ? customers[0].id : null, by: null };
 }
 
@@ -209,7 +230,7 @@ export async function ingestClientEmail(email: IncomingEmail): Promise<IncomingR
     return { status: "duplicate" };
   }
 
-  const match = await matchIncoming(email);
+  const match = await matchIncoming({ ...email, counterparts: [email.fromEmail] });
   const attachments: Prisma.EmailAttachmentCreateWithoutEmailInput[] = email.attachments.map((file) =>
     file.content.length > MAX_ATTACHMENT_BYTES
       ? {
@@ -340,7 +361,7 @@ export async function listMailbox(view: MailboxView, page: number) {
     view === "sent"
       ? { direction: "OUTBOUND" }
       : view === "unlinked"
-        ? { direction: "INBOUND", orderId: null }
+        ? { direction: "INBOUND", orderId: null, importedAt: null }
         : { direction: "INBOUND" };
   const [items, total, counts] = await Promise.all([
     db.email.findMany({
@@ -355,7 +376,7 @@ export async function listMailbox(view: MailboxView, page: number) {
     db.email.count({ where }),
     Promise.all([
       db.email.count({ where: { direction: "INBOUND", readAt: null } }),
-      db.email.count({ where: { direction: "INBOUND", orderId: null } }),
+      db.email.count({ where: { direction: "INBOUND", orderId: null, importedAt: null } }),
     ]),
   ]);
   return { items, total, unread: counts[0], unlinked: counts[1] };
@@ -380,4 +401,120 @@ export async function recentCustomerOrders(customerId: string) {
     take: 6,
     select: { number: true, status: true, totalKopecks: true, createdAt: true },
   });
+}
+
+export type HistoryLetter = {
+  direction: "INBOUND" | "OUTBOUND";
+  messageId: string | null;
+  references: string[];
+  fromEmail: string;
+  fromName: string | null;
+  toEmails: string[];
+  subject: string;
+  body: string;
+  date: Date;
+  /** С кем письмо — по ним ищется клиент */
+  counterparts: string[];
+  /** Вложения только названиями: сами файлы остаются в ящике */
+  attachments: { fileName: string; contentType: string; size: number }[];
+};
+
+export type HistoryStoreResult = { status: "duplicate" } | { status: "stored"; linkedToOrder: boolean };
+
+/**
+ * Письмо из истории ящика. Привязка — та же, что у живых писем, но письмо сразу
+ * прочитано, помечено `importedAt` и события в истории заказа не пишет: это не
+ * изменение заказа, а перенос архива, и тысяча строк «Письмо от клиента» за три
+ * года завалила бы журнал.
+ */
+export async function storeHistoryEmail(letter: HistoryLetter, importedAt: Date): Promise<HistoryStoreResult> {
+  const messageId = normalizeMessageId(letter.messageId);
+  if (messageId && (await db.email.findUnique({ where: { messageId }, select: { id: true } }))) {
+    return { status: "duplicate" };
+  }
+  const match = await matchIncoming(letter);
+  await db.email.create({
+    data: {
+      direction: letter.direction,
+      orderId: match.orderId,
+      customerId: match.customerId,
+      messageId,
+      references: letter.references,
+      fromEmail: letter.fromEmail,
+      fromName: letter.fromName,
+      toEmails: letter.toEmails,
+      subject: letter.subject,
+      body: letter.body,
+      readAt: importedAt,
+      importedAt,
+      sentAt: letter.date,
+      attachments: {
+        create: letter.attachments.map((file) => ({
+          fileName: file.fileName,
+          contentType: file.contentType,
+          byteSize: file.size,
+          skippedReason: "Перенесено из истории ящика без файла — он есть в почте",
+        })),
+      },
+    },
+  });
+  return { status: "stored", linkedToOrder: match.orderId !== null };
+}
+
+/**
+ * Достраивает цепочки в перенесённой истории: письмо без заказа получает заказ
+ * другого письма той же переписки — и ответ от исходного, и исходное от ответа
+ * (номер заказа часто есть только в теме одного из них). Повторяет, пока что-то
+ * меняется, но не больше пяти раз: цепочки длиннее встречаются редко.
+ */
+export async function relinkHistoryThreads(): Promise<number> {
+  let total = 0;
+  for (let round = 0; round < 5; round++) {
+    const linked = await db.email.findMany({
+      where: { importedAt: { not: null }, orderId: { not: null } },
+      select: { orderId: true, customerId: true, messageId: true, references: true },
+    });
+    const orderByMessage = new Map<string, { orderId: string; customerId: string | null }>();
+    for (const email of linked) {
+      const target = { orderId: email.orderId as string, customerId: email.customerId };
+      for (const id of [email.messageId, ...email.references]) if (id) orderByMessage.set(id, target);
+    }
+
+    const loose = await db.email.findMany({
+      where: { importedAt: { not: null }, orderId: null },
+      select: { id: true, customerId: true, messageId: true, references: true },
+    });
+    let changed = 0;
+    for (const email of loose) {
+      const target = [email.messageId, ...email.references]
+        .filter((id): id is string => id !== null)
+        .map((id) => orderByMessage.get(id))
+        .find((item) => item !== undefined);
+      if (!target) continue;
+      await db.email.update({
+        where: { id: email.id },
+        data: { orderId: target.orderId, customerId: email.customerId ?? target.customerId },
+      });
+      changed++;
+    }
+    total += changed;
+    if (changed === 0) break;
+  }
+  return total;
+}
+
+/** Переписка клиента — все письма, свежие сверху; у старых клиентов их может быть много. */
+export const CUSTOMER_EMAILS_LIMIT = 200;
+
+export async function listCustomerEmails(customerId: string): Promise<{ items: EmailListItem[]; total: number }> {
+  const [items, total] = await Promise.all([
+    db.email.findMany({
+      where: { customerId },
+      orderBy: { sentAt: "desc" },
+      take: CUSTOMER_EMAILS_LIMIT,
+      select: listSelect,
+    }),
+    db.email.count({ where: { customerId } }),
+  ]);
+  return { items, total };
 }

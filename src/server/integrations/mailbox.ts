@@ -92,7 +92,7 @@ async function writeCursor(cursor: Cursor): Promise<void> {
   });
 }
 
-function createClient(connection: ImapSettings): ImapFlow {
+export function createClient(connection: ImapSettings): ImapFlow {
   const [viaHost, viaPort] = env.IMAP_VIA?.split(":") ?? [];
   return new ImapFlow({
     host: viaHost || connection.host,

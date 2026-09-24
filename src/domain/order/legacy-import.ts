@@ -16,6 +16,8 @@ export const LEGACY_ITEM_SKU = "ИМПОРТ";
 export type LegacyOrder = {
   /** `ID` строки прежней ERP — уникален, служит ключом повторного прогона. */
   externalId: string;
+  /** «Номер» прежней ERP — номер заказа на сайте; только цифры, иначе null */
+  siteNumber: string | null;
   /** Дата заказа: становится и `createdAt`, и временем смены статуса. */
   createdAt: Date;
   customerName: string;
@@ -86,6 +88,7 @@ export function parseLegacyOrder(row: Record<string, string>): LegacyOrder | nul
 
   return {
     externalId,
+    siteNumber: /^\d+$/.test(g("Номер")) ? g("Номер") : null,
     createdAt,
     customerName: g("На кого"),
     customerEmail:
