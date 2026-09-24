@@ -25,6 +25,9 @@ export const SUPPLIER_EDIT_ROLES: UserRole[] = ["MANAGER", "HEAD", "ADMIN"];
 /** Удаление поставщика необратимо — как и у клиента, только руководителю и администратору. */
 export const SUPPLIER_DELETE_ROLES: UserRole[] = ["HEAD", "ADMIN"];
 
+/** Роли, которым виден раздел «Аналитика»: выручка и маржа — не для менеджера (PRD, M7). */
+export const ANALYTICS_ROLES: UserRole[] = ["HEAD", "ADMIN"];
+
 /** Роли, которые могут создавать заказ вручную. */
 export const ORDER_CREATE_ROLES: UserRole[] = ["MANAGER", "HEAD", "ADMIN"];
 
