@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { EMAIL_TEMPLATE_KEYS, EMAIL_TEMPLATE_LABELS, type EmailTemplateKey } from "@/domain/email/templates";
 import { markEmailsReadAction, sendOrderEmailAction } from "@/app/(app)/mail/actions";
-import { EmailMessage, type EmailView } from "./email-thread";
+import { CustomerEmailFeed } from "./customer-email-feed";
+import type { EmailView } from "./email-thread";
 
 const NO_TEMPLATE = "__none__";
 
@@ -106,11 +107,11 @@ export function OrderEmails({
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-heading font-medium">
           Переписка с клиентом
-          {totalEmails > emails.length ? (
+          {totalEmails > 0 ? (
             <span className="text-muted-foreground ml-2 text-sm font-normal">
-              последние {emails.length} из {totalEmails} ·{" "}
+              {totalEmails} ·{" "}
               <Link href={`/customers/${customerId}`} className="hover:text-foreground underline">
-                вся в карточке клиента
+                карточка клиента
               </Link>
             </span>
           ) : null}
@@ -146,11 +147,12 @@ export function OrderEmails({
           Переписки с клиентом пока нет.{defaultTo ? "" : " У клиента не указан email — адрес впишите в форме письма."}
         </p>
       ) : (
-        <div className="flex max-h-[32rem] flex-col gap-2 overflow-y-auto">
-          {emails.map((email) => (
-            <EmailMessage key={email.id} email={email} />
-          ))}
-        </div>
+        <CustomerEmailFeed
+          key={emails.map((email) => email.id).join(",")}
+          customerId={customerId}
+          initial={emails}
+          total={totalEmails}
+        />
       )}
 
       {open ? (

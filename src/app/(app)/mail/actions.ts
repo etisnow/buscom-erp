@@ -8,6 +8,7 @@ import {
   EmailNotFoundError,
   linkEmailToCustomer,
   markEmailsRead,
+  olderCustomerEmails,
   searchCustomersForEmail,
   sendOrderEmail,
 } from "@/server/emails/service";
@@ -24,6 +25,8 @@ import { ForbiddenError } from "@/server/errors";
 import { MailNotConfiguredError } from "@/server/mail";
 import { OrderConflictError, OrderNotFoundError } from "@/server/orders/internal";
 import { requireUser } from "@/server/session";
+import type { EmailView } from "@/components/emails/email-thread";
+import { toEmailView } from "@/app/(app)/mail/email-view";
 
 export type MailActionResult = { ok: true } | { ok: false; error: string };
 
@@ -192,4 +195,16 @@ export async function markMailboxLetterOpenedAction(ref: z.input<typeof letterRe
   const parsed = letterRefSchema.safeParse(ref);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   return mailboxAction(() => markLetterOpened(parsed.data.folder, parsed.data.uid));
+}
+
+/** Подгрузка более старых писем переписки с клиентом — при прокрутке ленты в заказе. */
+export async function loadOlderEmailsAction(
+  customerId: string,
+  before: { sentAt: string; id: string },
+): Promise<{ items: EmailView[]; hasMore: boolean }> {
+  await requireUser();
+  const sentAt = new Date(before.sentAt);
+  if (!customerId || !before.id || Number.isNaN(sentAt.getTime())) return { items: [], hasMore: false };
+  const result = await olderCustomerEmails(customerId, { sentAt, id: before.id });
+  return { items: result.items.map(toEmailView), hasMore: result.hasMore };
 }

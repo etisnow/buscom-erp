@@ -6,6 +6,7 @@ import {
   listCustomerEmails,
   listMailbox,
   mailboxCounts,
+  olderCustomerEmails,
   recentCustomerEmails,
   searchCustomersForEmail,
   sendOrderEmail,
@@ -207,6 +208,12 @@ describeDb("переписка с клиентом (живая БД)", () => {
     expect(recent.total).toBe(12);
     expect(recent.items.map((item) => item.subject)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => `Письмо ${i}`));
     expect((await listCustomerEmails(customer)).items.at(-1)?.subject).toBe("Давнее");
+
+    // Подгрузка старых при прокрутке: остальные два письма, без повторов, больше нет
+    const first = recent.items[0];
+    const older = await olderCustomerEmails(order.customerId, { sentAt: first.sentAt, id: first.id });
+    expect(older.items.map((item) => item.subject)).toEqual(["Давнее", "Письмо 0"]);
+    expect(older.hasMore).toBe(false);
   });
 
   it("письмо из ящика добавляется в переписку клиента с вложениями, без события заказа", async () => {

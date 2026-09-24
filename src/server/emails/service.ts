@@ -349,7 +349,12 @@ export async function recentCustomerEmails(customer: {
 }): Promise<{ items: EmailListItem[]; total: number }> {
   const where = customerEmailsWhere(customer);
   const [items, total] = await Promise.all([
-    db.email.findMany({ where, orderBy: { sentAt: "desc" }, take: ORDER_EMAILS_LIMIT, select: listSelect }),
+    db.email.findMany({
+      where,
+      orderBy: [{ sentAt: "desc" }, { id: "desc" }],
+      take: ORDER_EMAILS_LIMIT,
+      select: listSelect,
+    }),
     db.email.count({ where }),
   ]);
   return { items: items.reverse(), total };
@@ -555,4 +560,29 @@ export async function mailboxCounts(): Promise<{ unread: number; unlinked: numbe
     db.email.count({ where: UNLINKED_WHERE }),
   ]);
   return { unread, unlinked };
+}
+
+/**
+ * Письма переписки клиента старше данного — подгрузка при прокрутке ленты в
+ * заказе. Курсор — дата и id последнего показанного, чтобы письма с одинаковой
+ * датой не терялись и не повторялись.
+ */
+export async function olderCustomerEmails(
+  customerId: string,
+  before: { sentAt: Date; id: string },
+): Promise<{ items: EmailListItem[]; hasMore: boolean }> {
+  const customer = await db.customer.findUnique({ where: { id: customerId }, select: { id: true, email: true } });
+  if (!customer) return { items: [], hasMore: false };
+  const rows = await db.email.findMany({
+    where: {
+      AND: [
+        customerEmailsWhere(customer),
+        { OR: [{ sentAt: { lt: before.sentAt } }, { sentAt: before.sentAt, id: { lt: before.id } }] },
+      ],
+    },
+    orderBy: [{ sentAt: "desc" }, { id: "desc" }],
+    take: ORDER_EMAILS_LIMIT + 1,
+    select: listSelect,
+  });
+  return { items: rows.slice(0, ORDER_EMAILS_LIMIT).reverse(), hasMore: rows.length > ORDER_EMAILS_LIMIT };
 }
