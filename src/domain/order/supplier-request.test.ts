@@ -9,13 +9,14 @@ const BASE: SupplierRequestInput = {
     {
       name: "Люк вентиляционный",
       quantity: 2,
-      purchasePriceKopecks: 350000,
+      priceKopecks: 350000,
       options: [
         { valueId: "v1", optionName: "Цвет", valueName: "серый", priceDeltaKopecks: 0 },
         { valueId: "v2", optionName: "Крепление", valueName: "болтовое", priceDeltaKopecks: 50000 },
       ],
     },
   ],
+  orderCostKopecks: 0,
   delivery: { method: "CARRIER", carrier: "СДЭК", address: "Ростов-на-Дону, ул. Ленина, 1" },
   customer: {
     name: 'ООО "Ромашка"',
@@ -148,8 +149,8 @@ describe("buildSupplierRequest", () => {
     const text = buildSupplierRequest({
       ...BASE,
       items: [
-        { name: "Первый", quantity: 1, purchasePriceKopecks: 10000, options: [] },
-        { name: "Второй", quantity: 1, purchasePriceKopecks: 20000, options: [] },
+        { name: "Первый", quantity: 1, priceKopecks: 10000, options: [] },
+        { name: "Второй", quantity: 1, priceKopecks: 20000, options: [] },
       ],
     });
 
@@ -161,8 +162,8 @@ describe("buildSupplierRequest", () => {
     const text = buildSupplierRequest({
       ...BASE,
       items: [
-        { name: "С ценой", quantity: 1, purchasePriceKopecks: 10000, options: [] },
-        { name: "Без цены", quantity: 3, purchasePriceKopecks: null, options: [] },
+        { name: "С ценой", quantity: 1, priceKopecks: 10000, options: [] },
+        { name: "Без цены", quantity: 3, priceKopecks: null, options: [] },
       ],
     });
 
@@ -174,10 +175,32 @@ describe("buildSupplierRequest", () => {
   it("без единой цены итог не печатает — складывать нечего", () => {
     const text = buildSupplierRequest({
       ...BASE,
-      items: [{ name: "Без цены", quantity: 1, purchasePriceKopecks: null, options: [] }],
+      items: [{ name: "Без цены", quantity: 1, priceKopecks: null, options: [] }],
     });
 
     expect(text).not.toContain("Итого");
+  });
+
+  it("расходы на заказ — отдельной строкой перед итогом и входят в итог", () => {
+    const text = buildSupplierRequest({ ...BASE, orderCostKopecks: 50000 }).replace(/\s/g, " ");
+
+    expect(text).toContain("Расходы на заказ: 500 ₽ Итого: 7 500 ₽");
+  });
+
+  it("без расходов на заказ строки о них нет", () => {
+    const text = buildSupplierRequest({ ...BASE, orderCostKopecks: 0 });
+
+    expect(text).not.toContain("Расходы на заказ");
+  });
+
+  it("расходы на заказ печатаются и тогда, когда у позиций нет цен", () => {
+    const text = buildSupplierRequest({
+      ...BASE,
+      orderCostKopecks: 50000,
+      items: [{ name: "Без цены", quantity: 1, priceKopecks: null, options: [] }],
+    }).replace(/\s/g, " ");
+
+    expect(text).toContain("Расходы на заказ: 500 ₽ Итого: 500 ₽ (без позиций, у которых нет цены)");
   });
 
   it("пропускает пустые блоки, не оставляя лишних переносов", () => {

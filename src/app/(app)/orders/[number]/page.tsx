@@ -251,9 +251,11 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
                           .map((item) => ({
                             name: item.name,
                             quantity: item.quantity,
-                            purchasePriceKopecks: item.purchasePriceKopecks,
+                            // Конечная стоимость с экономикой цены; у позиций без снимка — номинал
+                            priceKopecks: item.purchaseCostKopecks ?? item.purchasePriceKopecks,
                             options: parseOrderItemOptions(item.options),
                           })),
+                        orderCostKopecks: track.orderCostKopecks,
                         delivery: {
                           method: order.deliveryMethod,
                           carrier: order.carrier,

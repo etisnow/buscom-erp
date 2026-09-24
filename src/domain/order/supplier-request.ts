@@ -4,8 +4,9 @@
  *
  * Правила:
  * - в текст попадают только позиции этого поставщика, у каждого свой заказ;
- * - цены — закупочные, из снимка в позиции (`OrderItem.purchasePriceKopecks`),
- *   а не текущие из прайса: договаривались по той цене, что в заказе;
+ * - цены — конечная стоимость закупки с «Экономикой цены» поставщика, из снимка
+ *   в позиции (`OrderItem.purchaseCostKopecks`), а не текущие из прайса:
+ *   договаривались по той цене, что в заказе;
  * - артикула нет намеренно — у поставщиков свои коды, наш их только путает;
  * - опции позиции обязательны: без них поставщик не поймёт, какой вариант нужен;
  * - в подписи — реквизиты клиента, не нашей компании (включая банковские): при
@@ -23,8 +24,8 @@ import type { DeliveryMethod } from "@/generated/prisma/enums";
 export type SupplierRequestItem = {
   name: string;
   quantity: number;
-  /** Снимок закупочной цены. null — поставщика проставили, а цены у пары нет */
-  purchasePriceKopecks: Kopecks | null;
+  /** Снимок стоимости за штуку с экономикой цены. null — поставщика проставили, а цены у пары нет */
+  priceKopecks: Kopecks | null;
   options: OrderItemOption[];
 };
 
@@ -32,6 +33,8 @@ export type SupplierRequestInput = {
   orderNumber: number;
   orderCreatedAt: Date;
   items: SupplierRequestItem[];
+  /** Снимок расходов на заказ у поставщика из «Экономики цены»; 0 — расходов нет */
+  orderCostKopecks: Kopecks;
   delivery: {
     method: DeliveryMethod | null;
     carrier: string | null;
@@ -61,11 +64,11 @@ function itemLines(item: SupplierRequestItem, index: number): string[] {
     lines.push(`   ${option.optionName}: ${option.valueName}`);
   }
 
-  if (item.purchasePriceKopecks === null) {
+  if (item.priceKopecks === null) {
     lines.push(`   ${item.quantity} шт — ${NO_PRICE}`);
   } else {
-    const sum = item.purchasePriceKopecks * item.quantity;
-    lines.push(`   ${item.quantity} шт × ${formatRub(item.purchasePriceKopecks)} = ${formatRub(sum)}`);
+    const sum = item.priceKopecks * item.quantity;
+    lines.push(`   ${item.quantity} шт × ${formatRub(item.priceKopecks)} = ${formatRub(sum)}`);
   }
 
   return lines;
@@ -126,11 +129,16 @@ export function buildSupplierRequest(input: SupplierRequestInput): string {
   if (input.items.length > 0) {
     blocks.push(input.items.flatMap((item, index) => itemLines(item, index)).join("\n"));
 
-    const priced = input.items.filter((item) => item.purchasePriceKopecks !== null);
-    if (priced.length > 0) {
-      const total = priced.reduce((sum, item) => sum + (item.purchasePriceKopecks ?? 0) * item.quantity, 0);
+    // Расходы на заказ — один раз на весь заказ у поставщика, отдельной строкой
+    // перед итогом и внутри него
+    const priced = input.items.filter((item) => item.priceKopecks !== null);
+    if (priced.length > 0 || input.orderCostKopecks > 0) {
+      const itemsTotal = priced.reduce((sum, item) => sum + (item.priceKopecks ?? 0) * item.quantity, 0);
       const partial = priced.length < input.items.length ? " (без позиций, у которых нет цены)" : "";
-      blocks.push(`Итого: ${formatRub(total)}${partial}`);
+      const lines: string[] = [];
+      if (input.orderCostKopecks > 0) lines.push(`Расходы на заказ: ${formatRub(input.orderCostKopecks)}`);
+      lines.push(`Итого: ${formatRub(itemsTotal + input.orderCostKopecks)}${partial}`);
+      blocks.push(lines.join("\n"));
     }
   }
 
