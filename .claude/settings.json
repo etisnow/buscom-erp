@@ -18,7 +18,11 @@
       "Bash(git status)",
       "Bash(git diff *)",
       "Bash(git log *)",
-      "Bash(ssh buscom-prod:*)"
+      "Bash(ssh buscom-prod:*)",
+      "Bash(git push origin development)",
+      "Bash(git push origin development:main)",
+      "Bash(gh run list:*)",
+      "Bash(gh run watch:*)"
     ],
     "deny": [
       "Bash(pnpm prisma migrate reset *)",
