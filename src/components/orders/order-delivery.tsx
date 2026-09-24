@@ -7,7 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { rublesToKopecks } from "@/domain/money";
-import { DELIVERY_METHOD_LABELS as METHOD_LABELS } from "@/domain/order/delivery";
+import {
+  CargoInputError,
+  DELIVERY_METHOD_LABELS as METHOD_LABELS,
+  formatWeightKg,
+  parseSideCm,
+  parseWeightKg,
+  type Cargo,
+} from "@/domain/order/delivery";
 import type { DeliveryMethod } from "@/generated/prisma/enums";
 import { updateDeliveryAction } from "@/app/(app)/orders/[number]/actions";
 
@@ -21,6 +28,8 @@ export function OrderDelivery({
   deliveryAddress,
   deliveryPriceKopecks,
   trackingNumber,
+  shippedAt,
+  cargo,
   carriers,
   canEdit,
   canEditPrice,
@@ -32,6 +41,9 @@ export function OrderDelivery({
   deliveryAddress: string | null;
   deliveryPriceKopecks: number;
   trackingNumber: string | null;
+  /** `2026-09-24` по Москве; пусто — не отгружен */
+  shippedAt: string;
+  cargo: Cargo;
   /** Справочник перевозчиков; текущий выбор в нём есть всегда — страница его добавляет */
   carriers: string[];
   canEdit: boolean;
@@ -42,6 +54,11 @@ export function OrderDelivery({
   const [address, setAddress] = useState(deliveryAddress ?? "");
   const [price, setPrice] = useState((deliveryPriceKopecks / 100).toFixed(2));
   const [tracking, setTracking] = useState(trackingNumber ?? "");
+  const [shipped, setShipped] = useState(shippedAt);
+  const [weight, setWeight] = useState(cargo.weightGrams === null ? "" : formatWeightKg(cargo.weightGrams));
+  const [length, setLength] = useState(cargo.lengthCm?.toString() ?? "");
+  const [width, setWidth] = useState(cargo.widthCm?.toString() ?? "");
+  const [height, setHeight] = useState(cargo.heightCm?.toString() ?? "");
   const [pending, startTransition] = useTransition();
 
   function save() {
@@ -55,6 +72,19 @@ export function OrderDelivery({
       }
     }
 
+    let cargoValue: Cargo;
+    try {
+      cargoValue = {
+        weightGrams: parseWeightKg(weight),
+        lengthCm: parseSideCm(length, "Длина"),
+        widthCm: parseSideCm(width, "Ширина"),
+        heightCm: parseSideCm(height, "Высота"),
+      };
+    } catch (error) {
+      toast.error(error instanceof CargoInputError ? error.message : "Некорректные вес или габариты");
+      return;
+    }
+
     startTransition(async () => {
       const result = await updateDeliveryAction({
         orderId,
@@ -63,6 +93,8 @@ export function OrderDelivery({
         carrier: carrierValue,
         deliveryAddress: address,
         trackingNumber: tracking,
+        shippedAt: shipped,
+        cargo: cargoValue,
         ...(priceKopecks === undefined ? {} : { deliveryPriceKopecks: priceKopecks }),
       });
       if (result.ok) toast.success("Доставка сохранена");
@@ -152,6 +184,61 @@ export function OrderDelivery({
             className="h-8"
           />
         </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs" htmlFor="delivery-shipped">
+            Дата отгрузки
+          </Label>
+          <Input
+            id="delivery-shipped"
+            type="date"
+            value={shipped}
+            onChange={(event) => setShipped(event.target.value)}
+            disabled={!canEdit}
+            className="h-8"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs" htmlFor="delivery-weight">
+            Вес, кг
+          </Label>
+          <Input
+            id="delivery-weight"
+            inputMode="decimal"
+            value={weight}
+            onChange={(event) => setWeight(event.target.value)}
+            disabled={!canEdit}
+            className="h-8 text-right"
+          />
+        </div>
+
+        <fieldset className="flex flex-col gap-1.5 sm:col-span-2">
+          <legend className="mb-1.5 text-xs font-medium">Габариты, см (длина × ширина × высота)</legend>
+          <div className="flex items-center gap-2">
+            {(
+              [
+                ["delivery-length", "Длина", length, setLength],
+                ["delivery-width", "Ширина", width, setWidth],
+                ["delivery-height", "Высота", height, setHeight],
+              ] as const
+            ).map(([id, label, value, setValue], index) => (
+              <div key={id} className="flex items-center gap-2">
+                {index > 0 ? <span className="text-muted-foreground">×</span> : null}
+                <Input
+                  id={id}
+                  aria-label={label}
+                  placeholder={label.toLowerCase()}
+                  inputMode="numeric"
+                  value={value}
+                  onChange={(event) => setValue(event.target.value)}
+                  disabled={!canEdit}
+                  className="h-8 w-24 text-right"
+                />
+              </div>
+            ))}
+          </div>
+        </fieldset>
       </div>
 
       {method === "CARRIER" && !tracking.trim() ? (

@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { parseDateInput } from "@/domain/datetime";
+import { MAX_CARGO_SIDE_CM, MAX_CARGO_WEIGHT_GRAMS } from "@/domain/order/delivery";
 import { DiscountLimitError } from "@/domain/order/discount";
 import { OrderEditError } from "@/domain/order/editing";
 import { OrderTransitionError } from "@/domain/order/status";
@@ -191,6 +193,16 @@ const deliverySchema = z.object({
   deliveryAddress: z.string().optional(),
   deliveryPriceKopecks: z.number().int().min(0).optional(),
   trackingNumber: z.string().optional(),
+  /** `2026-09-24` из поля даты; пустая строка — очистить */
+  shippedAt: z.string().optional(),
+  cargo: z
+    .object({
+      weightGrams: z.number().int().positive().max(MAX_CARGO_WEIGHT_GRAMS).nullable(),
+      lengthCm: z.number().int().positive().max(MAX_CARGO_SIDE_CM).nullable(),
+      widthCm: z.number().int().positive().max(MAX_CARGO_SIDE_CM).nullable(),
+      heightCm: z.number().int().positive().max(MAX_CARGO_SIDE_CM).nullable(),
+    })
+    .optional(),
 });
 
 export async function updateDeliveryAction(input: z.input<typeof deliverySchema>): Promise<ActionResult> {
@@ -198,6 +210,11 @@ export async function updateDeliveryAction(input: z.input<typeof deliverySchema>
   const parsed = deliverySchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   const data = parsed.data;
+  let shippedAt: Date | null | undefined;
+  if (data.shippedAt !== undefined) {
+    shippedAt = data.shippedAt.trim() === "" ? null : parseDateInput(data.shippedAt.trim());
+    if (shippedAt === null && data.shippedAt.trim() !== "") return { ok: false, error: "Некорректная дата отгрузки" };
+  }
 
   return run(data.orderNumber, () =>
     updateOrderDelivery({
@@ -207,6 +224,8 @@ export async function updateDeliveryAction(input: z.input<typeof deliverySchema>
       carrier: data.carrier?.trim() || null,
       deliveryAddress: data.deliveryAddress?.trim() || null,
       trackingNumber: data.trackingNumber?.trim() || null,
+      ...(shippedAt === undefined ? {} : { shippedAt }),
+      ...(data.cargo === undefined ? {} : { cargo: data.cargo }),
       ...(data.deliveryPriceKopecks === undefined ? {} : { deliveryPriceKopecks: data.deliveryPriceKopecks }),
     }),
   );

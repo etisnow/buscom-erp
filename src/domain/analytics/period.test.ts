@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { bucketLabel, bucketStarts, lastDayInclusive, parseDateInput, resolvePeriod, toDateInput } from "./period";
+import { parseDateInput, toDateInput } from "@/domain/datetime";
+import { bucketLabel, bucketStarts, lastDayInclusive, resolvePeriod } from "./period";
 
 // 24.09.2026, 01:30 МСК — в UTC это ещё 23 сентября
 const NOW = new Date("2026-09-23T22:30:00Z");

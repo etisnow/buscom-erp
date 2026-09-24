@@ -1,5 +1,6 @@
 import "server-only";
 import type { Kopecks } from "@/domain/money";
+import type { Cargo } from "@/domain/order/delivery";
 import { TERMINAL_STATUSES } from "@/domain/order/status";
 import type { DeliveryMethod } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
@@ -20,10 +21,14 @@ export type UpdateDeliveryInput = {
   deliveryAddress?: string | null;
   deliveryPriceKopecks?: Kopecks;
   trackingNumber?: string | null;
+  /** Полночь по Москве дня отгрузки; null — очистить */
+  shippedAt?: Date | null;
+  /** Груз целиком: вес в граммах, стороны в сантиметрах; null в поле — не задано */
+  cargo?: Cargo;
   user: SessionUser;
 };
 
-/** Доставка: способ, ТК, адрес, стоимость и трек-номер. Всё одной транзакцией с событием заказа. */
+/** Доставка: способ, ТК, адрес, стоимость, трек, дата отгрузки и груз. Всё одной транзакцией с событием заказа. */
 export async function updateOrderDelivery(input: UpdateDeliveryInput): Promise<OrderWithItems> {
   return db.$transaction(async (tx) => {
     const order = await loadOrder(tx, input.orderId);
@@ -37,6 +42,15 @@ export async function updateOrderDelivery(input: UpdateDeliveryInput): Promise<O
       ...(input.deliveryAddress !== undefined ? { deliveryAddress: input.deliveryAddress } : {}),
       ...(input.trackingNumber !== undefined ? { trackingNumber: input.trackingNumber } : {}),
       ...(input.deliveryPriceKopecks !== undefined ? { deliveryPriceKopecks: input.deliveryPriceKopecks } : {}),
+      ...(input.shippedAt !== undefined ? { shippedAt: input.shippedAt } : {}),
+      ...(input.cargo !== undefined
+        ? {
+            cargoWeightGrams: input.cargo.weightGrams,
+            cargoLengthCm: input.cargo.lengthCm,
+            cargoWidthCm: input.cargo.widthCm,
+            cargoHeightCm: input.cargo.heightCm,
+          }
+        : {}),
     };
 
     await tx.order.update({ where: { id: order.id }, data });
@@ -56,6 +70,11 @@ export async function updateOrderDelivery(input: UpdateDeliveryInput): Promise<O
           deliveryAddress: order.deliveryAddress,
           deliveryPriceKopecks: order.deliveryPriceKopecks,
           trackingNumber: order.trackingNumber,
+          shippedAt: order.shippedAt,
+          cargoWeightGrams: order.cargoWeightGrams,
+          cargoLengthCm: order.cargoLengthCm,
+          cargoWidthCm: order.cargoWidthCm,
+          cargoHeightCm: order.cargoHeightCm,
         },
         after: data,
       },

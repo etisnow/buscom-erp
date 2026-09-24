@@ -12,6 +12,7 @@ import { OrderMarginBlock } from "@/components/orders/order-margin";
 import { OrderPayments } from "@/components/orders/order-payments";
 import { SupplierTracks } from "@/components/orders/supplier-tracks";
 import { parseCustomerRequisites } from "@/domain/customer/requisites";
+import { toDateInput } from "@/domain/datetime";
 import { canEditItems, canReassignManager } from "@/domain/order/editing";
 import { calculateOrderMargin } from "@/domain/order/margin";
 import { canChangeOrderSource, orderSourceLabel } from "@/domain/order/source";
@@ -298,6 +299,13 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
             deliveryAddress={order.deliveryAddress}
             deliveryPriceKopecks={order.deliveryPriceKopecks}
             trackingNumber={order.trackingNumber}
+            shippedAt={order.shippedAt ? toDateInput(order.shippedAt) : ""}
+            cargo={{
+              weightGrams: order.cargoWeightGrams,
+              lengthCm: order.cargoLengthCm,
+              widthCm: order.cargoWidthCm,
+              heightCm: order.cargoHeightCm,
+            }}
             carriers={carrierOptions}
             canEdit={!isClosed}
             canEditPrice={!isClosed}

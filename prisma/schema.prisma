@@ -22,24 +22,24 @@ enum UserRole {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  name          String
-  email         String   @unique
-  emailVerified Boolean  @default(false)
-  image         String?
-  role          UserRole @default(MANAGER)
-  isActive      Boolean  @default(true)
+  id                 String   @id @default(cuid())
+  name               String
+  email              String   @unique
+  emailVerified      Boolean  @default(false)
+  image              String?
+  role               UserRole @default(MANAGER)
+  isActive           Boolean  @default(true)
   /// Почта для уведомлений из личных настроек. null — не задана, уведомления идут на `email` входа
-  notificationEmail String?
+  notificationEmail  String?
   /// На что подписан: ключи тем из src/domain/notification/topics.ts
   notificationTopics String[] @default([])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   sessions      Session[]
   notifications Notification[]
   accounts      Account[]
-  managedOrders Order[]      @relation("OrderManager")
+  managedOrders Order[]        @relation("OrderManager")
   orderEvents   OrderEvent[]
   payments      Payment[]
 
@@ -433,11 +433,17 @@ model Order {
   /// не хранится, его считает src/domain/order/payment-status.ts из этой суммы и итога.
   paidKopecks          Int @default(0)
 
-  deliveryMethod  DeliveryMethod?
-  carrier         String?
-  deliveryAddress String?
-  trackingNumber  String?
-  shippedAt       DateTime?
+  deliveryMethod   DeliveryMethod?
+  carrier          String?
+  deliveryAddress  String?
+  trackingNumber   String?
+  /// Дата отгрузки: правится в карточке, при переходе в «Выполнен» ставится сама, если пусто
+  shippedAt        DateTime?
+  /// Груз для ТК (M5): вес в граммах, стороны в сантиметрах — целыми, как деньги в копейках
+  cargoWeightGrams Int?
+  cargoLengthCm    Int?
+  cargoWidthCm     Int?
+  cargoHeightCm    Int?
 
   customerComment String?
   cancelReason    String?

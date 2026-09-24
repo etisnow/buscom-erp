@@ -7,8 +7,8 @@
  * на летнее время с 2014 года, поэтому сдвиг постоянный (+3 ч), как и в фильтре
  * дат списка заказов.
  */
+import { moscowMidnight, moscowParts, parseDateInput, toDateInput } from "@/domain/datetime";
 
-const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const PERIOD_PRESETS = ["month", "prev-month", "quarter", "year", "prev-year", "all"] as const;
@@ -37,34 +37,6 @@ export type Period = {
   to: Date;
   bucket: Bucket;
 };
-
-/** Полночь по Москве для календарной даты (месяц — с нуля, может выходить за 0–11). */
-function moscowMidnight(year: number, month: number, day = 1): Date {
-  return new Date(Date.UTC(year, month, day) - MOSCOW_OFFSET_MS);
-}
-
-/** Календарные поля даты по Москве. */
-export function moscowParts(date: Date): { year: number; month: number; day: number } {
-  const shifted = new Date(date.getTime() + MOSCOW_OFFSET_MS);
-  return { year: shifted.getUTCFullYear(), month: shifted.getUTCMonth(), day: shifted.getUTCDate() };
-}
-
-/** `2026-09-01` из `<input type="date">` — полночь по Москве; мусор — null. */
-export function parseDateInput(value: string | undefined): Date | null {
-  const match = value ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(value) : null;
-  if (!match) return null;
-  const [year, month, day] = [Number(match[1]), Number(match[2]) - 1, Number(match[3])];
-  const date = moscowMidnight(year, month, day);
-  // 2026-02-31 Date.UTC молча превратит в 3 марта — такую дату не принимаем
-  const parts = moscowParts(date);
-  return parts.year === year && parts.month === month && parts.day === day ? date : null;
-}
-
-/** Дата по Москве в формате `<input type="date">`. */
-export function toDateInput(date: Date): string {
-  const { year, month, day } = moscowParts(date);
-  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
 
 /** Последний день периода включительно — для полей «по» и ссылок в список заказов. */
 export function lastDayInclusive(to: Date): Date {
