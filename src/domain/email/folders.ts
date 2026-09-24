@@ -20,16 +20,16 @@ export type MailFolder = {
 export type MailFolderNode = MailFolder & { depth: number; children: MailFolderNode[]; totalMessages: number };
 
 export const SPECIAL_FOLDER_LABELS: Record<string, string> = {
-  "\Inbox": "Входящие",
-  "\Sent": "Отправленные",
-  "\Drafts": "Черновики",
-  "\Trash": "Удалённые",
-  "\Junk": "Спам",
-  "\Archive": "Архив",
+  "\\Inbox": "Входящие",
+  "\\Sent": "Отправленные",
+  "\\Drafts": "Черновики",
+  "\\Trash": "Удалённые",
+  "\\Junk": "Спам",
+  "\\Archive": "Архив",
 };
 
 /** Системные папки — сверху в привычном порядке, остальные по алфавиту. */
-const SPECIAL_ORDER = ["\Inbox", "\Sent", "\Drafts", "\Archive", "\Junk", "\Trash"];
+const SPECIAL_ORDER = ["\\Inbox", "\\Sent", "\\Drafts", "\\Archive", "\\Junk", "\\Trash"];
 
 function compare(a: MailFolder, b: MailFolder): number {
   const ai = a.specialUse ? SPECIAL_ORDER.indexOf(a.specialUse) : -1;

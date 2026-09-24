@@ -6,6 +6,7 @@ import {
   listMailbox,
   sendOrderEmail,
   sentTemplates,
+  storeMailboxLetter,
   type IncomingEmail,
 } from "@/server/emails/service";
 import { createOrder } from "@/server/orders/create";
@@ -181,6 +182,44 @@ describeDb("переписка с клиентом (живая БД)", () => {
     // Номер архивного заказа в ERP — не номер для клиента
     const byErpNumber = await ingestClientEmail(incoming({ subject: `Заказ №${legacy.number}` }));
     expect(byErpNumber).toMatchObject({ orderNumber: null });
+  });
+
+  it("письмо из ящика, привязанное руками, ложится в заказ с вложениями и событием", async () => {
+    await storeMailboxLetter(
+      {
+        direction: "OUTBOUND",
+        messageId: "sent-from-yandex@bus-com.ru",
+        references: [],
+        fromEmail: "info@bus-com.ru",
+        fromName: null,
+        toEmails: ["client@mail.ru"],
+        subject: "Счёт",
+        body: "Во вложении",
+        date: new Date("2026-09-01T10:00:00Z"),
+        attachments: [{ fileName: "счёт.pdf", contentType: "application/pdf", content: Buffer.from("pdf") }],
+      },
+      order.number,
+      manager,
+    );
+    const email = await db.email.findUniqueOrThrow({
+      where: { messageId: "sent-from-yandex@bus-com.ru" },
+      include: { attachments: true },
+    });
+    expect(email).toMatchObject({ direction: "OUTBOUND", orderId: order.id, customerId: order.customerId });
+    expect(email.attachments.map((a) => [a.fileName, a.data !== null])).toEqual([["счёт.pdf", true]]);
+    const event = await db.orderEvent.findFirstOrThrow({ where: { orderId: order.id, type: "EMAIL_SENT" } });
+    expect(event.comment).toContain("Добавлено из ящика вручную");
+
+    // Наше письмо из «Отправленных» перепривязывается только с явным разрешением
+    const other = await createOrder({
+      source: "PHONE",
+      customer: { name: "Другой", phone: "8 916 000-00-01" },
+      items: [{ sku: "B", name: "Стол", priceKopecks: 1, quantity: 1 }],
+      user: manager,
+    });
+    await expect(linkEmailToOrder(email.id, other.number, manager)).rejects.toThrow("Отправленное письмо");
+    await linkEmailToOrder(email.id, other.number, manager, { allowOutbound: true });
+    expect((await db.email.findUniqueOrThrow({ where: { id: email.id } })).orderId).toBe(other.id);
   });
 
   it("большое вложение не хранится, но отмечается", async () => {

@@ -15,9 +15,9 @@ export const metadata: Metadata = {
 };
 
 const VIEW_LABELS: Record<MailboxView, string> = {
-  inbox: "Входящие",
+  inbox: "Входящие от клиентов",
   unlinked: "Без заказа",
-  sent: "Отправленные",
+  sent: "Отправленные из ERP",
 };
 
 /**
@@ -34,11 +34,10 @@ export default async function MailPage({ searchParams }: PageProps<"/mail">) {
     : "inbox";
   const page = pageNumber(params.page);
   const mailbox = await listMailbox(view, page);
-  const counts: Partial<Record<MailboxView, number>> = { inbox: mailbox.unread, unlinked: mailbox.unlinked };
 
   return (
     <main className="flex flex-col gap-4">
-      <h1 className="font-heading text-xl font-semibold">Почта</h1>
+      <h1 className="font-heading text-xl font-semibold">{VIEW_LABELS[view]}</h1>
 
       {!(await isMailboxConfigured()) ? (
         <p className="text-muted-foreground rounded-md border border-dashed p-3 text-sm">
@@ -46,29 +45,6 @@ export default async function MailPage({ searchParams }: PageProps<"/mail">) {
           Настройки почты».
         </p>
       ) : null}
-
-      <nav className="flex flex-wrap gap-1" aria-label="Папки">
-        {MAILBOX_VIEWS.map((item) => {
-          const isActive = item === view;
-          return (
-            <Link
-              key={item}
-              href={item === "inbox" ? "/mail" : `/mail?view=${item}`}
-              aria-current={isActive ? "page" : undefined}
-              className={
-                isActive
-                  ? "bg-primary text-primary-foreground rounded-md px-3 py-1.5 text-sm font-medium"
-                  : "hover:bg-accent rounded-md px-3 py-1.5 text-sm"
-              }
-            >
-              {VIEW_LABELS[item]}
-              {counts[item] ? (
-                <span className={isActive ? "ml-1.5 opacity-80" : "text-muted-foreground ml-1.5"}>{counts[item]}</span>
-              ) : null}
-            </Link>
-          );
-        })}
-      </nav>
 
       {mailbox.items.length === 0 ? (
         <p className="text-muted-foreground text-sm">Писем нет.</p>

@@ -279,14 +279,24 @@ export async function ingestClientEmail(email: IncomingEmail): Promise<IncomingR
 }
 
 /** Ручная привязка входящего к заказу из «Почты». Можно и перепривязать ошибочно привязанное. */
-export async function linkEmailToOrder(emailId: string, orderNumber: number, user: SessionUser): Promise<void> {
+/**
+ * `allowOutbound` — для писем из «Отправленных» ящика: они наши, но пришли не из
+ * ERP (история или привязка из живого ящика) и заказа могут не иметь. Письма,
+ * отправленные из карточки заказа, так не перепривязываются.
+ */
+export async function linkEmailToOrder(
+  emailId: string,
+  orderNumber: number,
+  user: SessionUser,
+  options: { allowOutbound?: boolean } = {},
+): Promise<void> {
   await db.$transaction(async (tx) => {
     const email = await tx.email.findUnique({
       where: { id: emailId },
       select: { id: true, direction: true, orderId: true, fromEmail: true, subject: true },
     });
     if (!email) throw new EmailNotFoundError();
-    if (email.direction !== "INBOUND")
+    if (email.direction !== "INBOUND" && !options.allowOutbound)
       throw new OrderConflictError("Отправленное письмо уже привязано к своему заказу");
     const order = await tx.order.findFirst({
       where: { number: orderNumber, deletedAt: null },
@@ -299,7 +309,7 @@ export async function linkEmailToOrder(emailId: string, orderNumber: number, use
     await writeOrderEvent(tx, {
       orderId: order.id,
       user,
-      type: "EMAIL_RECEIVED",
+      type: email.direction === "OUTBOUND" ? "EMAIL_SENT" : "EMAIL_RECEIVED",
       comment: `Привязано вручную — ${email.fromEmail}: ${email.subject}`,
       payload: { emailId: email.id, matchedBy: "manual" },
     });
@@ -517,4 +527,85 @@ export async function listCustomerEmails(customerId: string): Promise<{ items: E
     db.email.count({ where: { customerId } }),
   ]);
   return { items, total };
+}
+
+export type MailboxLetterInput = {
+  direction: "INBOUND" | "OUTBOUND";
+  messageId: string | null;
+  references: string[];
+  fromEmail: string;
+  fromName: string | null;
+  toEmails: string[];
+  subject: string;
+  body: string;
+  date: Date;
+  attachments: { fileName: string; contentType: string; content: Buffer }[];
+};
+
+/**
+ * Письмо из живого ящика, которое человек сам привязал к заказу: целиком, с
+ * вложениями до 15 МБ, прочитанное, с записью в журнал заказа.
+ */
+export async function storeMailboxLetter(
+  letter: MailboxLetterInput,
+  orderNumber: number,
+  user: SessionUser,
+): Promise<void> {
+  await db.$transaction(async (tx) => {
+    const order = await tx.order.findFirst({
+      where: { number: orderNumber, deletedAt: null },
+      select: { id: true, customerId: true },
+    });
+    if (!order) throw new OrderNotFoundError();
+    const email = await tx.email.create({
+      data: {
+        direction: letter.direction,
+        orderId: order.id,
+        customerId: order.customerId,
+        messageId: letter.messageId,
+        references: letter.references,
+        fromEmail: letter.fromEmail,
+        fromName: letter.fromName,
+        toEmails: letter.toEmails,
+        subject: letter.subject,
+        body: letter.body,
+        readAt: new Date(),
+        sentAt: letter.date,
+        attachments: {
+          create: letter.attachments.map((file) =>
+            file.content.length > MAX_ATTACHMENT_BYTES
+              ? {
+                  fileName: file.fileName,
+                  contentType: file.contentType,
+                  byteSize: file.content.length,
+                  skippedReason: "Файл больше 15 МБ — не сохранён, он есть в ящике",
+                }
+              : {
+                  fileName: file.fileName,
+                  contentType: file.contentType,
+                  byteSize: file.content.length,
+                  data: new Uint8Array(file.content),
+                },
+          ),
+        },
+      },
+      select: { id: true },
+    });
+    await writeOrderEvent(tx, {
+      orderId: order.id,
+      user,
+      type: letter.direction === "OUTBOUND" ? "EMAIL_SENT" : "EMAIL_RECEIVED",
+      comment: `Добавлено из ящика вручную — ${letter.fromEmail}: ${letter.subject}`,
+      payload: { emailId: email.id, matchedBy: "manual" },
+    });
+  });
+}
+
+/** Счётчики вкладок ERP в «Почте»: непрочитанные входящие и ждущие привязки. */
+export async function mailboxCounts(): Promise<{ unread: number; unlinked: number }> {
+  const [unread, unlinked] = await Promise.all([
+    db.email.count({ where: { direction: "INBOUND", readAt: null } }),
+    db.email.count({ where: { direction: "INBOUND", orderId: null, importedAt: null } }),
+  ]);
+  return { unread, unlinked };
 }

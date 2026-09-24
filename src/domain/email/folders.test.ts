@@ -9,11 +9,11 @@ describe("buildFolderTree", () => {
   it("вложенность по разделителю, системные папки сверху, суммы со вложенными", () => {
     const tree = buildFolderTree([
       folder("Клиенты/Юрлица", 5),
-      folder("Спам", 7, "\Junk"),
+      folder("Спам", 7, "\\Junk"),
       folder("Клиенты", 10),
-      folder("INBOX", 100, "\Inbox"),
+      folder("INBOX", 100, "\\Inbox"),
       folder("Клиенты/Физлица", 3),
-      folder("Отправленные", 50, "\Sent"),
+      folder("Отправленные", 50, "\\Sent"),
     ]);
     expect(flattenFolderTree(tree).map((node) => [node.path, node.depth, node.totalMessages])).toEqual([
       ["INBOX", 0, 100],

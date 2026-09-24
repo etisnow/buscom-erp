@@ -134,7 +134,8 @@ export async function listMailboxFolders(connection: ImapSettings): Promise<Mail
       path: item.path,
       name: item.name,
       delimiter: item.delimiter,
-      specialUse: item.specialUse ?? null,
+      // Яндекс не помечает INBOX флагом — узнаём по имени, оно в IMAP зарезервировано
+      specialUse: item.specialUse ?? (item.path.toUpperCase() === "INBOX" ? "\\Inbox" : null),
       messages: item.status?.messages ?? null,
       unseen: item.status?.unseen ?? null,
       selectable: !item.flags.has("\\Noselect"),

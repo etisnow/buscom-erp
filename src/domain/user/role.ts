@@ -28,6 +28,12 @@ export const SUPPLIER_DELETE_ROLES: UserRole[] = ["HEAD", "ADMIN"];
 /** Роли, которым виден раздел «Аналитика»: выручка и маржа — не для менеджера (PRD, M7). */
 export const ANALYTICS_ROLES: UserRole[] = ["HEAD", "ADMIN"];
 
+/**
+ * Роли, которым виден живой ящик в «Почте»: в нём вся почта компании — банк,
+ * бухгалтерия, снабжение. Переписка с клиентами в ERP видна всем ролям.
+ */
+export const MAILBOX_ROLES: UserRole[] = ["HEAD", "ADMIN"];
+
 /** Роли, которые могут создавать заказ вручную. */
 export const ORDER_CREATE_ROLES: UserRole[] = ["MANAGER", "HEAD", "ADMIN"];
 
