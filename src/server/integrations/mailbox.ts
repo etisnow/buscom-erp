@@ -4,26 +4,37 @@ import { simpleParser, type AddressObject, type ParsedMail } from "mailparser";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { env } from "@/server/env";
+import { imapConfigured, type ImapSettings } from "@/domain/settings";
+import { readSettings } from "@/server/settings/service";
 import { normalizeEmailAddress, referencedMessageIds } from "@/domain/email/letters";
 import { ingestClientEmail, type IncomingEmail } from "@/server/emails/service";
 import { ingestSiteEmail, type StoredEmail } from "@/server/integrations/site-email";
 
 /**
- * Опрос ящика заказов. Какое письмо разобрано последним, помним по UID, а не по
- * отметке «прочитано»: ящик читают и люди, и письмо, открытое в веб-почте раньше
- * ERP, иначе потерялось бы. Отметку «прочитано» ставим после приёма — это
- * подсказка людям, что система письмо забрала.
+ * Опрос общего ящика: заказы с сайта и письма клиентов. Какое письмо разобрано
+ * последним, помним по UID, а не по отметке «прочитано»: ящик читают и люди, и
+ * письмо, открытое в веб-почте раньше ERP, иначе потерялось бы. Письма о заказах
+ * после приёма помечаем прочитанными — подсказка людям, что система их забрала.
  *
- * При первом запуске (и если сервер сменил UIDVALIDITY — нумерация писем
- * сброшена) запоминаем текущий конец ящика и берём только новые письма: старые
- * заказы уже заведены руками или перенесены из прежней ERP.
+ * При первом запуске, при смене ящика и если сервер сменил UIDVALIDITY (нумерация
+ * писем сброшена) запоминаем текущий конец ящика и берём только новые письма:
+ * старые заказы уже заведены руками или перенесены из прежней ERP.
+ *
+ * Куда подключаться — из «Справочники → Почта входящая», иначе из `IMAP_*`
+ * окружения. Настройки читаются на каждом проходе: правка в интерфейсе действует
+ * без перезапуска сервера.
  */
 
 const CURSOR_KEY = "siteEmailCursor";
 /** Писем за один проход — чтобы ящик с завалом не держал соединение минутами */
 const BATCH = 50;
 
-const cursorSchema = z.object({ uidValidity: z.string(), lastUid: z.number().int().min(0) });
+const cursorSchema = z.object({
+  uidValidity: z.string(),
+  lastUid: z.number().int().min(0),
+  /** `логин@сервер` — чей это курсор. У курсоров до смены ящика поля нет */
+  account: z.string().optional(),
+});
 type Cursor = z.infer<typeof cursorSchema>;
 
 export type PollSummary = {
@@ -40,8 +51,30 @@ export type PollSummary = {
   more: boolean;
 };
 
-export function isMailboxConfigured(): boolean {
-  return Boolean(env.IMAP_HOST && env.IMAP_USER && env.IMAP_PASSWORD);
+export type MailboxConnection = ImapSettings & { source: "settings" | "env" };
+
+/** Подключение к ящику: настройки из интерфейса главнее окружения. Не задано — null. */
+export async function resolveMailbox(): Promise<MailboxConnection | null> {
+  const { imap } = await readSettings();
+  if (imapConfigured(imap)) return { ...imap, source: "settings" };
+  if (env.IMAP_HOST && env.IMAP_USER && env.IMAP_PASSWORD) {
+    return {
+      host: env.IMAP_HOST,
+      port: env.IMAP_PORT,
+      user: env.IMAP_USER,
+      password: env.IMAP_PASSWORD,
+      source: "env",
+    };
+  }
+  return null;
+}
+
+export async function isMailboxConfigured(): Promise<boolean> {
+  return (await resolveMailbox()) !== null;
+}
+
+function accountOf(connection: ImapSettings): string {
+  return `${connection.user.toLowerCase()}@${connection.host.toLowerCase()}`;
 }
 
 async function readCursor(): Promise<Cursor | null> {
@@ -58,18 +91,33 @@ async function writeCursor(cursor: Cursor): Promise<void> {
   });
 }
 
-function createClient(): ImapFlow {
-  const host = env.IMAP_HOST as string;
+function createClient(connection: ImapSettings): ImapFlow {
   const [viaHost, viaPort] = env.IMAP_VIA?.split(":") ?? [];
   return new ImapFlow({
-    host: viaHost || host,
-    port: viaPort ? Number(viaPort) : env.IMAP_PORT,
+    host: viaHost || connection.host,
+    port: viaPort ? Number(viaPort) : connection.port,
     secure: true,
-    tls: { servername: host },
-    auth: { user: env.IMAP_USER as string, pass: env.IMAP_PASSWORD as string },
+    tls: { servername: connection.host },
+    auth: { user: connection.user, pass: connection.password },
     connectionTimeout: 15_000,
     logger: false,
   });
+}
+
+/**
+ * Проверка подключения заданными настройками — в том числе ещё не сохранёнными.
+ * Только открывает INBOX и считает письма: курсор не трогает, писем не разбирает.
+ * Ошибку не глушит — её показывают администратору.
+ */
+export async function testMailboxConnection(connection: ImapSettings): Promise<{ messages: number }> {
+  const client = createClient(connection);
+  await client.connect();
+  try {
+    const status = await client.status("INBOX", { messages: true });
+    return { messages: status.messages ?? 0 };
+  } finally {
+    await client.logout().catch(() => client.close());
+  }
 }
 
 function toStoredEmail(mail: ParsedMail): StoredEmail {
@@ -124,7 +172,9 @@ export type PollOptions = {
 };
 
 async function pollOnce(options: PollOptions): Promise<PollSummary> {
-  if (!isMailboxConfigured()) throw new Error("Ящик заказов не настроен: нужны IMAP_HOST, IMAP_USER и IMAP_PASSWORD");
+  const connection = await resolveMailbox();
+  if (!connection) throw new Error("Ящик не настроен: заполните «Почта входящая» в справочниках");
+  const account = accountOf(connection);
 
   const summary: PollSummary = {
     baseline: false,
@@ -136,7 +186,7 @@ async function pollOnce(options: PollOptions): Promise<PollSummary> {
     lettersLinked: 0,
     more: false,
   };
-  const client = createClient();
+  const client = createClient(connection);
   await client.connect();
 
   try {
@@ -147,11 +197,13 @@ async function pollOnce(options: PollOptions): Promise<PollSummary> {
       const uidValidity = String(mailbox.uidValidity);
 
       if (options.fromUid !== undefined) {
-        await writeCursor({ uidValidity, lastUid: Math.max(0, options.fromUid - 1) });
+        await writeCursor({ uidValidity, lastUid: Math.max(0, options.fromUid - 1), account });
       }
       const cursor = await readCursor();
-      if (!cursor || cursor.uidValidity !== uidValidity) {
-        await writeCursor({ uidValidity, lastUid: Math.max(0, mailbox.uidNext - 1) });
+      // Курсор без account — от прежней версии, он про этот же ящик: принимаем и дописываем
+      const otherAccount = cursor?.account !== undefined && cursor.account !== account;
+      if (!cursor || cursor.uidValidity !== uidValidity || otherAccount) {
+        await writeCursor({ uidValidity, lastUid: Math.max(0, mailbox.uidNext - 1), account });
         return { ...summary, baseline: true };
       }
       if (mailbox.uidNext - 1 <= cursor.lastUid) return summary;
@@ -187,7 +239,7 @@ async function pollOnce(options: PollOptions): Promise<PollSummary> {
           else summary.failed++;
           await client.messageFlagsAdd(String(message.uid), ["\\Seen"], { uid: true });
         }
-        await writeCursor({ uidValidity, lastUid: message.uid });
+        await writeCursor({ uidValidity, lastUid: message.uid, account });
       }
 
       return summary;

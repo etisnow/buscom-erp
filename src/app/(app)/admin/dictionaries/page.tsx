@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { DictionaryEditor } from "@/components/admin/dictionary-editor";
-import { EmailTemplatesEditor } from "@/components/admin/email-templates-editor";
-import { DiscountLimitEditor, RequisitesEditor, SlaEditor, SmtpEditor } from "@/components/admin/settings-editor";
+import { DiscountLimitEditor, RequisitesEditor, SlaEditor } from "@/components/admin/settings-editor";
 import { SLA_ENABLED } from "@/domain/sla";
 import { ADMIN_ROLES } from "@/domain/user/role";
 import { getSettings, listDictionary } from "@/server/settings/service";
@@ -12,8 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminDictionariesPage() {
-  // Адрес администратора нужен разделу почты: проверочное письмо уходит ему
-  const user = await requirePageUser(ADMIN_ROLES);
+  await requirePageUser(ADMIN_ROLES);
 
   const [settings, orderSources, cancelReasons, carriers, carModels] = await Promise.all([
     getSettings(),
@@ -59,13 +57,6 @@ export default async function AdminDictionariesPage() {
       <DiscountLimitEditor percent={settings.discountLimitPercent} />
       {SLA_ENABLED && <SlaEditor slaMinutes={settings.slaMinutes} />}
       <RequisitesEditor requisites={settings.sellerRequisites} />
-      {/* Пароль в браузер не отдаём — только признак, что он задан. */}
-      <SmtpEditor
-        smtp={{ ...settings.smtp, password: "" }}
-        hasPassword={settings.smtp.password.length > 0}
-        testRecipient={user.email}
-      />
-      <EmailTemplatesEditor templates={settings.emailTemplates} />
     </main>
   );
 }

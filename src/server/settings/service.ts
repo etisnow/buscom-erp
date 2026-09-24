@@ -7,6 +7,7 @@ import {
   parseSetting,
   SETTING_KEYS,
   type AppSettings,
+  type ImapSettings,
   type SellerRequisites,
   type SmtpSettings,
 } from "@/domain/settings";
@@ -36,6 +37,7 @@ export async function readSettings(): Promise<AppSettings> {
     emailTemplates: stored.has(SETTING_KEYS.emailTemplates)
       ? parseSetting("emailTemplates", stored.get(SETTING_KEYS.emailTemplates))
       : DEFAULT_SETTINGS.emailTemplates,
+    imap: stored.has(SETTING_KEYS.imap) ? parseSetting("imap", stored.get(SETTING_KEYS.imap)) : DEFAULT_SETTINGS.imap,
   };
 }
 
@@ -63,6 +65,10 @@ export async function saveSlaMinutes(
   userId: string,
 ): Promise<void> {
   await writeSetting(SETTING_KEYS.slaMinutes, minutes as Prisma.InputJsonValue, userId);
+}
+
+export async function saveImapSettings(settings: ImapSettings, userId: string): Promise<void> {
+  await writeSetting(SETTING_KEYS.imap, settings, userId);
 }
 
 export async function saveEmailTemplates(templates: EmailTemplates, userId: string): Promise<void> {

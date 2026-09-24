@@ -154,7 +154,7 @@ export function testNotificationLetter(to: string, name: string): Letter {
 
 export class MailNotConfiguredError extends Error {
   constructor() {
-    super("Почта не настроена: заполните раздел «Почта» в справочниках — без него письмо клиенту не уйдёт");
+    super("Почта не настроена: заполните «Администрирование → Настройки почты» — без этого письмо клиенту не уйдёт");
     this.name = "MailNotConfiguredError";
   }
 }

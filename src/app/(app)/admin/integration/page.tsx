@@ -41,7 +41,7 @@ export default async function AdminIntegrationPage({ searchParams }: PageProps<"
             поэтому ничего не теряется — упавшие записи можно разобрать повторно.
           </p>
         </div>
-        {user.role === "ADMIN" ? <PollMailboxButton configured={isMailboxConfigured()} /> : null}
+        {user.role === "ADMIN" ? <PollMailboxButton configured={await isMailboxConfigured()} /> : null}
       </div>
 
       <nav className="flex flex-wrap gap-1" aria-label="Фильтр по статусу">

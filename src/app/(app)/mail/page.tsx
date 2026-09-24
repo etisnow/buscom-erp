@@ -39,10 +39,10 @@ export default async function MailPage({ searchParams }: PageProps<"/mail">) {
     <main className="flex flex-col gap-4">
       <h1 className="font-heading text-xl font-semibold">Почта</h1>
 
-      {!isMailboxConfigured() ? (
+      {!(await isMailboxConfigured()) ? (
         <p className="text-muted-foreground rounded-md border border-dashed p-3 text-sm">
-          Общий ящик не подключён (IMAP_HOST, IMAP_USER, IMAP_PASSWORD) — входящие письма не принимаются. Отправка из
-          карточки заказа работает, если настроен раздел «Почта» в справочниках.
+          Общий ящик не подключён — входящие письма не принимаются. Администратор задаёт его в «Администрирование →
+          Настройки почты».
         </p>
       ) : null}
 

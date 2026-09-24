@@ -34,7 +34,8 @@ const envSchema = z.object({
   DADATA_API_KEY: z.string().min(1).optional(),
 
   /**
-   * Ящик, куда сайт шлёт письма о заказах (`src/server/integrations/mailbox.ts`).
+   * Запасной путь для общего ящика (заказы с сайта и письма клиентов, `src/server/integrations/mailbox.ts`):
+   * основной — «Администрирование → Настройки почты», и он главнее.
    * IMAP по SSL. Не задан хост — почта не опрашивается, остальное работает.
    */
   IMAP_HOST: z.string().min(1).optional(),

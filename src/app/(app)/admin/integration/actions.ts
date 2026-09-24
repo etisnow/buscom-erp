@@ -30,11 +30,8 @@ export async function retryInboxAction(inboxId: string): Promise<RetryResult> {
 /** «Проверить почту» — внеочередной проход по ящику заказов, не дожидаясь таймера. */
 export async function pollMailboxAction(): Promise<RetryResult> {
   await requireUser(ADMIN_ROLES);
-  if (!isMailboxConfigured()) {
-    return {
-      ok: false,
-      error: "Ящик заказов не настроен: задайте IMAP_HOST, IMAP_USER и IMAP_PASSWORD в окружении сервера",
-    };
+  if (!(await isMailboxConfigured())) {
+    return { ok: false, error: "Ящик не настроен: заполните «Администрирование → Настройки почты → Входящая почта»" };
   }
 
   try {

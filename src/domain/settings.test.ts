@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SELLER_REQUISITES,
   DEFAULT_SETTINGS,
+  DEFAULT_IMAP_SETTINGS,
   DEFAULT_SMTP_SETTINGS,
+  imapConfigured,
+  imapSettingsSchema,
+  mergeImapSettings,
+  type ImapSettings,
   mergeSmtpSettings,
   parseSetting,
   requisitesReady,
@@ -163,5 +168,28 @@ describe("parseSetting для smtp", () => {
   it("негодное значение откатывает к умолчанию, а не роняет систему", () => {
     expect(parseSetting("smtp", { host: 42 })).toEqual(DEFAULT_SMTP_SETTINGS);
     expect(parseSetting("smtp", null)).toEqual(DEFAULT_SMTP_SETTINGS);
+  });
+});
+
+describe("IMAP", () => {
+  const FILLED_IMAP: ImapSettings = { host: "mail.jino.ru", port: 993, user: "info@bus-com.ru", password: "секрет" };
+
+  it("ящик настроен, только когда есть сервер, логин и пароль", () => {
+    expect(imapConfigured(FILLED_IMAP)).toBe(true);
+    expect(imapConfigured({ ...FILLED_IMAP, password: "" })).toBe(false);
+    expect(imapConfigured(DEFAULT_IMAP_SETTINGS)).toBe(false);
+  });
+
+  it("пустой пароль из формы оставляет сохранённый, новый — заменяет", () => {
+    expect(mergeImapSettings(FILLED_IMAP, { ...FILLED_IMAP, host: "imap.yandex.ru", password: "" })).toEqual({
+      ...FILLED_IMAP,
+      host: "imap.yandex.ru",
+    });
+    expect(mergeImapSettings(FILLED_IMAP, { ...FILLED_IMAP, password: "новый" }).password).toBe("новый");
+  });
+
+  it("порт по умолчанию 993, негодное значение из БД — умолчания", () => {
+    expect(imapSettingsSchema.parse({ host: "h" }).port).toBe(993);
+    expect(parseSetting("imap", { port: "abc" })).toEqual(DEFAULT_IMAP_SETTINGS);
   });
 });

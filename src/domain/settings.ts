@@ -15,6 +15,7 @@ export const SETTING_KEYS = {
   sellerRequisites: "sellerRequisites",
   smtp: "smtp",
   emailTemplates: "emailTemplates",
+  imap: "imap",
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
@@ -110,12 +111,44 @@ export function mergeSmtpSettings(current: SmtpSettings, incoming: SmtpSettings)
   return { ...incoming, password: incoming.password === "" ? current.password : incoming.password };
 }
 
+/**
+ * Общий ящик, из которого приходят заказы с сайта и письма клиентов
+ * (`src/server/integrations/mailbox.ts`). IMAP по SSL. Пока не заполнен целиком,
+ * берутся переменные окружения `IMAP_*` — как у SMTP, введённое в интерфейсе главнее.
+ */
+export const imapSettingsSchema = z.object({
+  host: z.string().trim().default(""),
+  port: z.coerce
+    .number({ error: "Порт — число" })
+    .int({ error: "Порт — целое число" })
+    .min(1, { error: "Порт вне диапазона" })
+    .max(65535, { error: "Порт вне диапазона" })
+    .default(993),
+  user: z.string().trim().default(""),
+  password: z.string().default(""),
+});
+
+export type ImapSettings = z.infer<typeof imapSettingsSchema>;
+
+export const DEFAULT_IMAP_SETTINGS: ImapSettings = { host: "", port: 993, user: "", password: "" };
+
+/** Ящик можно открыть, только когда есть и сервер, и логин, и пароль. */
+export function imapConfigured(settings: ImapSettings): boolean {
+  return Boolean(settings.host && settings.user && settings.password);
+}
+
+/** Пустой пароль из формы — «оставить прежний», как у SMTP (`mergeSmtpSettings`). */
+export function mergeImapSettings(current: ImapSettings, incoming: ImapSettings): ImapSettings {
+  return { ...incoming, password: incoming.password === "" ? current.password : incoming.password };
+}
+
 export type AppSettings = {
   discountLimitPercent: number;
   slaMinutes: Record<OrderStatus, number | null>;
   sellerRequisites: SellerRequisites;
   smtp: SmtpSettings;
   emailTemplates: EmailTemplates;
+  imap: ImapSettings;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -124,6 +157,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sellerRequisites: DEFAULT_SELLER_REQUISITES,
   smtp: DEFAULT_SMTP_SETTINGS,
   emailTemplates: DEFAULT_EMAIL_TEMPLATES,
+  imap: DEFAULT_IMAP_SETTINGS,
 };
 
 /** Разбор значения из БД: негодное значение не роняет систему, а откатывается к умолчанию. */
@@ -149,6 +183,10 @@ export function parseSetting<K extends keyof AppSettings>(key: K, raw: unknown):
     }
     case "emailTemplates":
       return parseEmailTemplates(raw) as AppSettings[K];
+    case "imap": {
+      const parsed = imapSettingsSchema.safeParse(raw);
+      return (parsed.success ? parsed.data : DEFAULT_IMAP_SETTINGS) as AppSettings[K];
+    }
     default:
       return DEFAULT_SETTINGS[key];
   }

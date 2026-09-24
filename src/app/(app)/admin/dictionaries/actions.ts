@@ -2,29 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import {
-  discountLimitSchema,
-  mergeSmtpSettings,
-  sellerRequisitesSchema,
-  slaMinutesSchema,
-  smtpConfigured,
-  smtpSettingsSchema,
-} from "@/domain/settings";
-import { emailTemplatesSchema } from "@/domain/email/templates";
+import { discountLimitSchema, sellerRequisitesSchema, slaMinutesSchema } from "@/domain/settings";
 import { ADMIN_ROLES } from "@/domain/user/role";
 import {
   addDictionaryItem,
   deleteDictionaryItem,
   renameDictionaryItem,
   saveDiscountLimit,
-  saveEmailTemplates,
-  readSettings,
   saveSellerRequisites,
   saveSlaMinutes,
-  saveSmtpSettings,
   setDictionaryItemActive,
 } from "@/server/settings/service";
-import { sendTestLetter } from "@/server/mail";
 import { requireUser } from "@/server/session";
 
 export type SettingsResult = { ok: true; message: string } | { ok: false; error: string };
@@ -88,59 +76,4 @@ export async function saveRequisitesAction(
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
 
   return run(() => saveSellerRequisites(parsed.data, user.id), "Реквизиты сохранены");
-}
-
-/**
- * Настройки почты. Пароль в форму не отдаётся и приходит пустым, если его не
- * меняли, — `mergeSmtpSettings` оставляет в этом случае сохранённый.
- */
-export async function saveSmtpAction(settings: z.input<typeof smtpSettingsSchema>): Promise<SettingsResult> {
-  const user = await requireUser(ADMIN_ROLES);
-  const parsed = smtpSettingsSchema.safeParse(settings);
-  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
-
-  const current = await readSettings();
-  const merged = mergeSmtpSettings(current.smtp, parsed.data);
-
-  return run(
-    () => saveSmtpSettings(merged, user.id),
-    merged.host ? "Настройки почты сохранены" : "Почта выключена — письма будут писаться в лог сервера",
-  );
-}
-
-/**
- * Проверочное письмо — на адрес того, кто нажал. Проверяются настройки из формы,
- * а не сохранённые: смысл кнопки в том, чтобы убедиться до сохранения. Пароль,
- * как и при сохранении, берётся прежний, если поле не трогали.
- *
- * Ничего не сохраняет и `revalidatePath` не делает.
- */
-export async function sendTestMailAction(settings: z.input<typeof smtpSettingsSchema>): Promise<SettingsResult> {
-  const user = await requireUser(ADMIN_ROLES);
-  const parsed = smtpSettingsSchema.safeParse(settings);
-  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
-
-  const current = await readSettings();
-  const merged = mergeSmtpSettings(current.smtp, parsed.data);
-  if (!smtpConfigured(merged)) {
-    return { ok: false, error: "Сначала укажите сервер — проверять нечего" };
-  }
-
-  try {
-    await sendTestLetter(merged, user.email);
-    return { ok: true, message: `Письмо отправлено на ${user.email}` };
-  } catch (error) {
-    // Текст ошибки nodemailer показываем как есть: без него непонятно, что чинить
-    const reason = error instanceof Error ? error.message : "неизвестная ошибка";
-    return { ok: false, error: `Не удалось отправить: ${reason}` };
-  }
-}
-
-export async function saveEmailTemplatesAction(
-  templates: z.input<typeof emailTemplatesSchema>,
-): Promise<SettingsResult> {
-  const user = await requireUser(ADMIN_ROLES);
-  const parsed = emailTemplatesSchema.safeParse(templates);
-  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
-  return run(() => saveEmailTemplates(parsed.data, user.id), "Шаблоны писем сохранены");
 }

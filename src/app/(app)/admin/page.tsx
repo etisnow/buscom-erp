@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookMarked, PlugZap, Users } from "lucide-react";
+import { BookMarked, Mail, PlugZap, Users } from "lucide-react";
 import { requirePageUser } from "@/server/session";
 
 export const metadata: Metadata = {
@@ -20,7 +20,14 @@ const SECTIONS = [
     icon: BookMarked,
     title: "Справочники и настройки",
     description:
-      "Источники заказов, причины отмены, транспортные компании, модели авто, лимит скидки, реквизиты продавца, почта.",
+      "Источники заказов, причины отмены, транспортные компании, модели авто, лимит скидки, реквизиты продавца.",
+    adminOnly: true,
+  },
+  {
+    href: "/admin/mail",
+    icon: Mail,
+    title: "Настройки почты",
+    description: "Исходящая почта (SMTP), общий ящик для заказов и писем клиентов (IMAP), шаблоны писем клиенту.",
     adminOnly: true,
   },
   {

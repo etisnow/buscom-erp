@@ -13,7 +13,7 @@ import {
   TEMPLATE_PLACEHOLDERS,
   type EmailTemplates,
 } from "@/domain/email/templates";
-import { saveEmailTemplatesAction } from "@/app/(app)/admin/dictionaries/actions";
+import { saveEmailTemplatesAction } from "@/app/(app)/admin/mail/actions";
 
 /**
  * Шаблоны писем клиенту. Подстановки в фигурных скобках заполняются данными

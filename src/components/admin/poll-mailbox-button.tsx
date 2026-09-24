@@ -24,7 +24,7 @@ export function PollMailboxButton({ configured }: { configured: boolean }) {
       size="sm"
       onClick={poll}
       disabled={pending || !configured}
-      title={configured ? undefined : "Ящик заказов не настроен в окружении сервера"}
+      title={configured ? undefined : "Ящик не настроен: Администрирование → Настройки почты"}
     >
       <Mail />
       {pending ? "Проверяю…" : "Проверить почту"}
