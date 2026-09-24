@@ -95,13 +95,15 @@ describeDb("уведомления по событиям заказов (жив�
 
     // 1000 ₽ из 1000 ₽ — «Не оплачен → Оплачен»
     await addPayment({ orderId: order.id, method: "CASH", amountKopecks: 100_000, paidAt: new Date(), user: manager });
+    // Состав оплаченного заказа меняет только руководитель (domain/order/editing.ts)
+    const head = await makeUser("HEAD", "Руководитель");
     // Вторая штука — итог 2000 ₽, оплата «Оплачен → Частично»
-    await updateOrderItems({ orderId: order.id, items: [{ ...item, quantity: 2 }], user: manager });
+    await updateOrderItems({ orderId: order.id, items: [{ ...item, quantity: 2 }], user: head });
     // Скидка без смены статуса оплаты — письма нет
     await updateOrderItems({
       orderId: order.id,
       items: [{ ...item, quantity: 2, discountKopecks: 100 }],
-      user: manager,
+      user: head,
     });
 
     const queued = await testDb.notification.findMany({ orderBy: { createdAt: "asc" } });
