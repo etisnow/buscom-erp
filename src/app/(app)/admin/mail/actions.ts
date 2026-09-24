@@ -12,7 +12,8 @@ import {
   smtpSettingsSchema,
 } from "@/domain/settings";
 import { ADMIN_ROLES } from "@/domain/user/role";
-import { testMailboxConnection } from "@/server/integrations/mailbox";
+import type { MailFolder } from "@/domain/email/folders";
+import { listMailboxFolders, testMailboxConnection } from "@/server/integrations/mailbox";
 import { sendTestLetter } from "@/server/mail";
 import { readSettings, saveEmailTemplates, saveImapSettings, saveSmtpSettings } from "@/server/settings/service";
 import { requireUser } from "@/server/session";
@@ -121,5 +122,25 @@ export async function testImapAction(settings: z.input<typeof imapSettingsSchema
     // Текст ошибки imapflow показываем как есть: без него непонятно, что чинить
     const reason = error instanceof Error ? error.message : "неизвестная ошибка";
     return { ok: false, error: `Не удалось подключиться: ${reason}` };
+  }
+}
+
+export type FoldersResult = { ok: true; folders: MailFolder[] } | { ok: false; error: string };
+
+/** Папки ящика с числом писем — тем подключением, что в форме. Ничего не сохраняет. */
+export async function listImapFoldersAction(settings: z.input<typeof imapSettingsSchema>): Promise<FoldersResult> {
+  await requireUser(ADMIN_ROLES);
+  const parsed = imapSettingsSchema.safeParse(settings);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+
+  const current = await readSettings();
+  const merged = mergeImapSettings(current.imap, parsed.data);
+  if (!imapConfigured(merged)) return { ok: false, error: "Заполните сервер, пользователя и пароль" };
+
+  try {
+    return { ok: true, folders: await listMailboxFolders(merged) };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "неизвестная ошибка";
+    return { ok: false, error: `Не удалось получить папки: ${reason}` };
   }
 }

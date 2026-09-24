@@ -6,6 +6,7 @@ import { db } from "@/server/db";
 import { env } from "@/server/env";
 import { imapConfigured, type ImapSettings } from "@/domain/settings";
 import { readSettings } from "@/server/settings/service";
+import type { MailFolder } from "@/domain/email/folders";
 import { normalizeEmailAddress, referencedMessageIds } from "@/domain/email/letters";
 import { ingestClientEmail, type IncomingEmail } from "@/server/emails/service";
 import { ingestSiteEmail, type StoredEmail } from "@/server/integrations/site-email";
@@ -115,6 +116,29 @@ export async function testMailboxConnection(connection: ImapSettings): Promise<{
   try {
     const status = await client.status("INBOX", { messages: true });
     return { messages: status.messages ?? 0 };
+  } finally {
+    await client.logout().catch(() => client.close());
+  }
+}
+
+/**
+ * Папки ящика с числом писем — посмотреть, как почта разложена в клиенте.
+ * Подключение из формы (в том числе несохранённое); ящик не меняет.
+ */
+export async function listMailboxFolders(connection: ImapSettings): Promise<MailFolder[]> {
+  const client = createClient(connection);
+  await client.connect();
+  try {
+    const list = await client.list({ statusQuery: { messages: true, unseen: true } });
+    return list.map((item) => ({
+      path: item.path,
+      name: item.name,
+      delimiter: item.delimiter,
+      specialUse: item.specialUse ?? null,
+      messages: item.status?.messages ?? null,
+      unseen: item.status?.unseen ?? null,
+      selectable: !item.flags.has("\\Noselect"),
+    }));
   } finally {
     await client.logout().catch(() => client.close());
   }

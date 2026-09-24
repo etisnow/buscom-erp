@@ -8,7 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ImapSettings, SmtpSettings } from "@/domain/settings";
 import type { SettingsResult } from "@/app/(app)/admin/dictionaries/actions";
-import { saveImapAction, saveSmtpAction, sendTestMailAction, testImapAction } from "@/app/(app)/admin/mail/actions";
+import {
+  listImapFoldersAction,
+  saveImapAction,
+  saveSmtpAction,
+  sendTestMailAction,
+  testImapAction,
+} from "@/app/(app)/admin/mail/actions";
+import { buildFolderTree, flattenFolderTree, SPECIAL_FOLDER_LABELS, type MailFolderNode } from "@/domain/email/folders";
 
 /** Действие настройки: ожидание и итог тостом. */
 function useSettingsAction() {
@@ -162,8 +169,18 @@ export function ImapEditor({
 }) {
   const [values, setValues] = useState<ImapSettings>(imap);
   const { pending, handle } = useSettingsAction();
+  const [folders, setFolders] = useState<MailFolderNode[] | null>(null);
+  const [loadingFolders, startFolders] = useTransition();
 
   const set = (key: keyof ImapSettings, value: string) => setValues((current) => ({ ...current, [key]: value }));
+
+  function showFolders() {
+    startFolders(async () => {
+      const result = await listImapFoldersAction(values);
+      if (result.ok) setFolders(flattenFolderTree(buildFolderTree(result.folders)));
+      else toast.error(result.error);
+    });
+  }
 
   return (
     <section className="flex flex-col gap-3 rounded-lg border p-4">
@@ -249,10 +266,71 @@ export function ImapEditor({
         <Button size="sm" variant="ghost" disabled={pending} onClick={() => handle(testImapAction(values))}>
           Проверить подключение
         </Button>
+        <Button size="sm" variant="ghost" disabled={pending || loadingFolders} onClick={showFolders}>
+          {loadingFolders ? "Читаю папки…" : "Показать папки ящика"}
+        </Button>
         <span className="text-muted-foreground text-xs">
           Проверяется то, что сейчас в полях, — письма не разбираются
         </span>
       </div>
+
+      {folders ? <FolderTree folders={folders} /> : null}
     </section>
+  );
+}
+
+/**
+ * Дерево папок ящика с числом писем. ERP читает только «Входящие» — остальные
+ * папки видно здесь, чтобы понять, не раскладывают ли фильтры почтового клиента
+ * письма клиентов мимо неё.
+ */
+function FolderTree({ folders }: { folders: MailFolderNode[] }) {
+  const total = folders.filter((folder) => folder.depth === 0).reduce((sum, folder) => sum + folder.totalMessages, 0);
+  return (
+    <div className="flex flex-col gap-2 border-t pt-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-sm font-medium">Папки ящика</h3>
+        <span className="text-muted-foreground text-xs">
+          Всего писем: {total.toLocaleString("ru-RU")}. ERP читает только «Входящие» — письма, которые фильтры
+          раскладывают по другим папкам, в «Почту» не попадают.
+        </span>
+      </div>
+      <table className="w-full text-sm">
+        <thead className="text-muted-foreground text-xs">
+          <tr>
+            <th className="py-1 text-left font-normal">Папка</th>
+            <th className="py-1 pl-3 text-right font-normal">Писем</th>
+            <th className="py-1 pl-3 text-right font-normal">Непрочитанных</th>
+            <th className="py-1 pl-3 text-right font-normal">Со вложенными</th>
+          </tr>
+        </thead>
+        <tbody>
+          {folders.map((folder) => {
+            const isInbox = folder.specialUse === "\\Inbox" || folder.path.toUpperCase() === "INBOX";
+            const label = (folder.specialUse && SPECIAL_FOLDER_LABELS[folder.specialUse]) || folder.name;
+            return (
+              <tr key={folder.path} className="border-t">
+                <td className="py-1" style={{ paddingLeft: `${folder.depth * 1.25}rem` }}>
+                  <span className={folder.selectable ? undefined : "text-muted-foreground"}>{label}</span>
+                  {label !== folder.name ? (
+                    <span className="text-muted-foreground ml-1.5 text-xs">{folder.name}</span>
+                  ) : null}
+                  {isInbox ? (
+                    <span className="bg-primary/10 text-primary ml-2 rounded px-1.5 py-0.5 text-xs">читает ERP</span>
+                  ) : null}
+                </td>
+                <td className="py-1 pl-3 text-right tabular-nums">{folder.messages?.toLocaleString("ru-RU") ?? "—"}</td>
+                <td className="text-muted-foreground py-1 pl-3 text-right tabular-nums">
+                  {folder.unseen ? folder.unseen.toLocaleString("ru-RU") : ""}
+                </td>
+                <td className="text-muted-foreground py-1 pl-3 text-right tabular-nums">
+                  {folder.children.length > 0 ? folder.totalMessages.toLocaleString("ru-RU") : ""}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
