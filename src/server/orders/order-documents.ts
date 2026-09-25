@@ -13,6 +13,9 @@ import type { SessionUser } from "@/server/session";
  * изменение пишет `OrderEvent` в той же транзакции.
  */
 
+/** Запас по времени на файл до 15 МБ — почему, см. `supplier-documents.ts`. */
+const UPLOAD_TX = { timeout: 30_000 };
+
 export async function uploadOrderDocument(
   orderId: string,
   kind: OrderDocumentKind,
@@ -33,7 +36,7 @@ export async function uploadOrderDocument(
       where: { orderId_kind: { orderId, kind } },
       select: { id: true },
     });
-    if (current) await tx.orderDocument.delete({ where: { id: current.id } });
+    if (current) await tx.orderDocument.delete({ where: { id: current.id }, select: { id: true } });
 
     const created = await tx.orderDocument.create({
       data: { orderId, kind, fileName, contentType, data, byteSize: data.byteLength },
@@ -48,7 +51,7 @@ export async function uploadOrderDocument(
     });
 
     return created;
-  });
+  }, UPLOAD_TX);
 }
 
 /** Убирает файл, если он есть. Отсутствие — не ошибка: убрать уже нечего. */
@@ -65,7 +68,7 @@ export async function deleteOrderDocument(orderId: string, kind: OrderDocumentKi
     });
     if (!existing) return;
 
-    await tx.orderDocument.delete({ where: { id: existing.id } });
+    await tx.orderDocument.delete({ where: { id: existing.id }, select: { id: true } });
     await writeOrderEvent(tx, {
       orderId,
       user,

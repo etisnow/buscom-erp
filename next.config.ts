@@ -44,10 +44,16 @@ const nextConfig: NextConfig = {
     // Нужен для forbidden() и экрана 403 (src/app/(app)/forbidden.tsx).
     authInterrupts: true,
     serverActions: {
-      // Картинка товара уходит в Server Action целиком. Сама картинка — до 5 МБ
-      // (MAX_IMAGE_BYTES в src/domain/product/images.ts), сверху запас на обёртку формы.
-      bodySizeLimit: "6mb",
+      // Файлы уходят в Server Action целиком. Самый крупный — документ заказа
+      // (накладная, счёт поставщика): до 15 МБ (MAX_DOCUMENT_BYTES в
+      // src/domain/order/supplier-document.ts), сверху запас на обёртку формы.
+      // Было 6 МБ под картинки товара — скан больше 6 МБ отваливался до нашей проверки.
+      bodySizeLimit: "16mb",
     },
+    // proxy.ts (сессия) стоит и перед страницами заказа, и тело запроса он
+    // буферизует — по умолчанию только первые 10 МБ. Обрезанное тело до
+    // действия дошло бы битым, поэтому лимит тот же, что у Server Action.
+    proxyClientMaxBodySize: "16mb",
   },
   /**
    * Админка не для поисковых систем. Заголовок ставит само приложение, а не

@@ -66,7 +66,7 @@ export function ProductGalleryEditor({
 
   function upload(files: File[]) {
     startTransition(async () => {
-      // По файлу за раз: лимит тела Server Action — 6 МБ, пачка бы его перебрала.
+      // По файлу за раз: лимит тела Server Action — 16 МБ (next.config.ts), пачка бы его перебрала.
       let saved = 0;
       for (const file of files) {
         const form = new FormData();

@@ -91,7 +91,8 @@ export async function deleteImage(imageId: string, user: SessionUser): Promise<v
   if (!image) throw new Error("Картинка не найдена — обновите страницу");
 
   await db.$transaction(async (tx) => {
-    await tx.productImage.delete({ where: { id: imageId } });
+    // Только id: иначе Prisma вернула бы удалённую строку вместе с байтами картинки.
+    await tx.productImage.delete({ where: { id: imageId }, select: { id: true } });
     await tx.productImage.updateMany({
       where: { productId: image.productId, sortOrder: { gt: image.sortOrder } },
       data: { sortOrder: { decrement: 1 } },

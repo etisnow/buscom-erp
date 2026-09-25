@@ -13,6 +13,13 @@ import type { SessionUser } from "@/server/session";
  * в той же транзакции — это и история в карточке, и аудит.
  */
 
+/**
+ * Файл до 15 МБ целиком идёт в базу внутри транзакции — стандартных 5 с на
+ * медленном канале (туннель до dev-базы) не хватает. Удаление же возвращает
+ * только id: по умолчанию Prisma отдаёт удалённую строку вместе с байтами файла.
+ */
+const UPLOAD_TX = { timeout: 30_000 };
+
 export class SupplierNotFoundError extends Error {
   constructor() {
     super("Поставщик не найден");
@@ -50,7 +57,7 @@ export async function uploadSupplierDocument(
       where: { orderId_supplierId_kind: { orderId, supplierId, kind } },
       select: { id: true },
     });
-    if (current) await tx.orderSupplierDocument.delete({ where: { id: current.id } });
+    if (current) await tx.orderSupplierDocument.delete({ where: { id: current.id }, select: { id: true } });
 
     const created = await tx.orderSupplierDocument.create({
       data: { orderId, supplierId, kind, fileName, contentType, data, byteSize: data.byteLength },
@@ -65,7 +72,7 @@ export async function uploadSupplierDocument(
     });
 
     return created;
-  });
+  }, UPLOAD_TX);
 }
 
 /** Убирает файл, если он есть. Отсутствие — не ошибка: убрать уже нечего. */
@@ -87,7 +94,7 @@ export async function deleteSupplierDocument(
     });
     if (!existing) return;
 
-    await tx.orderSupplierDocument.delete({ where: { id: existing.id } });
+    await tx.orderSupplierDocument.delete({ where: { id: existing.id }, select: { id: true } });
     await writeOrderEvent(tx, {
       orderId,
       user,
