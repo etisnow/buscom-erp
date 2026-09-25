@@ -86,6 +86,12 @@ RUN cd node_modules/.pnpm && mkdir -p node_modules && \
       ln -s "../${dir%/}/node_modules/$name" "node_modules/$name"; \
     done
 
+# Распознавание накладной проверяется в самом образе: проверка живости его не
+# трогает, и первый выкат с OCR прошёл её при неработающей кнопке. Скрипт в
+# образе не остаётся.
+COPY --from=builder /app/scripts/ocr-smoke.mjs /tmp/ocr-smoke.mjs
+RUN node /tmp/ocr-smoke.mjs && rm /tmp/ocr-smoke.mjs
+
 USER nextjs
 EXPOSE 3000
 

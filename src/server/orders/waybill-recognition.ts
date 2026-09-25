@@ -1,5 +1,4 @@
 import "server-only";
-import { createRequire } from "node:module";
 import path from "node:path";
 import { createCanvas, loadImage, type Image } from "@napi-rs/canvas";
 import { createWorker } from "tesseract.js";
@@ -39,11 +38,13 @@ const BARCODE_WIDTHS = [0, 1200, 2400, 3600];
 /** Первая страница — лицевая, на ней всё нужное; оборот с условиями не читаем. */
 const PAGE = 1;
 
-const require = createRequire(path.join(process.cwd(), "package.json"));
-
-function langPath(): string {
-  return path.join(path.dirname(require.resolve("@tesseract.js-data/rus/package.json")), "4.0.0_best_int");
-}
+/**
+ * Русская модель — путём от папки приложения, а не через `require.resolve`
+ * пакета: в боевую сборку попадает только сама модель (outputFileTracingIncludes
+ * в next.config.ts), без `package.json`, и поиск пакета падал. Тот же путь
+ * проверяет `scripts/ocr-smoke.mjs` при сборке образа.
+ */
+const LANG_PATH = path.join(process.cwd(), "node_modules", "@tesseract.js-data", "rus", "4.0.0_best_int");
 
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -79,7 +80,7 @@ async function findBarcodes(image: Image): Promise<string[]> {
 
 async function ocr(image: Image): Promise<string> {
   const canvas = drawAt(image, Math.max(image.width, OCR_WIDTH));
-  const worker = await createWorker("rus", 1, { langPath: langPath(), cacheMethod: "none" });
+  const worker = await createWorker("rus", 1, { langPath: LANG_PATH, cacheMethod: "none" });
   try {
     const { data } = await worker.recognize(await canvas.encode("png"));
     return data.text;
