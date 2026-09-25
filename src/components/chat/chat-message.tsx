@@ -106,7 +106,13 @@ export function ChatMessage({
   const time = formatMoscowDateTime(new Date(message.createdAt));
 
   return (
-    <div className={cn("group hover:bg-muted/50 relative rounded-md px-2 py-1", showAuthor && "mt-2")}>
+    <div
+      className={cn(
+        "group hover:bg-muted/50 relative rounded-md px-2 py-1",
+        (canEdit || canDelete) && !message.deleted && "pointer-coarse:pr-11",
+        showAuthor && "mt-2",
+      )}
+    >
       {showAuthor ? (
         <div className="flex items-baseline gap-2">
           <span className="text-sm font-semibold">{message.author.name}</span>
@@ -181,7 +187,7 @@ export function ChatMessage({
               variant="ghost"
               size="icon-xs"
               aria-label="Действия с сообщением"
-              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100"
             >
               <MoreHorizontal />
             </Button>

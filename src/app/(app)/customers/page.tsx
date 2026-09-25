@@ -30,11 +30,12 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
 
   return (
     <main className="flex flex-col gap-4">
-      <div className="flex items-baseline justify-between gap-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
         <h1 className="font-heading text-xl font-semibold">Клиенты</h1>
         <div className="flex items-center gap-3">
           {/* Выгружается текущий список целиком — те же фильтры, но без пагинации. */}
-          <Button asChild size="sm" variant="outline">
+          {/* На телефоне файл не нужен — кнопка только занимает место в шапке */}
+          <Button asChild size="sm" variant="outline" className="max-md:hidden">
             <Link href={`/api/customers/export?${urlParams.toString()}`} prefetch={false}>
               <Download />
               Выгрузить CSV

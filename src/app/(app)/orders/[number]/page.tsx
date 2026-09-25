@@ -172,7 +172,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
       />
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
           <OrderItems
             orderId={order.id}
             orderNumber={order.number}
@@ -291,7 +291,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
           />
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
           {order.supplierTracks.length > 0 ? (
             <SupplierTracks
               orderId={order.id}

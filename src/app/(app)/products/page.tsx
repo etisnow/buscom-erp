@@ -43,7 +43,8 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
             </Link>
           </Button>
           {/* Выгружается текущий список целиком — те же фильтры, но без пагинации. */}
-          <Button asChild size="sm" variant="outline">
+          {/* На телефоне файл не нужен — кнопка только занимает место в шапке */}
+          <Button asChild size="sm" variant="outline" className="max-md:hidden">
             <Link href={`/api/products/export?${urlParams.toString()}`} prefetch={false}>
               <Download />
               Выгрузить CSV

@@ -16,6 +16,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 export type NavItem = {
@@ -44,6 +45,10 @@ const ICONS = {
 
 export function AppSidebar({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
+  // На телефоне меню — шторка поверх страницы: после перехода её закрываем,
+  // иначе открытая страница остаётся под меню
+  const { setOpenMobile } = useSidebar();
+  const closeMobile = () => setOpenMobile(false);
 
   return (
     <Sidebar collapsible="icon">
@@ -51,7 +56,7 @@ export function AppSidebar({ items }: { items: NavItem[] }) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="BusCom ERP">
-              <Link href="/orders">
+              <Link href="/orders" onClick={closeMobile}>
                 {/* eslint-disable-next-line @next/next/no-img-element -- статичная иконка 96 px, оптимизатор не нужен */}
                 <img src="/icons/logo-96.png" alt="" className="size-6 shrink-0 rounded-md" />
                 <span className="font-heading text-base font-semibold">BusCom ERP</span>
@@ -71,7 +76,7 @@ export function AppSidebar({ items }: { items: NavItem[] }) {
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
-                      <Link href={item.href}>
+                      <Link href={item.href} onClick={closeMobile}>
                         <Icon />
                         <span>{item.label}</span>
                       </Link>

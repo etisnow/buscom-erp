@@ -50,7 +50,7 @@ export default async function SupplierPage({ params }: PageProps<"/suppliers/[id
         </p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+      <div className="grid gap-4 *:min-w-0 lg:grid-cols-[1fr_1fr]">
         <SupplierForm
           supplierId={supplier.id}
           editable={editable}

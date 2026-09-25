@@ -93,8 +93,8 @@ export function OrderFilters({
               aria-pressed={isOn}
               className={
                 isOn
-                  ? "bg-primary text-primary-foreground rounded-full px-3 py-1 text-xs"
-                  : "hover:bg-accent rounded-full border px-3 py-1 text-xs"
+                  ? "bg-primary text-primary-foreground rounded-full px-3 py-1 text-xs max-md:px-4 max-md:py-2.5 max-md:text-sm"
+                  : "hover:bg-accent rounded-full border px-3 py-1 text-xs max-md:px-4 max-md:py-2.5 max-md:text-sm"
               }
             >
               {ORDER_STATUS_LABELS[status]}

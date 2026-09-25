@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { useCoarsePointer } from "@/hooks/use-mobile";
 import { canDeleteMessage, canEditMessage, MAX_ATTACHMENTS } from "@/domain/chat/message";
 import type { UserRole } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
@@ -74,6 +75,8 @@ export function ChatRoom({
   const [dragging, setDragging] = useState(false);
   const [toDelete, setToDelete] = useState<string | null>(null);
   const [sending, startSending] = useTransition();
+  // На экранной клавиатуре Enter — перевод строки, как в мессенджерах; отправка — кнопкой
+  const touch = useCoarsePointer();
 
   const cursor = useRef(initialCursor);
   const scroller = useRef<HTMLDivElement>(null);
@@ -304,7 +307,7 @@ export function ChatRoom({
           <Textarea
             ref={textarea}
             value={text}
-            placeholder="Сообщение… Enter — отправить, Shift+Enter — новая строка"
+            placeholder={touch ? "Сообщение…" : "Сообщение… Enter — отправить, Shift+Enter — новая строка"}
             className="max-h-48 min-h-9 flex-1 resize-none"
             rows={1}
             onChange={(event) => setText(event.target.value)}
@@ -315,7 +318,7 @@ export function ChatRoom({
               }
             }}
             onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+              if (event.key === "Enter" && !event.shiftKey && !touch && !event.nativeEvent.isComposing) {
                 event.preventDefault();
                 send();
               }

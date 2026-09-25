@@ -3,11 +3,14 @@
 import { Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 /** Глобальный поиск заказа: №, № на сайте, телефон, email, ИНН, имя клиента (PRD, M1). */
 export function OrderSearch() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  // Полная подсказка на телефоне не помещается в шапку и обрезается на полуслове
+  const isMobile = useIsMobile();
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -22,7 +25,8 @@ export function OrderSearch() {
       <Input
         name="q"
         type="search"
-        placeholder="Поиск заказа: №, телефон, email, ИНН, клиент"
+        aria-label="Поиск заказа"
+        placeholder={isMobile ? "№, телефон, клиент" : "Поиск заказа: №, телефон, email, ИНН, клиент"}
         defaultValue={searchParams.get("q") ?? ""}
         className="pl-8"
       />

@@ -69,7 +69,7 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
         </p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+      <div className="grid gap-4 *:min-w-0 lg:grid-cols-[1fr_1fr]">
         <CustomerForm
           customer={{
             id: customer.id,

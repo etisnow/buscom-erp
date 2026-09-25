@@ -53,7 +53,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/analyt
       <h1 className="font-heading text-xl font-semibold">Аналитика</h1>
       <PeriodPicker period={period} />
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-1 gap-3 *:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
         <Tile
           label="Выручка"
           value={formatRub(completed.revenueKopecks)}
@@ -95,7 +95,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/analyt
         <RevenueChart series={dashboard.series} />
       </section>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 *:min-w-0 lg:grid-cols-2">
         <section className="flex flex-col gap-3 rounded-lg border p-4">
           <h2 className="font-heading font-medium">
             Заказы по статусам

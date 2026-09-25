@@ -20,7 +20,7 @@ export function PeriodPicker({ period }: { period: Period }) {
             href={`/analytics?period=${preset}`}
             aria-current={period.preset === preset ? "page" : undefined}
             className={cn(
-              "rounded-md px-3 py-1 text-sm",
+              "rounded-md px-3 py-1 text-sm max-md:py-2.5",
               period.preset === preset
                 ? "bg-background font-medium shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
@@ -30,7 +30,7 @@ export function PeriodPicker({ period }: { period: Period }) {
           </Link>
         ))}
       </nav>
-      <form method="get" action="/analytics" className="flex items-end gap-2">
+      <form method="get" action="/analytics" className="flex flex-wrap items-end gap-2">
         <div className="flex flex-col gap-1">
           <Label htmlFor="analytics-from" className="text-muted-foreground text-xs">
             С

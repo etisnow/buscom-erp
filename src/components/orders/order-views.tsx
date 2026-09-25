@@ -29,8 +29,8 @@ export function OrderViews({
             aria-current={isActive ? "page" : undefined}
             className={
               isActive
-                ? "bg-primary text-primary-foreground rounded-md px-3 py-1.5 text-sm font-medium"
-                : "hover:bg-accent rounded-md px-3 py-1.5 text-sm"
+                ? "bg-primary text-primary-foreground rounded-md px-3 py-1.5 text-sm font-medium max-md:py-2.5"
+                : "hover:bg-accent rounded-md px-3 py-1.5 text-sm max-md:py-2.5"
             }
           >
             {ORDER_VIEW_LABELS[view]}
