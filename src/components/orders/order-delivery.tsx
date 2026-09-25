@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { DocumentUpload, type DocumentView } from "@/components/orders/document-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,8 +16,13 @@ import {
   parseWeightKg,
   type Cargo,
 } from "@/domain/order/delivery";
+import { ORDER_DOCUMENT_LABELS } from "@/domain/order/order-document";
 import type { DeliveryMethod } from "@/generated/prisma/enums";
-import { updateDeliveryAction } from "@/app/(app)/orders/[number]/actions";
+import {
+  deleteOrderDocumentAction,
+  updateDeliveryAction,
+  uploadOrderDocumentAction,
+} from "@/app/(app)/orders/[number]/actions";
 
 const NONE = "__none__";
 
@@ -33,6 +39,8 @@ export function OrderDelivery({
   carriers,
   canEdit,
   canEditPrice,
+  waybill,
+  canManageDocuments,
 }: {
   orderId: string;
   orderNumber: number;
@@ -48,6 +56,9 @@ export function OrderDelivery({
   carriers: string[];
   canEdit: boolean;
   canEditPrice: boolean;
+  /** Транспортная накладная (`OrderDocument`, вид `WAYBILL`); грузится сразу, без «Сохранить доставку» */
+  waybill: DocumentView;
+  canManageDocuments: boolean;
 }) {
   const [method, setMethod] = useState<string>(deliveryMethod ?? NONE);
   const [carrierValue, setCarrier] = useState(carrier ?? "");
@@ -239,6 +250,20 @@ export function OrderDelivery({
             ))}
           </div>
         </fieldset>
+
+        {canManageDocuments || waybill ? (
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className="text-xs font-medium">{ORDER_DOCUMENT_LABELS.WAYBILL}</span>
+            <DocumentUpload
+              label="Загрузить накладную"
+              document={waybill}
+              href={(id) => `/api/order-documents/${id}`}
+              editable={canManageDocuments}
+              upload={(form) => uploadOrderDocumentAction(orderId, orderNumber, "WAYBILL", form)}
+              remove={() => deleteOrderDocumentAction(orderId, orderNumber, "WAYBILL")}
+            />
+          </div>
+        ) : null}
       </div>
 
       {method === "CARRIER" && !tracking.trim() ? (

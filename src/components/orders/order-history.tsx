@@ -19,6 +19,7 @@ const EVENT_LABELS: Record<OrderEventType, string> = {
   COMMENT: "Комментарий",
   SUPPLIER_STAGE_CHANGED: "Этап поставщика",
   SUPPLIER_DOCUMENT_CHANGED: "Файл поставщика",
+  ORDER_DOCUMENT_CHANGED: "Файл заказа",
   EMAIL_SENT: "Письмо клиенту",
   EMAIL_RECEIVED: "Письмо от клиента",
 };

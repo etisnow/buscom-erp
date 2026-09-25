@@ -469,6 +469,7 @@ model Order {
   notifications     Notification[]
   supplierTracks    OrderSupplierTrack[]
   supplierDocuments OrderSupplierDocument[]
+  documents         OrderDocument[]
   emails            Email[]
 
   @@unique([source, externalId])
@@ -553,6 +554,22 @@ model OrderSupplierDocument {
   @@index([orderId])
 }
 
+/// Файл самого заказа, не поставщика: транспортная накладная и т.п. Вид — ключ
+/// из src/domain/order/order-document.ts; у заказа один активный файл каждого вида.
+model OrderDocument {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  kind        String
+  fileName    String
+  contentType String
+  data        Bytes
+  byteSize    Int
+  uploadedAt  DateTime @default(now())
+
+  @@unique([orderId, kind])
+}
+
 enum PaymentMethod {
   INVOICE
   ONLINE
@@ -588,6 +605,8 @@ enum OrderEventType {
   SUPPLIER_STAGE_CHANGED
   /// Артефакт по поставщику прикреплён, заменён или удалён (OrderSupplierDocument)
   SUPPLIER_DOCUMENT_CHANGED
+  /// Файл заказа прикреплён, заменён или удалён (OrderDocument): транспортная накладная и т.п.
+  ORDER_DOCUMENT_CHANGED
   /// Письмо клиенту отправлено из карточки заказа (Email)
   EMAIL_SENT
   /// Письмо клиента пришло в общий ящик и привязано к заказу (Email)

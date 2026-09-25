@@ -7,6 +7,7 @@ import { MAX_CARGO_SIDE_CM, MAX_CARGO_WEIGHT_GRAMS } from "@/domain/order/delive
 import { DiscountLimitError } from "@/domain/order/discount";
 import { OrderEditError } from "@/domain/order/editing";
 import { OrderTransitionError } from "@/domain/order/status";
+import { isOrderDocumentKind } from "@/domain/order/order-document";
 import { SupplierDocumentError } from "@/domain/order/supplier-document";
 import { ProductOptionError } from "@/domain/product/options";
 import { isSupplierActionKey } from "@/domain/supplier/actions";
@@ -17,6 +18,7 @@ import { addOrderComment } from "@/server/orders/comments";
 import { updateOrderDelivery } from "@/server/orders/delivery";
 import { OrderConflictError, OrderNotFoundError } from "@/server/orders/internal";
 import { updateOrderItems } from "@/server/orders/items";
+import { deleteOrderDocument, uploadOrderDocument } from "@/server/orders/order-documents";
 import { addPayment } from "@/server/orders/payments";
 import { changeOrderStatus } from "@/server/orders/status";
 import { changeOrderSource } from "@/server/orders/source";
@@ -313,4 +315,32 @@ export async function deleteSupplierDocumentAction(
   const user = await requireUser();
   if (!isSupplierActionKey(kind)) return { ok: false, error: "Неизвестный вид файла" };
   return run(orderNumber, () => deleteSupplierDocument(orderId, supplierId, kind, user));
+}
+
+/** Прикрепление файла заказа — транспортная накладная в блоке «Доставка». */
+export async function uploadOrderDocumentAction(
+  orderId: string,
+  orderNumber: number,
+  kind: string,
+  form: FormData,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!isOrderDocumentKind(kind)) return { ok: false, error: "Неизвестный вид файла" };
+
+  const file = form.get("file");
+  if (!(file instanceof File)) return { ok: false, error: "Выберите файл" };
+  const fileName = file.name.slice(0, MAX_UPLOAD_FILE_NAME) || "файл";
+
+  const data = new Uint8Array(await file.arrayBuffer());
+  return run(orderNumber, () => uploadOrderDocument(orderId, kind, fileName, data, user));
+}
+
+export async function deleteOrderDocumentAction(
+  orderId: string,
+  orderNumber: number,
+  kind: string,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!isOrderDocumentKind(kind)) return { ok: false, error: "Неизвестный вид файла" };
+  return run(orderNumber, () => deleteOrderDocument(orderId, kind, user));
 }

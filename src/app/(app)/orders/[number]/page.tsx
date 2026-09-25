@@ -18,6 +18,7 @@ import { calculateOrderMargin } from "@/domain/order/margin";
 import { canChangeOrderSource, orderSourceLabel } from "@/domain/order/source";
 import { TERMINAL_STATUSES } from "@/domain/order/status";
 import { buildSupplierRequest } from "@/domain/order/supplier-request";
+import { canManageOrderDocuments } from "@/domain/order/order-document";
 import { canManageSupplierDocuments } from "@/domain/order/supplier-document";
 import { parseOrderItemOptions } from "@/domain/product/options";
 import { hasSupplierAction } from "@/domain/supplier/actions";
@@ -102,6 +103,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
 
   const editable = canEditItems(order.status, user.role, order.paidKopecks);
   const isClosed = TERMINAL_STATUSES.includes(order.status);
+  const waybill = order.documents.find((doc) => doc.kind === "WAYBILL");
 
   // Источник меняется только у заказа, заведённого руками. Если его пункт выключили,
   // он всё равно нужен в списке — иначе выпадающий список показал бы пустоту.
@@ -374,6 +376,8 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
             carriers={carrierOptions}
             canEdit={!isClosed}
             canEditPrice={!isClosed}
+            waybill={waybill ? { id: waybill.id, fileName: waybill.fileName, byteSize: waybill.byteSize } : null}
+            canManageDocuments={canManageOrderDocuments(order.status, user.role)}
           />
 
           {order.customerComment ? (

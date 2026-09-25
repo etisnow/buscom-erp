@@ -48,6 +48,9 @@ const detailsInclude = {
     },
   },
   // Байты файла сюда не тянем (список) — их отдаёт отдельный маршрут по id.
+  documents: {
+    select: { id: true, kind: true, fileName: true, byteSize: true, uploadedAt: true },
+  },
   supplierDocuments: {
     select: { id: true, supplierId: true, kind: true, fileName: true, byteSize: true, uploadedAt: true },
   },
