@@ -2,7 +2,7 @@ import Link from "next/link";
 import { OrderRowLink } from "@/components/orders/order-row-link";
 import { OrderStatusBadge, PaymentBadge } from "@/components/orders/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatMoscowDateTime, formatPhone } from "@/domain/datetime";
+import { formatMoscowDate, formatMoscowDateTime, formatPhone } from "@/domain/datetime";
 import { formatRub } from "@/domain/money";
 import { formatWorkingMinutes, SLA_ENABLED, workingMinutesBetween } from "@/domain/sla";
 import { isTrackComplete } from "@/domain/supplier/stages";
@@ -32,11 +32,17 @@ function OrderItemsCell({ items }: { items: OrderListRow["items"] }) {
 }
 
 /** Текущий этап по каждому поставщику заказа — то же, что в блоке «Поставщики» карточки. */
-function SupplierStatusesCell({ tracks }: { tracks: OrderListRow["supplierTracks"] }) {
+function SupplierStatusesCell({
+  tracks,
+  className = "max-w-64",
+}: {
+  tracks: OrderListRow["supplierTracks"];
+  className?: string;
+}) {
   if (tracks.length === 0) return <span className="text-muted-foreground">—</span>;
 
   return (
-    <ul className="flex max-w-64 flex-col text-xs">
+    <ul className={cn("flex flex-col text-xs", className)}>
       {tracks.map((track) => {
         const stages = track.supplier.stages;
         const index = stages.findIndex((stage) => stage.id === track.stageId);
@@ -70,70 +76,104 @@ export function OrdersTable({ rows, now }: { rows: OrderListRow[]; now: Date }) 
   }
 
   return (
-    <div className="min-w-0 overflow-x-auto rounded-lg border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-16">№</TableHead>
-            <TableHead className="w-24">№ на сайте</TableHead>
-            <TableHead className="w-36">Дата</TableHead>
-            <TableHead>Клиент</TableHead>
-            <TableHead className="text-right">Сумма</TableHead>
-            <TableHead>Статус</TableHead>
-            <TableHead>Оплата</TableHead>
-            <TableHead>Позиции</TableHead>
-            <TableHead>Статусы поставщика</TableHead>
-            <TableHead className="text-right">В статусе</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((order) => {
-            // Просрочка — красным только в колонке «В статусе»: строку целиком не заливаем,
-            // иначе в длинном списке красное забивает всё остальное (просьба владельца).
-            const isOverdue = SLA_ENABLED && order.slaDueAt !== null && order.slaDueAt < now;
-            const inStatus = workingMinutesBetween(order.statusChangedAt, now);
+    <>
+      {/* На телефоне — карточки: в таблице на 390 px видны только № и дата,
+          клиент и сумма уезжают за край (docs/MOBILE-PLAN.md) */}
+      <ul className="flex flex-col gap-2 md:hidden">
+        {rows.map((order) => (
+          <li key={order.id}>
+            <Link
+              href={`/orders/${order.number}`}
+              className="active:bg-muted flex flex-col gap-1.5 rounded-lg border p-3"
+            >
+              <div className="flex items-baseline gap-2">
+                <span className="font-semibold">№{order.number}</span>
+                {order.siteNumber ? (
+                  <span className="text-muted-foreground text-xs">сайт {order.siteNumber}</span>
+                ) : null}
+                <span className="text-muted-foreground ml-auto text-xs">{formatMoscowDate(order.createdAt)}</span>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="min-w-0 truncate">{order.customer.name}</span>
+                <span className="font-medium whitespace-nowrap">{formatRub(order.totalKopecks)}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <OrderStatusBadge status={order.status} />
+                <PaymentBadge totalKopecks={order.totalKopecks} paidKopecks={order.paidKopecks} />
+              </div>
+              {order.supplierTracks.length > 0 ? (
+                <SupplierStatusesCell tracks={order.supplierTracks} className="min-w-0" />
+              ) : null}
+            </Link>
+          </li>
+        ))}
+      </ul>
 
-            return (
-              <OrderRowLink key={order.id} href={`/orders/${order.number}`}>
-                <TableCell className="font-medium">
-                  <Link href={`/orders/${order.number}`} className="underline-offset-4 hover:underline">
-                    {order.number}
-                  </Link>
-                </TableCell>
-                <TableCell className="text-muted-foreground">{order.siteNumber ?? "—"}</TableCell>
-                <TableCell className="text-muted-foreground whitespace-nowrap">
-                  {formatMoscowDateTime(order.createdAt)}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span>{order.customer.name}</span>
-                    <span className="text-muted-foreground text-xs">{formatPhone(order.customer.phone)}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right whitespace-nowrap">{formatRub(order.totalKopecks)}</TableCell>
-                <TableCell>
-                  <OrderStatusBadge status={order.status} />
-                </TableCell>
-                <TableCell>
-                  <PaymentBadge totalKopecks={order.totalKopecks} paidKopecks={order.paidKopecks} />
-                </TableCell>
-                <TableCell>
-                  <OrderItemsCell items={order.items} />
-                </TableCell>
-                <TableCell>
-                  <SupplierStatusesCell tracks={order.supplierTracks} />
-                </TableCell>
-                <TableCell
-                  className={`text-right whitespace-nowrap ${isOverdue ? "text-rose-700 dark:text-rose-400" : "text-muted-foreground"}`}
-                  title={isOverdue ? "Просрочен по SLA" : undefined}
-                >
-                  {formatWorkingMinutes(inStatus)}
-                </TableCell>
-              </OrderRowLink>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+      <div className="min-w-0 overflow-x-auto rounded-lg border max-md:hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-16">№</TableHead>
+              <TableHead className="w-24">№ на сайте</TableHead>
+              <TableHead className="w-36">Дата</TableHead>
+              <TableHead>Клиент</TableHead>
+              <TableHead className="text-right">Сумма</TableHead>
+              <TableHead>Статус</TableHead>
+              <TableHead>Оплата</TableHead>
+              <TableHead>Позиции</TableHead>
+              <TableHead>Статусы поставщика</TableHead>
+              <TableHead className="text-right">В статусе</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((order) => {
+              // Просрочка — красным только в колонке «В статусе»: строку целиком не заливаем,
+              // иначе в длинном списке красное забивает всё остальное (просьба владельца).
+              const isOverdue = SLA_ENABLED && order.slaDueAt !== null && order.slaDueAt < now;
+              const inStatus = workingMinutesBetween(order.statusChangedAt, now);
+
+              return (
+                <OrderRowLink key={order.id} href={`/orders/${order.number}`}>
+                  <TableCell className="font-medium">
+                    <Link href={`/orders/${order.number}`} className="underline-offset-4 hover:underline">
+                      {order.number}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{order.siteNumber ?? "—"}</TableCell>
+                  <TableCell className="text-muted-foreground whitespace-nowrap">
+                    {formatMoscowDateTime(order.createdAt)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span>{order.customer.name}</span>
+                      <span className="text-muted-foreground text-xs">{formatPhone(order.customer.phone)}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right whitespace-nowrap">{formatRub(order.totalKopecks)}</TableCell>
+                  <TableCell>
+                    <OrderStatusBadge status={order.status} />
+                  </TableCell>
+                  <TableCell>
+                    <PaymentBadge totalKopecks={order.totalKopecks} paidKopecks={order.paidKopecks} />
+                  </TableCell>
+                  <TableCell>
+                    <OrderItemsCell items={order.items} />
+                  </TableCell>
+                  <TableCell>
+                    <SupplierStatusesCell tracks={order.supplierTracks} />
+                  </TableCell>
+                  <TableCell
+                    className={`text-right whitespace-nowrap ${isOverdue ? "text-rose-700 dark:text-rose-400" : "text-muted-foreground"}`}
+                    title={isOverdue ? "Просрочен по SLA" : undefined}
+                  >
+                    {formatWorkingMinutes(inStatus)}
+                  </TableCell>
+                </OrderRowLink>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   );
 }

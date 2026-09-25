@@ -7,6 +7,7 @@ import { ProductDialog } from "@/components/products/product-dialog";
 import { ProductThumb } from "@/components/products/product-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatRub } from "@/domain/money";
 import { unitCostFor } from "@/domain/supplier/price-economics";
@@ -63,7 +64,46 @@ export function ProductsTable({
 
   return (
     <>
-      <div className="min-w-0 overflow-x-auto rounded-lg border">
+      {/* На телефоне — карточки: превью, название, артикул, цена. Нажатие открывает
+          товар на правку (если есть права), «Скрыть» — в самой карточке товара */}
+      <ul className="flex flex-col gap-2 md:hidden">
+        {rows.map((product) => {
+          const body = (
+            <>
+              <ProductThumb imageId={product.images[0]?.id ?? null} name={product.name} />
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="break-words">{product.name}</span>
+                <span className="text-muted-foreground font-mono text-xs">{product.sku}</span>
+                {product.suppliers.length > 0 ? (
+                  <span className="text-muted-foreground truncate text-xs">
+                    {product.suppliers.map((link) => link.supplier.name).join(", ")}
+                  </span>
+                ) : null}
+                {!product.isActive ? <span className="text-muted-foreground text-xs">скрыт из каталога</span> : null}
+              </div>
+              <span className="font-medium whitespace-nowrap">{formatRub(product.priceKopecks)}</span>
+            </>
+          );
+          const card = cn("flex items-start gap-3 rounded-lg border p-3 text-left", !product.isActive && "opacity-60");
+          return (
+            <li key={product.id}>
+              {canEditCatalog ? (
+                <button
+                  type="button"
+                  className={cn(card, "active:bg-muted w-full")}
+                  onClick={() => setEditingProduct(product)}
+                >
+                  {body}
+                </button>
+              ) : (
+                <div className={card}>{body}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="min-w-0 overflow-x-auto rounded-lg border max-md:hidden">
         <Table>
           <TableHeader>
             <TableRow>

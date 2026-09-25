@@ -48,44 +48,74 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
           {query ? "Поставщиков по запросу нет." : "Поставщиков пока нет."}
         </p>
       ) : (
-        <div className="min-w-0 overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Поставщик</TableHead>
-                <TableHead className="w-24">Тип</TableHead>
-                <TableHead>Контактное лицо</TableHead>
-                <TableHead className="w-44">Телефон</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead className="w-32">ИНН</TableHead>
-                <TableHead className="w-24 text-right">Товаров</TableHead>
-                <TableHead className="w-24 text-right">Этапов</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {result.rows.map((supplier) => (
-                <TableRow key={supplier.id}>
-                  <TableCell>
-                    <Link href={`/suppliers/${supplier.id}`} className="underline-offset-4 hover:underline">
-                      {supplier.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="font-normal">
-                      {CUSTOMER_TYPE_LABELS[supplier.type]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{supplier.contactPerson ?? "—"}</TableCell>
-                  <TableCell className="whitespace-nowrap">{formatPhone(supplier.phone)}</TableCell>
-                  <TableCell className="text-muted-foreground break-all">{supplier.email ?? "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{supplier.inn ?? "—"}</TableCell>
-                  <TableCell className="text-right">{supplier._count.products}</TableCell>
-                  <TableCell className="text-right">{supplier._count.stages}</TableCell>
+        <>
+          {/* На телефоне — карточки, как у клиентов: имя ведёт в карточку, телефон — звонок */}
+          <ul className="flex flex-col gap-2 md:hidden">
+            {result.rows.map((supplier) => (
+              <li key={supplier.id} className="active:bg-muted relative flex flex-col gap-1.5 rounded-lg border p-3">
+                <div className="flex items-start gap-2">
+                  <Link
+                    href={`/suppliers/${supplier.id}`}
+                    className="min-w-0 flex-1 font-medium break-words after:absolute after:inset-0"
+                  >
+                    {supplier.name}
+                  </Link>
+                  <span className="text-muted-foreground shrink-0 text-xs">товаров {supplier._count.products}</span>
+                </div>
+                {supplier.contactPerson ? (
+                  <span className="text-muted-foreground text-sm">{supplier.contactPerson}</span>
+                ) : null}
+                {supplier.phone ? (
+                  <a
+                    href={`tel:${supplier.phone}`}
+                    className="text-primary relative z-10 -my-2 inline-flex min-h-11 w-fit items-center text-sm"
+                  >
+                    {formatPhone(supplier.phone)}
+                  </a>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+
+          <div className="min-w-0 overflow-x-auto rounded-lg border max-md:hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Поставщик</TableHead>
+                  <TableHead className="w-24">Тип</TableHead>
+                  <TableHead>Контактное лицо</TableHead>
+                  <TableHead className="w-44">Телефон</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead className="w-32">ИНН</TableHead>
+                  <TableHead className="w-24 text-right">Товаров</TableHead>
+                  <TableHead className="w-24 text-right">Этапов</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {result.rows.map((supplier) => (
+                  <TableRow key={supplier.id}>
+                    <TableCell>
+                      <Link href={`/suppliers/${supplier.id}`} className="underline-offset-4 hover:underline">
+                        {supplier.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-normal">
+                        {CUSTOMER_TYPE_LABELS[supplier.type]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{supplier.contactPerson ?? "—"}</TableCell>
+                    <TableCell className="whitespace-nowrap">{formatPhone(supplier.phone)}</TableCell>
+                    <TableCell className="text-muted-foreground break-all">{supplier.email ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">{supplier.inn ?? "—"}</TableCell>
+                    <TableCell className="text-right">{supplier._count.products}</TableCell>
+                    <TableCell className="text-right">{supplier._count.stages}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
 
       <ListPagination

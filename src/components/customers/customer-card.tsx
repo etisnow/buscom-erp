@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Merge, Trash, Trash2 } from "lucide-react";
+import { Merge, Phone, Trash, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -111,13 +111,23 @@ export function CustomerForm({ customer, editable }: { customer: CustomerFormDat
           <Label className="text-xs" htmlFor="customer-phone">
             Телефон
           </Label>
-          <Input
-            id="customer-phone"
-            value={phone}
-            onChange={(event) => setPhone(event.target.value)}
-            disabled={!editable}
-            className="h-8"
-          />
+          <div className="flex gap-2">
+            <Input
+              id="customer-phone"
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+              disabled={!editable}
+              className="h-8"
+            />
+            {/* На телефоне позвонить прямо отсюда; номер — сохранённый, а не недописанный в поле */}
+            {customer.phone ? (
+              <Button asChild variant="outline" size="icon" className="shrink-0 md:hidden" aria-label="Позвонить">
+                <a href={`tel:${customer.phone}`}>
+                  <Phone />
+                </a>
+              </Button>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex flex-col gap-1.5">

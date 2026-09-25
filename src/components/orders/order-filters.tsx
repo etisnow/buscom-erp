@@ -1,6 +1,7 @@
 "use client";
 
-import { X } from "lucide-react";
+import { useState } from "react";
+import { SlidersHorizontal, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,6 +72,9 @@ export function OrderFilters({
   }
 
   const selectedStatuses = searchParams.getAll("status");
+  // На телефоне всё, кроме статусов, свёрнуто под кнопку — иначе фильтры занимают первый экран
+  const [expanded, setExpanded] = useState(false);
+  const extraCount = ["manager", "source", "payment", "from", "to"].filter((key) => searchParams.has(key)).length;
   const hasFilters = ["q", "status", "manager", "source", "from", "to", "payment"].some((key) => searchParams.has(key));
 
   function toggleStatus(status: OrderStatus) {
@@ -82,7 +86,8 @@ export function OrderFilters({
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border p-3">
-      <div className="flex flex-wrap gap-1.5">
+      {/* На телефоне статусы — одна строка с прокруткой вбок, а не три ряда */}
+      <div className="flex flex-wrap gap-1.5 max-md:-mx-3 max-md:[scrollbar-width:none] max-md:flex-nowrap max-md:overflow-x-auto max-md:px-3">
         {STATUSES.map((status) => {
           const isOn = selectedStatuses.includes(status);
           return (
@@ -93,8 +98,8 @@ export function OrderFilters({
               aria-pressed={isOn}
               className={
                 isOn
-                  ? "bg-primary text-primary-foreground rounded-full px-3 py-1 text-xs max-md:px-4 max-md:py-2.5 max-md:text-sm"
-                  : "hover:bg-accent rounded-full border px-3 py-1 text-xs max-md:px-4 max-md:py-2.5 max-md:text-sm"
+                  ? "bg-primary text-primary-foreground shrink-0 rounded-full px-3 py-1 text-xs max-md:px-4 max-md:py-2.5 max-md:text-sm"
+                  : "hover:bg-accent shrink-0 rounded-full border px-3 py-1 text-xs max-md:px-4 max-md:py-2.5 max-md:text-sm"
               }
             >
               {ORDER_STATUS_LABELS[status]}
@@ -103,13 +108,40 @@ export function OrderFilters({
         })}
       </div>
 
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-col gap-1.5">
+      <div className="flex gap-2 md:hidden">
+        <Button variant="outline" size="sm" className="flex-1" onClick={() => setExpanded((open) => !open)}>
+          <SlidersHorizontal />
+          {expanded ? "Скрыть фильтры" : extraCount ? `Фильтры (${extraCount})` : "Фильтры"}
+        </Button>
+        {hasFilters ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              writeSaved(null);
+              router.push("/orders");
+            }}
+          >
+            <X />
+            Сбросить
+          </Button>
+        ) : null}
+      </div>
+
+      {/* На телефоне — сетка в две колонки во всю ширину, пока не нажата «Фильтры» — скрыта */}
+      <div
+        className={
+          expanded
+            ? "flex flex-wrap items-end gap-3 max-md:grid max-md:grid-cols-2 max-md:*:min-w-0"
+            : "flex flex-wrap items-end gap-3 max-md:hidden"
+        }
+      >
+        <div className="flex flex-col gap-1.5 max-md:col-span-2">
           <Label className="text-xs" htmlFor="filter-manager">
             Менеджер
           </Label>
           <Select value={searchParams.get("manager") ?? ANY} onValueChange={(value) => apply({ manager: value })}>
-            <SelectTrigger id="filter-manager" className="w-48">
+            <SelectTrigger id="filter-manager" className="w-48 max-md:w-full">
               <SelectValue placeholder="Любой" />
             </SelectTrigger>
             <SelectContent>
@@ -128,7 +160,7 @@ export function OrderFilters({
             Источник
           </Label>
           <Select value={searchParams.get("source") ?? ANY} onValueChange={(value) => apply({ source: value })}>
-            <SelectTrigger id="filter-source" className="w-40">
+            <SelectTrigger id="filter-source" className="w-40 max-md:w-full">
               <SelectValue placeholder="Любой" />
             </SelectTrigger>
             <SelectContent>
@@ -147,7 +179,7 @@ export function OrderFilters({
             Оплата
           </Label>
           <Select value={searchParams.get("payment") ?? ANY} onValueChange={(value) => apply({ payment: value })}>
-            <SelectTrigger id="filter-payment" className="w-40">
+            <SelectTrigger id="filter-payment" className="w-40 max-md:w-full">
               <SelectValue placeholder="Любая" />
             </SelectTrigger>
             <SelectContent>
@@ -168,7 +200,7 @@ export function OrderFilters({
           <Input
             id="filter-from"
             type="date"
-            className="w-40"
+            className="w-40 max-md:w-full"
             defaultValue={searchParams.get("from") ?? ""}
             onChange={(event) => apply({ from: event.target.value })}
           />
@@ -181,7 +213,7 @@ export function OrderFilters({
           <Input
             id="filter-to"
             type="date"
-            className="w-40"
+            className="w-40 max-md:w-full"
             defaultValue={searchParams.get("to") ?? ""}
             onChange={(event) => apply({ to: event.target.value })}
           />
@@ -191,6 +223,7 @@ export function OrderFilters({
           <Button
             variant="ghost"
             size="sm"
+            className="max-md:hidden"
             onClick={() => {
               // Сброс чистит и память — иначе фильтры вернулись бы на следующем заходе
               writeSaved(null);
