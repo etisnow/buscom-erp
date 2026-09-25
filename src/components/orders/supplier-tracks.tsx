@@ -73,6 +73,11 @@ export function SupplierTracks({
           const done = track.stages.length === 0 || index === track.stages.length - 1;
           const previous = index > 0 ? track.stages[index - 1].id : null;
           const next = track.stages[index + 1]?.id;
+          const hasActions =
+            (hasSupplierAction(track.enabledActions, "SUPPLIER_REQUEST") && track.requestText !== null) ||
+            (hasSupplierAction(track.enabledActions, "SUPPLIER_REQUEST_OUR_PRICES") &&
+              track.ourPricesRequestText !== null) ||
+            hasSupplierAction(track.enabledActions, "SUPPLIER_INVOICE");
 
           return (
             <li key={track.supplierId} className="flex flex-col gap-2">
@@ -112,53 +117,62 @@ export function SupplierTracks({
                 </ol>
               ) : null}
 
-              {/* Текст заказа доступен всегда — даже у поставщика без цепочки этапов */}
-              <div className="flex flex-wrap items-center gap-2">
-                {hasSupplierAction(track.enabledActions, "SUPPLIER_REQUEST") && track.requestText ? (
-                  <SupplierRequestDialog supplierName={track.supplierName} text={track.requestText} />
-                ) : null}
-
-                {hasSupplierAction(track.enabledActions, "SUPPLIER_REQUEST_OUR_PRICES") &&
-                track.ourPricesRequestText ? (
-                  <SupplierRequestDialog
-                    supplierName={track.supplierName}
-                    text={track.ourPricesRequestText}
-                    prices="ours"
-                  />
-                ) : null}
-
-                {hasSupplierAction(track.enabledActions, "SUPPLIER_INVOICE") ? (
-                  <SupplierDocumentUpload
-                    orderId={orderId}
-                    orderNumber={orderNumber}
-                    supplierId={track.supplierId}
-                    kind="SUPPLIER_INVOICE"
-                    label="Счёт поставщика клиенту"
-                    document={track.invoiceDocument}
-                    editable={canManageDocuments}
-                  />
-                ) : null}
-
-                {canMove && track.stages.length > 0 ? (
-                  <>
+              {/* Движение по этапам — сразу под цепочкой: это главное действие блока (просьба владельца) */}
+              {canMove && track.stages.length > 0 ? (
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={pending || index === -1}
+                    onClick={() => move(track, previous)}
+                  >
+                    <ChevronLeft />
+                    Назад
+                  </Button>
+                  {next ? (
                     <Button
                       size="sm"
-                      variant="ghost"
-                      disabled={pending || index === -1}
-                      onClick={() => move(track, previous)}
+                      variant="outline"
+                      className="min-w-0 max-md:flex-1"
+                      disabled={pending}
+                      onClick={() => move(track, next)}
                     >
-                      <ChevronLeft />
-                      Назад
+                      <span className="truncate">{track.stages[index + 1].name}</span>
+                      <ChevronRight />
                     </Button>
-                    {next ? (
-                      <Button size="sm" variant="outline" disabled={pending} onClick={() => move(track, next)}>
-                        {track.stages[index + 1].name}
-                        <ChevronRight />
-                      </Button>
-                    ) : null}
-                  </>
-                ) : null}
-              </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {/* Остальные действия — ниже, за чертой. Текст заказа доступен всегда — даже у поставщика без цепочки этапов */}
+              {hasActions ? (
+                <div className="flex flex-wrap items-center gap-2 border-t pt-2">
+                  {hasSupplierAction(track.enabledActions, "SUPPLIER_REQUEST") && track.requestText ? (
+                    <SupplierRequestDialog supplierName={track.supplierName} text={track.requestText} />
+                  ) : null}
+
+                  {hasSupplierAction(track.enabledActions, "SUPPLIER_REQUEST_OUR_PRICES") &&
+                  track.ourPricesRequestText ? (
+                    <SupplierRequestDialog
+                      supplierName={track.supplierName}
+                      text={track.ourPricesRequestText}
+                      prices="ours"
+                    />
+                  ) : null}
+
+                  {hasSupplierAction(track.enabledActions, "SUPPLIER_INVOICE") ? (
+                    <SupplierDocumentUpload
+                      orderId={orderId}
+                      orderNumber={orderNumber}
+                      supplierId={track.supplierId}
+                      kind="SUPPLIER_INVOICE"
+                      label="Счёт поставщика клиенту"
+                      document={track.invoiceDocument}
+                      editable={canManageDocuments}
+                    />
+                  ) : null}
+                </div>
+              ) : null}
             </li>
           );
         })}
