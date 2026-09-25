@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { ChartColumn, ClipboardList, Mail, Factory, MessagesSquare, Package, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CHAT_UNREAD_EVENT } from "@/components/chat/events";
+import { useLiveCount } from "@/components/layout/use-live-count";
 import {
   Sidebar,
   SidebarContent,
@@ -29,10 +28,7 @@ export type NavItem = {
   liveBadgeUrl?: string;
 };
 
-/** Раз в столько значок чата спрашивает число непрочитанных. */
-const LIVE_BADGE_MS = 20_000;
-
-const ICONS = {
+export const ICONS = {
   orders: ClipboardList,
   customers: Users,
   products: Package,
@@ -99,33 +95,8 @@ export function AppSidebar({ items }: { items: NavItem[] }) {
   );
 }
 
-/**
- * Значок непрочитанных в чате: опрашивает сервер, пока вкладка видна, и сразу
- * гаснет, когда лента чата отметила сообщения прочитанными (CHAT_UNREAD_EVENT).
- */
+/** Значок непрочитанных в чате — число обновляется само (`useLiveCount`). */
 function LiveBadge({ url, initial }: { url: string; initial: number }) {
-  const [count, setCount] = useState(initial);
-
-  useEffect(() => {
-    const refresh = async () => {
-      if (document.visibilityState !== "visible") return;
-      try {
-        const response = await fetch(url, { cache: "no-store" });
-        if (response.ok) setCount(((await response.json()) as { count: number }).count);
-      } catch {
-        // Сеть моргнула — спросим в следующий раз.
-      }
-    };
-    const onUnread = (event: Event) => setCount((event as CustomEvent<number>).detail);
-    const timer = setInterval(() => void refresh(), LIVE_BADGE_MS);
-    document.addEventListener("visibilitychange", refresh);
-    window.addEventListener(CHAT_UNREAD_EVENT, onUnread);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", refresh);
-      window.removeEventListener(CHAT_UNREAD_EVENT, onUnread);
-    };
-  }, [url]);
-
+  const count = useLiveCount(url, initial);
   return count ? <SidebarMenuBadge>{count}</SidebarMenuBadge> : null;
 }

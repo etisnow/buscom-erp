@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 import { AppSidebar, type NavItem } from "@/components/layout/app-sidebar";
+import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
+import { PullToRefresh } from "@/components/layout/pull-to-refresh";
 import { OrderSearch } from "@/components/layout/order-search";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Separator } from "@/components/ui/separator";
@@ -38,7 +40,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <SidebarProvider>
       <AppSidebar items={items} />
       <SidebarInset>
-        <header className="bg-background sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b px-4">
+        {/* Отступ сверху — под «чёлку» и строку состояния, когда ERP открыта значком с главного экрана */}
+        <header className="bg-background sticky top-0 z-10 flex h-[calc(3.5rem+env(safe-area-inset-top))] shrink-0 items-center gap-2 border-b px-4 pt-[env(safe-area-inset-top)]">
           <SidebarTrigger />
           <Separator orientation="vertical" className="mr-1 h-5" />
           <Suspense fallback={null}>
@@ -48,7 +51,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <UserMenu name={user.name} email={user.email} role={roleLabel(user.role)} />
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4">{children}</div>
+        <div className="flex flex-1 flex-col gap-4 p-4">
+          {children}
+          <MobileTabBar items={items} />
+          <PullToRefresh />
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,6 +24,15 @@ export const metadata: Metadata = {
   // Манифест — src/app/manifest.ts
   appleWebApp: { capable: true, title: "BusCom", statusBarStyle: "default" },
   icons: { apple: "/icons/apple-touch-icon.png" },
+};
+
+/**
+ * `viewport-fit=cover`: страница занимает экран целиком, а отступы под «чёлку» и полосу
+ * жестов берутся из env(safe-area-inset-*). Без него эти значения всегда 0, и нижние
+ * панели на iPhone уходили бы под полосу жестов.
+ */
+export const viewport: Viewport = {
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

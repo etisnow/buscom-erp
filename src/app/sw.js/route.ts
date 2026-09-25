@@ -20,17 +20,34 @@ self.addEventListener("push", (event) => {
   }
   const title = data.title || "BusCom ERP";
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body: data.body || "",
-      tag: data.tag || undefined,
-      // Новое сообщение с тем же тегом снова звенит, а не молча заменяет старое
-      renotify: Boolean(data.tag),
-      icon: "/icons/icon-192.png",
-      badge: "/icons/badge-96.png",
-      data: { url: data.url || "/" },
-    }),
+    Promise.all([
+      self.registration.showNotification(title, {
+        body: data.body || "",
+        tag: data.tag || undefined,
+        // Новое сообщение с тем же тегом снова звенит, а не молча заменяет старое
+        renotify: Boolean(data.tag),
+        icon: "/icons/icon-192.png",
+        badge: "/icons/badge-96.png",
+        data: { url: data.url || "/" },
+      }),
+      data.tag === "chat" ? updateBadge() : null,
+    ]),
   );
 });
+
+// Число непрочитанных на значке приложения, пока ERP закрыта. Открытая страница
+// ставит его сама (useLiveCount). Сессия — cookie того же сайта, запрос их несёт.
+async function updateBadge() {
+  if (!self.navigator.setAppBadge) return;
+  try {
+    const response = await fetch("/api/chat/unread", { cache: "no-store" });
+    if (!response.ok) return;
+    const { count } = await response.json();
+    await (count ? self.navigator.setAppBadge(count) : self.navigator.clearAppBadge());
+  } catch {
+    // Нет сети или сессии — значок останется прежним
+  }
+}
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
