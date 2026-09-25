@@ -22,26 +22,26 @@ enum UserRole {
 }
 
 model User {
-  id                 String   @id @default(cuid())
+  id                 String    @id @default(cuid())
   name               String
-  email              String   @unique
-  emailVerified      Boolean  @default(false)
+  email              String    @unique
+  emailVerified      Boolean   @default(false)
   image              String?
-  role               UserRole @default(MANAGER)
-  isActive           Boolean  @default(true)
+  role               UserRole  @default(MANAGER)
+  isActive           Boolean   @default(true)
   /// Почта для уведомлений из личных настроек. null — не задана, уведомления идут на `email` входа
   notificationEmail  String?
   /// На что подписан: ключи тем из src/domain/notification/topics.ts
-  notificationTopics String[] @default([])
+  notificationTopics String[]  @default([])
   /// Сообщения чата до этого момента прочитаны; null — чат ещё не открывал
   chatReadAt         DateTime?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   sessions      Session[]
   notifications Notification[]
   accounts      Account[]
-  managedOrders Order[]        @relation("OrderManager")
+  managedOrders Order[]            @relation("OrderManager")
   orderEvents   OrderEvent[]
   payments      Payment[]
   sentEmails    Email[]
@@ -805,14 +805,19 @@ model EmailAttachment {
 /// и пустым текстом, чтобы в ленте было видно «сообщение удалено».
 /// `updatedAt` — курсор опроса: по нему клиент получает новые, исправленные и удалённые.
 model ChatMessage {
-  id        String    @id @default(cuid())
+  id        String        @id @default(cuid())
   userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Restrict)
   text      String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
   editedAt  DateTime?
   deletedAt DateTime?
+  /// Сообщение, на которое это — ответ. Исходное удаляется мягко, так что ссылка
+  /// остаётся; SetNull — на случай, если строку когда-нибудь сотрут физически
+  replyToId String?
+  replyTo   ChatMessage?  @relation("ChatReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   ChatMessage[] @relation("ChatReply")
 
   attachments ChatAttachment[]
 

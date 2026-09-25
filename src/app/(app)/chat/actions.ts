@@ -34,6 +34,7 @@ export async function sendChatMessageAction(
 ): Promise<{ ok: true; message: ChatMessageView } | { ok: false; error: string }> {
   const user = await requireUser();
   const text = form.get("text");
+  const replyTo = form.get("replyToId");
   const files = form.getAll("files").filter((file): file is File => file instanceof File);
 
   const inputs = await Promise.all(
@@ -44,7 +45,12 @@ export async function sendChatMessageAction(
   );
 
   try {
-    const message = await postChatMessage(user, typeof text === "string" ? text : "", inputs);
+    const message = await postChatMessage(
+      user,
+      typeof text === "string" ? text : "",
+      inputs,
+      typeof replyTo === "string" && replyTo ? replyTo : null,
+    );
     // Пуши — после ответа: отправитель не ждёт сервисы Google и Apple
     after(() => pushChatMessage(message));
     return { ok: true, message };

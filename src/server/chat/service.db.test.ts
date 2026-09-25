@@ -108,6 +108,19 @@ describeDb("чат сотрудников (живая БД)", () => {
     expect(await unreadChatCount(reader.id)).toBe(0);
   });
 
+  it("ответ несёт цитату исходного; на удалённое ответить нельзя", async () => {
+    const original = await postChatMessage(author, "Где накладная по\n#3016?", []);
+    const reply = await postChatMessage(reader, "Прикрепил", [], original.id);
+    expect(reply.replyTo).toEqual({ id: original.id, authorName: "Автор", preview: "Где накладная по #3016?" });
+
+    await deleteChatMessage(original.id, author);
+    const [, view] = (await listChatMessages()).messages;
+    expect(view.replyTo).toEqual({ id: original.id, authorName: "Автор", preview: "Сообщение удалено" });
+
+    await expect(postChatMessage(reader, "ещё", [], original.id)).rejects.toThrow("удалено");
+    await expect(postChatMessage(reader, "ещё", [], "нет-такого")).rejects.toThrow("не найдено");
+  });
+
   it("история листается страницами назад", async () => {
     for (let i = 0; i < 52; i++) await postChatMessage(author, `сообщение ${i}`, []);
     const latest = await listChatMessages();

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition, type DragEvent } from "react";
-import { Loader2, Paperclip, Send, X } from "lucide-react";
+import { Loader2, Paperclip, Reply, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { ChatMessage, formatSize } from "@/components/chat/chat-message";
 import { CHAT_UNREAD_EVENT } from "@/components/chat/events";
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useCoarsePointer } from "@/hooks/use-mobile";
-import { canDeleteMessage, canEditMessage, MAX_ATTACHMENTS } from "@/domain/chat/message";
+import { canDeleteMessage, canEditMessage, MAX_ATTACHMENTS, replyPreview } from "@/domain/chat/message";
 import type { UserRole } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
 import {
@@ -74,6 +74,8 @@ export function ChatRoom({
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const [toDelete, setToDelete] = useState<string | null>(null);
+  /** На что отвечаем: плашка над полем ввода, уходит с сообщением */
+  const [replyTo, setReplyTo] = useState<ChatMessageView | null>(null);
   const [sending, startSending] = useTransition();
   // На экранной клавиатуре Enter — перевод строки, как в мессенджерах; отправка — кнопкой
   const touch = useCoarsePointer();
@@ -176,6 +178,7 @@ export function ChatRoom({
     if (sending || (!text.trim() && !files.length)) return;
     const form = new FormData();
     form.set("text", text);
+    if (replyTo) form.set("replyToId", replyTo.id);
     for (const file of files) form.append("files", file);
     startSending(async () => {
       const result = await sendChatMessageAction(form);
@@ -185,11 +188,29 @@ export function ChatRoom({
       }
       setText("");
       setFiles([]);
+      setReplyTo(null);
       stickToBottom.current = true;
       setMessages((current) => merge(current, [result.message]));
       lastReadMark.current = result.message.createdAt;
       textarea.current?.focus();
     });
+  }
+
+  function startReply(message: ChatMessageView) {
+    setReplyTo(message);
+    textarea.current?.focus();
+  }
+
+  /** К исходному сообщению ответа: прокрутка и короткая подсветка. Если оно ещё не загружено — подсказка. */
+  function jumpTo(id: string) {
+    const target = document.getElementById(`msg-${id}`);
+    if (!target) {
+      toast.info("Сообщение выше в истории — нажмите «Показать раньше»");
+      return;
+    }
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    target.classList.add("bg-primary/10");
+    setTimeout(() => target.classList.remove("bg-primary/10"), 1500);
   }
 
   async function edit(id: string, draft: string) {
@@ -256,12 +277,32 @@ export function ChatRoom({
               canDelete={canDeleteMessage(owner, user)}
               onEdit={(draft) => edit(message.id, draft)}
               onDelete={() => setToDelete(message.id)}
+              onReply={() => startReply(message)}
+              onJump={jumpTo}
             />
           );
         })}
       </div>
 
       <div className="flex flex-col gap-2 border-t p-2">
+        {replyTo ? (
+          <div className="border-primary/60 bg-muted/60 flex items-center gap-2 rounded-r-md border-l-2 py-1 pr-1 pl-2 text-xs">
+            <Reply className="text-primary size-4 shrink-0" />
+            <button type="button" className="flex min-w-0 flex-1 flex-col text-left" onClick={() => jumpTo(replyTo.id)}>
+              <span className="text-primary font-medium">Ответ {replyTo.author.name}</span>
+              <span className="text-muted-foreground truncate">
+                {replyPreview({
+                  text: replyTo.text,
+                  attachmentCount: replyTo.attachments.length,
+                  deleted: replyTo.deleted,
+                })}
+              </span>
+            </button>
+            <Button variant="ghost" size="icon-xs" aria-label="Не отвечать" onClick={() => setReplyTo(null)}>
+              <X />
+            </Button>
+          </div>
+        ) : null}
         {files.length ? (
           <div className="flex flex-wrap gap-2">
             {files.map((file, index) => (

@@ -6,6 +6,7 @@ import {
   canEditMessage,
   ChatError,
   normalizeMessageText,
+  replyPreview,
 } from "@/domain/chat/message";
 import { orderNumbersIn } from "@/domain/chat/order-links";
 import { detectDocumentType } from "@/domain/order/supplier-document";
@@ -50,6 +51,11 @@ export type ChatMessageView = {
   attachments: ChatAttachmentView[];
   /** Упомянутые в тексте номера, для которых заказ существует — их UI делает ссылками */
   orderNumbers: number[];
+  /**
+   * Цитата сообщения, на которое это — ответ. Снимок на момент выборки: если исходное
+   * потом исправят, у тех, кто уже видит ленту, цитата обновится при следующей загрузке
+   */
+  replyTo: { id: string; authorName: string; preview: string } | null;
 };
 
 const messageSelect = {
@@ -65,6 +71,15 @@ const messageSelect = {
     select: { id: true, fileName: true, byteSize: true, contentType: true, expiredAt: true },
     orderBy: { createdAt: "asc" as const },
   },
+  replyTo: {
+    select: {
+      id: true,
+      text: true,
+      deletedAt: true,
+      user: { select: { name: true } },
+      _count: { select: { attachments: true } },
+    },
+  },
 };
 
 type MessageRow = {
@@ -76,6 +91,13 @@ type MessageRow = {
   deletedAt: Date | null;
   user: { id: string; name: string };
   attachments: { id: string; fileName: string; byteSize: number; contentType: string; expiredAt: Date | null }[];
+  replyTo: {
+    id: string;
+    text: string;
+    deletedAt: Date | null;
+    user: { name: string };
+    _count: { attachments: number };
+  } | null;
 };
 
 async function toViews(rows: MessageRow[]): Promise<ChatMessageView[]> {
@@ -109,6 +131,18 @@ async function toViews(rows: MessageRow[]): Promise<ChatMessageView[]> {
           expired: file.expiredAt !== null,
         })),
     orderNumbers: row.deletedAt ? [] : orderNumbersIn(row.text).filter((number) => existing.has(number)),
+    replyTo:
+      row.replyTo && !row.deletedAt
+        ? {
+            id: row.replyTo.id,
+            authorName: row.replyTo.user.name,
+            preview: replyPreview({
+              text: row.replyTo.text,
+              attachmentCount: row.replyTo._count.attachments,
+              deleted: row.replyTo.deletedAt !== null,
+            }),
+          }
+        : null,
   }));
 }
 
@@ -151,15 +185,22 @@ export async function postChatMessage(
   user: SessionUser,
   text: string,
   files: ChatFileInput[],
+  replyToId: string | null = null,
 ): Promise<ChatMessageView> {
   assertAttachments(files.map((file) => ({ byteSize: file.data.byteLength })));
   const normalized = normalizeMessageText(text, files.length);
+  if (replyToId) {
+    const original = await db.chatMessage.findUnique({ where: { id: replyToId }, select: { deletedAt: true } });
+    if (!original) throw new ChatError("Сообщение, на которое вы отвечаете, не найдено");
+    if (original.deletedAt) throw new ChatError("Сообщение, на которое вы отвечаете, удалено");
+  }
 
   const row = await db.$transaction(async (tx) => {
     const created = await tx.chatMessage.create({
       data: {
         userId: user.id,
         text: normalized,
+        replyToId,
         attachments: {
           create: files.map((file) => ({
             fileName: file.fileName,

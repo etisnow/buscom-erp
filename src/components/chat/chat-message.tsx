@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { FileText, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { FileText, MoreHorizontal, Pencil, Reply, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -72,8 +72,9 @@ function Attachment({ file }: { file: ChatAttachmentView }) {
 }
 
 /**
- * Одно сообщение ленты. Меню «…» — только если есть что делать: своё можно
- * исправить и удалить, администратор удаляет и чужое.
+ * Одно сообщение ленты. Меню «…»: ответить — на любое, своё можно исправить
+ * и удалить, администратор удаляет и чужое. Ответ показывает цитату исходного —
+ * нажатие прокручивает к нему.
  */
 export function ChatMessage({
   message,
@@ -82,6 +83,8 @@ export function ChatMessage({
   canDelete,
   onEdit,
   onDelete,
+  onReply,
+  onJump,
 }: {
   message: ChatMessageView;
   /** Имя над сообщением — если предыдущее от другого человека или давно */
@@ -90,6 +93,9 @@ export function ChatMessage({
   canDelete: boolean;
   onEdit: (text: string) => Promise<ChatActionResult>;
   onDelete: () => void;
+  onReply: () => void;
+  /** Прокрутить к сообщению, на которое это — ответ */
+  onJump: (id: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message.text);
@@ -107,9 +113,10 @@ export function ChatMessage({
 
   return (
     <div
+      id={`msg-${message.id}`}
       className={cn(
-        "group hover:bg-muted/50 relative rounded-md px-2 py-1",
-        (canEdit || canDelete) && !message.deleted && "pointer-coarse:pr-11",
+        "group hover:bg-muted/50 relative scroll-mt-2 rounded-md px-2 py-1 transition-colors",
+        !message.deleted && "pointer-coarse:pr-11",
         showAuthor && "mt-2",
       )}
     >
@@ -158,6 +165,16 @@ export function ChatMessage({
         </div>
       ) : (
         <>
+          {message.replyTo ? (
+            <button
+              type="button"
+              onClick={() => message.replyTo && onJump(message.replyTo.id)}
+              className="border-primary/60 bg-muted/60 hover:bg-muted my-0.5 flex max-w-full flex-col rounded-r-md border-l-2 px-2 py-1 text-left text-xs"
+            >
+              <span className="text-primary font-medium">{message.replyTo.authorName}</span>
+              <span className="text-muted-foreground line-clamp-2 break-words">{message.replyTo.preview}</span>
+            </button>
+          ) : null}
           {message.text ? <MessageText text={message.text} orderNumbers={message.orderNumbers} /> : null}
           {message.attachments.length ? (
             <div className="flex flex-wrap items-end gap-2 py-1">
@@ -180,7 +197,7 @@ export function ChatMessage({
         </span>
       ) : null}
 
-      {!message.deleted && !editing && (canEdit || canDelete) ? (
+      {!message.deleted && !editing ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -193,6 +210,10 @@ export function ChatMessage({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={onReply}>
+              <Reply />
+              Ответить
+            </DropdownMenuItem>
             {canEdit ? (
               <DropdownMenuItem
                 onSelect={() => {

@@ -61,3 +61,17 @@ export function canDeleteMessage(message: MessageOwner, user: Actor): boolean {
 export function attachmentExpiryCutoff(now: Date): Date {
   return new Date(now.getTime() - ATTACHMENT_RETENTION_DAYS * 24 * 60 * 60 * 1000);
 }
+
+/** Длина цитаты в ответе: одна-две строки на телефоне. */
+export const REPLY_PREVIEW_LENGTH = 120;
+
+/**
+ * Цитата сообщения, на которое отвечают: текст в одну строку, обрезанный,
+ * а у сообщения только с файлами — «📎 файл». Удалённое цитируется пометкой.
+ */
+export function replyPreview(message: { text: string; attachmentCount: number; deleted: boolean }): string {
+  if (message.deleted) return "Сообщение удалено";
+  const flat = message.text.replace(/\s+/g, " ").trim();
+  if (flat) return flat.length > REPLY_PREVIEW_LENGTH ? `${flat.slice(0, REPLY_PREVIEW_LENGTH - 1)}…` : flat;
+  return message.attachmentCount ? "📎 файл" : "";
+}

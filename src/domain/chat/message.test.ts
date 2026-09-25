@@ -9,6 +9,8 @@ import {
   MAX_ATTACHMENTS_BYTES,
   MAX_MESSAGE_LENGTH,
   normalizeMessageText,
+  REPLY_PREVIEW_LENGTH,
+  replyPreview,
 } from "@/domain/chat/message";
 
 describe("normalizeMessageText", () => {
@@ -69,5 +71,22 @@ describe("права на сообщение", () => {
 describe("attachmentExpiryCutoff", () => {
   it("ровно 365 дней назад", () => {
     expect(attachmentExpiryCutoff(new Date("2026-09-25T12:00:00Z"))).toEqual(new Date("2025-09-25T12:00:00Z"));
+  });
+});
+
+describe("replyPreview", () => {
+  it("текст в одну строку", () => {
+    expect(replyPreview({ text: "по заказу\n\n#3021", attachmentCount: 0, deleted: false })).toBe("по заказу #3021");
+  });
+
+  it("длинный текст обрезается", () => {
+    const preview = replyPreview({ text: "а".repeat(500), attachmentCount: 0, deleted: false });
+    expect(preview).toHaveLength(REPLY_PREVIEW_LENGTH);
+    expect(preview.endsWith("…")).toBe(true);
+  });
+
+  it("только файлы и удалённое", () => {
+    expect(replyPreview({ text: "", attachmentCount: 2, deleted: false })).toBe("📎 файл");
+    expect(replyPreview({ text: "секрет", attachmentCount: 0, deleted: true })).toBe("Сообщение удалено");
   });
 });
