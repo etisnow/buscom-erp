@@ -33,6 +33,8 @@ model User {
   notificationEmail  String?
   /// На что подписан: ключи тем из src/domain/notification/topics.ts
   notificationTopics String[] @default([])
+  /// Сообщения чата до этого момента прочитаны; null — чат ещё не открывал
+  chatReadAt         DateTime?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -43,6 +45,7 @@ model User {
   orderEvents   OrderEvent[]
   payments      Payment[]
   sentEmails    Email[]
+  chatMessages  ChatMessage[]
 
   @@map("user")
 }
@@ -791,4 +794,44 @@ model EmailAttachment {
   skippedReason String?
 
   @@index([emailId])
+}
+
+// ---------------------------------------------------------------------------
+// Чат сотрудников: один общий канал
+// ---------------------------------------------------------------------------
+
+/// Сообщение общего чата. Удалённое не стирается строкой — остаётся с `deletedAt`
+/// и пустым текстом, чтобы в ленте было видно «сообщение удалено».
+/// `updatedAt` — курсор опроса: по нему клиент получает новые, исправленные и удалённые.
+model ChatMessage {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  text      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  editedAt  DateTime?
+  deletedAt DateTime?
+
+  attachments ChatAttachment[]
+
+  @@index([createdAt])
+  @@index([updatedAt])
+}
+
+/// Файл в сообщении чата. Через год байты стираются (`data` = null, `expiredAt`),
+/// а запись остаётся — в ленте видно, что файл был
+model ChatAttachment {
+  id          String      @id @default(cuid())
+  messageId   String
+  message     ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  fileName    String
+  contentType String
+  byteSize    Int
+  data        Bytes?
+  createdAt   DateTime    @default(now())
+  expiredAt   DateTime?
+
+  @@index([messageId])
+  @@index([createdAt])
 }
