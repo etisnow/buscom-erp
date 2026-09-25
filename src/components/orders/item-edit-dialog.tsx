@@ -18,6 +18,8 @@ import {
 export type ItemCatalog = { priceKopecks: number; options: OptionGroup[] };
 
 export type ItemEditPatch = {
+  sku: string;
+  name: string;
   priceKopecks: number;
   quantity: number;
   discountKopecks: number;
@@ -45,7 +47,9 @@ function parseRubles(value: string): number | null {
 }
 
 /**
- * Правка позиции заказа: перевыбор опций товара, цена, количество, скидка.
+ * Правка позиции заказа: артикул и название, перевыбор опций товара, цена,
+ * количество, скидка. На телефоне это единственный способ править позицию —
+ * таблицы с полями в строке там нет.
  * Меняет только эту позицию, каталог не трогает. Смена опций пересчитывает цену
  * по каталогу (базовая + надбавки) — её можно поправить руками, как любую цену
  * позиции. Применяется к составу на экране; в базу — кнопкой «Сохранить состав».
@@ -64,6 +68,8 @@ export function ItemEditDialog({
 }) {
   const groups = catalog?.options ?? [];
   const { chosen, valueIds, choose } = useOptionChoice(groups, item.optionValueIds);
+  const [sku, setSku] = useState(item.sku);
+  const [name, setName] = useState(item.name);
   const [price, setPrice] = useState(toRubles(item.priceKopecks));
   const [quantity, setQuantity] = useState(String(item.quantity));
   const [discount, setDiscount] = useState(toRubles(item.discountKopecks));
@@ -94,7 +100,7 @@ export function ItemEditDialog({
   const discountKopecks = parseRubles(discount);
   const qty = Number(quantity);
   const qtyValid = Number.isInteger(qty) && qty > 0;
-  const valid = !problem && priceKopecks !== null && discountKopecks !== null && qtyValid;
+  const valid = !problem && name.trim() !== "" && priceKopecks !== null && discountKopecks !== null && qtyValid;
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -106,6 +112,27 @@ export function ItemEditDialog({
             {item.sku ? ` · ${item.sku}` : ""}. Меняется только этот заказ, карточка товара остаётся как есть.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="grid grid-cols-[1fr_2fr] gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs" htmlFor="item-edit-sku">
+              Артикул
+            </Label>
+            <Input id="item-edit-sku" value={sku} onChange={(event) => setSku(event.target.value)} className="h-8" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs" htmlFor="item-edit-name">
+              Название
+            </Label>
+            <Input
+              id="item-edit-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="h-8"
+              aria-invalid={name.trim() === ""}
+            />
+          </div>
+        </div>
 
         {groups.length > 0 ? (
           <div className="flex flex-col gap-2">
@@ -169,7 +196,15 @@ export function ItemEditDialog({
             disabled={!valid}
             onClick={() => {
               if (!valid || priceKopecks === null || discountKopecks === null) return;
-              onApply({ priceKopecks, quantity: qty, discountKopecks, optionValueIds: valueIds, options: snapshot });
+              onApply({
+                sku: sku.trim(),
+                name: name.trim(),
+                priceKopecks,
+                quantity: qty,
+                discountKopecks,
+                optionValueIds: valueIds,
+                options: snapshot,
+              });
             }}
           >
             Применить

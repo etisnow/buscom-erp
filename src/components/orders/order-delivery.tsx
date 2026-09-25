@@ -276,7 +276,7 @@ export function OrderDelivery({
 
         <fieldset className="flex flex-col gap-1.5 sm:col-span-2">
           <legend className="mb-1.5 text-xs font-medium">Габариты, см (длина × ширина × высота)</legend>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             {(
               [
                 ["delivery-length", "Длина", length, setLength, "length"],
@@ -284,7 +284,7 @@ export function OrderDelivery({
                 ["delivery-height", "Высота", height, setHeight, "height"],
               ] as const
             ).map(([id, label, value, setValue, field], index) => (
-              <div key={id} className="flex items-center gap-2">
+              <div key={id} className="flex min-w-0 flex-1 items-center gap-2">
                 {index > 0 ? <span className="text-muted-foreground">×</span> : null}
                 <Input
                   id={id}
@@ -294,7 +294,7 @@ export function OrderDelivery({
                   value={value}
                   onChange={(event) => setValue(event.target.value)}
                   disabled={!canEdit}
-                  className={cn("h-8 w-24 text-right", mark(field))}
+                  className={cn("h-8 w-full min-w-0 text-right md:max-w-24", mark(field))}
                 />
               </div>
             ))}

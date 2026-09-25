@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Copy, Send } from "lucide-react";
+import { useState, useSyncExternalStore } from "react";
+import { Check, Copy, Send, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+
+const noSubscribe = () => () => {};
+
+/** Системное «Поделиться» (Web Share) есть на телефонах; на компьютере обычно нет. */
+function useCanShare(): boolean {
+  return useSyncExternalStore(
+    noSubscribe,
+    () => typeof navigator.share === "function",
+    () => false,
+  );
+}
 
 /**
  * Готовый текст заказа поставщику: его копируют и отправляют в мессенджер.
@@ -29,6 +40,17 @@ export function SupplierRequestDialog({
   prices?: "purchase" | "ours";
 }) {
   const [copied, setCopied] = useState(false);
+  const canShare = useCanShare();
+
+  async function share() {
+    try {
+      await navigator.share({ text });
+    } catch (error) {
+      // Закрыли окно «Поделиться» — это не ошибка
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast.error("Не удалось открыть «Поделиться» — скопируйте текст");
+    }
+  }
 
   async function copy() {
     try {
@@ -65,10 +87,19 @@ export function SupplierRequestDialog({
           {text}
         </pre>
 
-        <Button onClick={copy}>
-          {copied ? <Check /> : <Copy />}
-          {copied ? "Скопировано" : "Скопировать"}
-        </Button>
+        <div className="flex gap-2 max-md:flex-col">
+          {/* На телефоне «Поделиться» сразу открывает мессенджер — без копирования и переключения */}
+          {canShare ? (
+            <Button onClick={share} className="md:flex-1">
+              <Share2 />
+              Поделиться
+            </Button>
+          ) : null}
+          <Button onClick={copy} variant={canShare ? "outline" : "default"} className="md:flex-1">
+            {copied ? <Check /> : <Copy />}
+            {copied ? "Скопировано" : "Скопировать"}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

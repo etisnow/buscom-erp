@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, FileText } from "lucide-react";
+import { MobileCollapsible } from "@/components/layout/mobile-collapsible";
 import { Button } from "@/components/ui/button";
 import { OrderCustomer } from "@/components/orders/order-customer";
 import { OrderDelivery } from "@/components/orders/order-delivery";
@@ -118,7 +119,8 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
   const carrierOptions = order.carrier && !carriers.includes(order.carrier) ? [order.carrier, ...carriers] : carriers;
 
   return (
-    <main className="flex flex-col gap-4">
+    // Снизу на телефоне — панель действий заказа (OrderHeader), под неё запас
+    <main className="flex flex-col gap-4 max-md:pb-20">
       <div className="flex items-center justify-between gap-3">
         <Link
           href="/orders"
@@ -152,6 +154,8 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
         sourceLabel={orderSourceLabel(order.source, order.sourceItem?.name)}
         sourceItemId={order.sourceItemId}
         sources={sourceOptions}
+        customerPhone={order.customer.phone}
+        invoiceHref={`/api/orders/${order.number}/documents/invoice`}
       />
 
       <OrderCustomer
@@ -171,224 +175,246 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
         }}
       />
 
+      {/* На телефоне колонки «растворяются» (contents), и блоки идут одним столбцом
+          в порядке order-N: что нужно чаще — выше. На компьютере — две колонки как были */}
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <OrderItems
-            orderId={order.id}
-            orderNumber={order.number}
-            initialItems={order.items.map((item) => {
-              const options = parseOrderItemOptions(item.options);
-              return {
-                productId: item.productId,
-                sku: item.sku,
-                name: item.name,
-                priceKopecks: item.priceKopecks,
-                quantity: item.quantity,
-                discountKopecks: item.discountKopecks,
-                supplierId: item.supplierId,
-                supplierName: item.supplier?.name ?? null,
-                purchasePriceKopecks: item.purchasePriceKopecks,
-                purchaseCostKopecks: item.purchaseCostKopecks,
-                supplierOptions: (item.product?.suppliers ?? []).map((link) => ({
-                  id: link.supplier.id,
-                  name: link.supplier.name,
-                  purchasePriceKopecks: link.purchasePriceKopecks,
-                  costKopecks: unitCostFor(link.purchasePriceKopecks, link.supplier.priceFormula),
-                  optionPrices: link.optionPrices,
-                  priceFormula: parsePriceFormula(link.supplier.priceFormula),
-                })),
-                optionValueIds: options.map((option) => option.valueId),
-                options,
-              };
-            })}
-            initialDiscountKopecks={order.discountKopecks}
-            deliveryPriceKopecks={order.deliveryPriceKopecks}
-            editable={editable}
-            products={products}
-            suppliers={suppliers}
-            categories={categories}
-            carModels={carModels}
-            canEditCatalog={canEditCatalog(user.role)}
-          />
-
-          {order.items.length > 0 ? (
-            <OrderMarginBlock
-              margin={calculateOrderMargin({
-                items: order.items.map((item) => ({
+        <div className="flex min-w-0 flex-col gap-4 max-lg:contents">
+          <div className="min-w-0 max-lg:order-3">
+            <OrderItems
+              orderId={order.id}
+              orderNumber={order.number}
+              initialItems={order.items.map((item) => {
+                const options = parseOrderItemOptions(item.options);
+                return {
+                  productId: item.productId,
+                  sku: item.sku,
+                  name: item.name,
                   priceKopecks: item.priceKopecks,
                   quantity: item.quantity,
                   discountKopecks: item.discountKopecks,
                   supplierId: item.supplierId,
-                  // Снимок стоимости для нас; у позиций до «Экономики цены» — номинал
-                  costKopecks: item.supplierId ? (item.purchaseCostKopecks ?? item.purchasePriceKopecks) : null,
-                })),
-                discountKopecks: order.discountKopecks,
-                suppliers: order.supplierTracks.map((track) => ({
-                  supplierId: track.supplier.id,
-                  name: track.supplier.name,
-                  orderCostKopecks: track.orderCostKopecks,
-                  profitCommissionHundredths: track.profitCommissionHundredths,
-                })),
-              })}
-              orderCostsKopecks={order.supplierTracks.reduce((sum, track) => sum + track.orderCostKopecks, 0)}
-            />
-          ) : null}
-
-          <OrderPayments
-            orderId={order.id}
-            orderNumber={order.number}
-            totalKopecks={order.totalKopecks}
-            paidKopecks={order.paidKopecks}
-            payments={order.payments.map((payment) => ({
-              id: payment.id,
-              method: payment.method,
-              amountKopecks: payment.amountKopecks,
-              paidAt: payment.paidAt,
-              reference: payment.reference,
-              authorName: payment.createdBy?.name ?? null,
-            }))}
-            canAdd={order.status !== "CANCELLED"}
-          />
-
-          <OrderEmails
-            orderId={order.id}
-            orderNumber={order.number}
-            emails={emails.items.map(toEmailView)}
-            totalEmails={emails.total}
-            customerId={order.customer.id}
-            defaultTo={lastInbound?.fromEmail ?? order.customer.email}
-            replySubject={
-              lastInbound
-                ? replySubject(lastInbound.subject)
-                : `Заказ №${clientOrderNumber({ number: order.number, siteNumber })}`
-            }
-            templates={renderedTemplates}
-            suggestions={suggestedTemplates(
-              {
-                totalKopecks: order.totalKopecks,
-                paidKopecks: order.paidKopecks,
-                trackingNumber: order.trackingNumber,
-                customerEmail: order.customer.email ?? lastInbound?.fromEmail ?? null,
-              },
-              usedTemplates,
-            )}
-            invoiceAvailable={requisitesReady(settings.sellerRequisites)}
-            mailReady={mailReady}
-          />
-
-          <OrderHistory
-            orderId={order.id}
-            orderNumber={order.number}
-            events={order.events.map((event) => ({
-              id: event.id,
-              type: event.type,
-              fromStatus: event.fromStatus,
-              toStatus: event.toStatus,
-              comment: event.comment,
-              createdAt: event.createdAt,
-              authorName: event.user?.name ?? null,
-            }))}
-          />
-        </div>
-
-        <div className="flex min-w-0 flex-col gap-4">
-          {order.supplierTracks.length > 0 ? (
-            <SupplierTracks
-              orderId={order.id}
-              orderNumber={order.number}
-              canMove={canMoveStages(order.status, user.role)}
-              canManageDocuments={canManageSupplierDocuments(order.status, user.role)}
-              tracks={order.supplierTracks.map((track) => {
-                const enabledActions = track.supplier.enabledActions;
-                const document = order.supplierDocuments.find(
-                  (item) => item.supplierId === track.supplier.id && item.kind === "SUPPLIER_INVOICE",
-                );
-
-                // Текст собирается на сервере: формат один на всех и покрыт тестами.
-                // Строится, только если включено действие — незачем считать зря.
-                // «Наши цены» — цена продажи за штуку из позиции (до скидки на позицию:
-                // скидка задана на строку целиком). Расходов на заказ там нет — это
-                // закупочная статья, к нашим ценам не относится.
-                const buildRequest = (prices: "purchase" | "ours") =>
-                  buildSupplierRequest({
-                    orderNumber: order.number,
-                    orderCreatedAt: order.createdAt,
-                    items: order.items
-                      .filter((item) => item.supplierId === track.supplier.id)
-                      .map((item) => ({
-                        name: item.name,
-                        quantity: item.quantity,
-                        priceKopecks:
-                          prices === "ours"
-                            ? item.priceKopecks
-                            : // Конечная стоимость с экономикой цены; у позиций без снимка — номинал
-                              (item.purchaseCostKopecks ?? item.purchasePriceKopecks),
-                        options: parseOrderItemOptions(item.options),
-                      })),
-                    orderCostKopecks: prices === "ours" ? 0 : track.orderCostKopecks,
-                    delivery: {
-                      method: order.deliveryMethod,
-                      carrier: order.carrier,
-                      address: order.deliveryAddress,
-                    },
-                    customer: {
-                      name: order.customer.name,
-                      phone: order.customer.phone,
-                      inn: order.customer.inn,
-                      kpp: order.customer.kpp,
-                      requisites: parseCustomerRequisites(order.customer.requisites),
-                    },
-                  });
-
-                return {
-                  supplierId: track.supplier.id,
-                  supplierName: track.supplier.name,
-                  stageId: track.stageId,
-                  stages: track.supplier.stages,
-                  enabledActions,
-                  requestText: hasSupplierAction(enabledActions, "SUPPLIER_REQUEST") ? buildRequest("purchase") : null,
-                  ourPricesRequestText: hasSupplierAction(enabledActions, "SUPPLIER_REQUEST_OUR_PRICES")
-                    ? buildRequest("ours")
-                    : null,
-                  invoiceDocument: document
-                    ? { id: document.id, fileName: document.fileName, byteSize: document.byteSize }
-                    : null,
+                  supplierName: item.supplier?.name ?? null,
+                  purchasePriceKopecks: item.purchasePriceKopecks,
+                  purchaseCostKopecks: item.purchaseCostKopecks,
+                  supplierOptions: (item.product?.suppliers ?? []).map((link) => ({
+                    id: link.supplier.id,
+                    name: link.supplier.name,
+                    purchasePriceKopecks: link.purchasePriceKopecks,
+                    costKopecks: unitCostFor(link.purchasePriceKopecks, link.supplier.priceFormula),
+                    optionPrices: link.optionPrices,
+                    priceFormula: parsePriceFormula(link.supplier.priceFormula),
+                  })),
+                  optionValueIds: options.map((option) => option.valueId),
+                  options,
                 };
               })}
+              initialDiscountKopecks={order.discountKopecks}
+              deliveryPriceKopecks={order.deliveryPriceKopecks}
+              editable={editable}
+              products={products}
+              suppliers={suppliers}
+              categories={categories}
+              carModels={carModels}
+              canEditCatalog={canEditCatalog(user.role)}
             />
+          </div>
+
+          {order.items.length > 0 ? (
+            <div className="min-w-0 max-lg:order-7">
+              <MobileCollapsible title="Маржа">
+                <OrderMarginBlock
+                  margin={calculateOrderMargin({
+                    items: order.items.map((item) => ({
+                      priceKopecks: item.priceKopecks,
+                      quantity: item.quantity,
+                      discountKopecks: item.discountKopecks,
+                      supplierId: item.supplierId,
+                      // Снимок стоимости для нас; у позиций до «Экономики цены» — номинал
+                      costKopecks: item.supplierId ? (item.purchaseCostKopecks ?? item.purchasePriceKopecks) : null,
+                    })),
+                    discountKopecks: order.discountKopecks,
+                    suppliers: order.supplierTracks.map((track) => ({
+                      supplierId: track.supplier.id,
+                      name: track.supplier.name,
+                      orderCostKopecks: track.orderCostKopecks,
+                      profitCommissionHundredths: track.profitCommissionHundredths,
+                    })),
+                  })}
+                  orderCostsKopecks={order.supplierTracks.reduce((sum, track) => sum + track.orderCostKopecks, 0)}
+                />
+              </MobileCollapsible>
+            </div>
           ) : null}
 
-          <OrderDelivery
-            orderId={order.id}
-            orderNumber={order.number}
-            deliveryMethod={order.deliveryMethod}
-            carrier={order.carrier}
-            deliveryAddress={order.deliveryAddress}
-            deliveryPriceKopecks={order.deliveryPriceKopecks}
-            trackingNumber={order.trackingNumber}
-            shippedAt={order.shippedAt ? toDateInput(order.shippedAt) : ""}
-            cargo={{
-              weightGrams: order.cargoWeightGrams,
-              lengthCm: order.cargoLengthCm,
-              widthCm: order.cargoWidthCm,
-              heightCm: order.cargoHeightCm,
-            }}
-            carriers={carrierOptions}
-            canEdit={!isClosed}
-            canEditPrice={!isClosed}
-            waybill={waybill ? { id: waybill.id, fileName: waybill.fileName, byteSize: waybill.byteSize } : null}
-            canManageDocuments={canManageOrderDocuments(order.status, user.role)}
-          />
+          <div id="payments" className="min-w-0 scroll-mt-16 max-lg:order-5">
+            <OrderPayments
+              orderId={order.id}
+              orderNumber={order.number}
+              totalKopecks={order.totalKopecks}
+              paidKopecks={order.paidKopecks}
+              payments={order.payments.map((payment) => ({
+                id: payment.id,
+                method: payment.method,
+                amountKopecks: payment.amountKopecks,
+                paidAt: payment.paidAt,
+                reference: payment.reference,
+                authorName: payment.createdBy?.name ?? null,
+              }))}
+              canAdd={order.status !== "CANCELLED"}
+            />
+          </div>
+
+          <div id="emails" className="min-w-0 scroll-mt-16 max-lg:order-8">
+            <OrderEmails
+              orderId={order.id}
+              orderNumber={order.number}
+              emails={emails.items.map(toEmailView)}
+              totalEmails={emails.total}
+              customerId={order.customer.id}
+              defaultTo={lastInbound?.fromEmail ?? order.customer.email}
+              replySubject={
+                lastInbound
+                  ? replySubject(lastInbound.subject)
+                  : `Заказ №${clientOrderNumber({ number: order.number, siteNumber })}`
+              }
+              templates={renderedTemplates}
+              suggestions={suggestedTemplates(
+                {
+                  totalKopecks: order.totalKopecks,
+                  paidKopecks: order.paidKopecks,
+                  trackingNumber: order.trackingNumber,
+                  customerEmail: order.customer.email ?? lastInbound?.fromEmail ?? null,
+                },
+                usedTemplates,
+              )}
+              invoiceAvailable={requisitesReady(settings.sellerRequisites)}
+              mailReady={mailReady}
+            />
+          </div>
+
+          <div className="min-w-0 max-lg:order-9">
+            <MobileCollapsible title="История" hint={`событий: ${order.events.length}`}>
+              <OrderHistory
+                orderId={order.id}
+                orderNumber={order.number}
+                events={order.events.map((event) => ({
+                  id: event.id,
+                  type: event.type,
+                  fromStatus: event.fromStatus,
+                  toStatus: event.toStatus,
+                  comment: event.comment,
+                  createdAt: event.createdAt,
+                  authorName: event.user?.name ?? null,
+                }))}
+              />
+            </MobileCollapsible>
+          </div>
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-4 max-lg:contents">
+          {order.supplierTracks.length > 0 ? (
+            <div className="min-w-0 max-lg:order-4">
+              <SupplierTracks
+                orderId={order.id}
+                orderNumber={order.number}
+                canMove={canMoveStages(order.status, user.role)}
+                canManageDocuments={canManageSupplierDocuments(order.status, user.role)}
+                tracks={order.supplierTracks.map((track) => {
+                  const enabledActions = track.supplier.enabledActions;
+                  const document = order.supplierDocuments.find(
+                    (item) => item.supplierId === track.supplier.id && item.kind === "SUPPLIER_INVOICE",
+                  );
+
+                  // Текст собирается на сервере: формат один на всех и покрыт тестами.
+                  // Строится, только если включено действие — незачем считать зря.
+                  // «Наши цены» — цена продажи за штуку из позиции (до скидки на позицию:
+                  // скидка задана на строку целиком). Расходов на заказ там нет — это
+                  // закупочная статья, к нашим ценам не относится.
+                  const buildRequest = (prices: "purchase" | "ours") =>
+                    buildSupplierRequest({
+                      orderNumber: order.number,
+                      orderCreatedAt: order.createdAt,
+                      items: order.items
+                        .filter((item) => item.supplierId === track.supplier.id)
+                        .map((item) => ({
+                          name: item.name,
+                          quantity: item.quantity,
+                          priceKopecks:
+                            prices === "ours"
+                              ? item.priceKopecks
+                              : // Конечная стоимость с экономикой цены; у позиций без снимка — номинал
+                                (item.purchaseCostKopecks ?? item.purchasePriceKopecks),
+                          options: parseOrderItemOptions(item.options),
+                        })),
+                      orderCostKopecks: prices === "ours" ? 0 : track.orderCostKopecks,
+                      delivery: {
+                        method: order.deliveryMethod,
+                        carrier: order.carrier,
+                        address: order.deliveryAddress,
+                      },
+                      customer: {
+                        name: order.customer.name,
+                        phone: order.customer.phone,
+                        inn: order.customer.inn,
+                        kpp: order.customer.kpp,
+                        requisites: parseCustomerRequisites(order.customer.requisites),
+                      },
+                    });
+
+                  return {
+                    supplierId: track.supplier.id,
+                    supplierName: track.supplier.name,
+                    stageId: track.stageId,
+                    stages: track.supplier.stages,
+                    enabledActions,
+                    requestText: hasSupplierAction(enabledActions, "SUPPLIER_REQUEST")
+                      ? buildRequest("purchase")
+                      : null,
+                    ourPricesRequestText: hasSupplierAction(enabledActions, "SUPPLIER_REQUEST_OUR_PRICES")
+                      ? buildRequest("ours")
+                      : null,
+                    invoiceDocument: document
+                      ? { id: document.id, fileName: document.fileName, byteSize: document.byteSize }
+                      : null,
+                  };
+                })}
+              />
+            </div>
+          ) : null}
+
+          <div className="min-w-0 max-lg:order-6">
+            <OrderDelivery
+              orderId={order.id}
+              orderNumber={order.number}
+              deliveryMethod={order.deliveryMethod}
+              carrier={order.carrier}
+              deliveryAddress={order.deliveryAddress}
+              deliveryPriceKopecks={order.deliveryPriceKopecks}
+              trackingNumber={order.trackingNumber}
+              shippedAt={order.shippedAt ? toDateInput(order.shippedAt) : ""}
+              cargo={{
+                weightGrams: order.cargoWeightGrams,
+                lengthCm: order.cargoLengthCm,
+                widthCm: order.cargoWidthCm,
+                heightCm: order.cargoHeightCm,
+              }}
+              carriers={carrierOptions}
+              canEdit={!isClosed}
+              canEditPrice={!isClosed}
+              waybill={waybill ? { id: waybill.id, fileName: waybill.fileName, byteSize: waybill.byteSize } : null}
+              canManageDocuments={canManageOrderDocuments(order.status, user.role)}
+            />
+          </div>
 
           {order.customerComment ? (
-            <section className="flex flex-col gap-2 rounded-lg border p-4">
+            <section className="flex flex-col gap-2 rounded-lg border p-4 max-lg:order-2">
               <h2 className="font-heading font-medium">Комментарий клиента</h2>
               <p className="text-sm whitespace-pre-line">{order.customerComment}</p>
             </section>
           ) : null}
 
           {order.cancelReason ? (
-            <section className="border-destructive/40 flex flex-col gap-2 rounded-lg border p-4">
+            <section className="border-destructive/40 flex flex-col gap-2 rounded-lg border p-4 max-lg:order-1">
               <h2 className="font-heading font-medium">Причина отмены</h2>
               <p className="text-sm">{order.cancelReason}</p>
             </section>

@@ -204,7 +204,80 @@ export function OrderItems({
         ) : null}
       </div>
 
-      <div className="overflow-x-auto">
+      {/* На телефоне — карточки: таблица с полями в строке там не помещается.
+          Правка позиции — окном (на телефоне оно шторка снизу) */}
+      <ul className="flex flex-col gap-2 md:hidden">
+        {items.map((item, index) => (
+          <li key={`${item.productId ?? "custom"}-${index}`} className="flex flex-col gap-2 rounded-md border p-3">
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium break-words">
+                  {item.name || <span className="text-muted-foreground">Без названия</span>}
+                </p>
+                {item.sku ? <p className="text-muted-foreground text-xs">{item.sku}</p> : null}
+                {item.options.length > 0 ? (
+                  <p className="text-muted-foreground mt-1 text-xs">{describeOptions(item.options)}</p>
+                ) : null}
+              </div>
+              {showActions ? (
+                <div className="-mt-1 -mr-1 flex shrink-0">
+                  {editable ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Изменить позицию"
+                      onClick={() => setEditingIndex(index)}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                  ) : null}
+                  {canEditCatalog && item.productId && productById.has(item.productId) ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Карточка товара"
+                      onClick={() => setCardProductId(item.productId)}
+                    >
+                      <Package className="size-4" />
+                    </Button>
+                  ) : null}
+                  {editable ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive"
+                      aria-label="Удалить позицию"
+                      onClick={() => setItems((current) => current.filter((_, i) => i !== index))}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="text-muted-foreground">
+                {item.quantity} × {formatRub(item.priceKopecks)}
+                {item.discountKopecks ? ` − ${formatRub(item.discountKopecks)}` : ""}
+              </span>
+              <span className="font-medium whitespace-nowrap">
+                {formatRub(item.priceKopecks * item.quantity - item.discountKopecks)}
+              </span>
+            </div>
+
+            <ItemSupplierCell
+              item={{ ...item, supplierOptions: supplierOptionsOf(item) }}
+              editable={editable}
+              onChange={(supplierId, supplierName) =>
+                update(index, { supplierId, supplierName, purchasePriceKopecks: null, purchaseCostKopecks: null })
+              }
+            />
+          </li>
+        ))}
+      </ul>
+
+      <div className="overflow-x-auto max-md:hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -374,8 +447,8 @@ export function OrderItems({
         />
       ) : null}
 
-      <div className="flex flex-col items-end gap-2 border-t pt-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col items-end gap-2 border-t pt-3 max-md:items-stretch">
+        <div className="flex items-center gap-3 max-md:justify-between">
           <Label htmlFor="order-discount" className="text-sm font-normal">
             Скидка на заказ, ₽
           </Label>
@@ -392,7 +465,7 @@ export function OrderItems({
           )}
         </div>
 
-        <dl className="grid grid-cols-[auto_auto] gap-x-6 gap-y-1 text-sm">
+        <dl className="grid grid-cols-[auto_auto] gap-x-6 gap-y-1 text-sm max-md:grid-cols-[1fr_auto]">
           <dt className="text-muted-foreground">Товары</dt>
           <dd className="text-right">{formatRub(preview.itemsTotalKopecks)}</dd>
           <dt className="text-muted-foreground">Доставка</dt>
@@ -411,7 +484,7 @@ export function OrderItems({
         ) : null}
 
         {editable ? (
-          <div className="flex gap-2">
+          <div className="flex gap-2 max-md:flex-col-reverse">
             {dirty ? (
               <Button
                 variant="ghost"

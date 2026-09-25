@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Mail, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { CUSTOMER_TYPE_LABELS } from "@/domain/customer/type";
 import { formatMoscowDate, formatPhone } from "@/domain/datetime";
 import type { CustomerType } from "@/generated/prisma/enums";
@@ -77,10 +78,33 @@ export function OrderCustomer({ customer }: { customer: OrderCustomerData }) {
         <Badge variant="secondary" className="font-normal">
           {CUSTOMER_TYPE_LABELS[customer.type]}
         </Badge>
-        <span className="text-muted-foreground ml-auto text-sm">
+        <span className="text-muted-foreground text-sm md:ml-auto">
           Заказов: {customer.ordersCount} · клиент с {formatMoscowDate(customer.createdAt)}
         </span>
       </div>
+
+      {/* На телефоне связаться — главное, что нужно от этого блока: крупные кнопки сверху.
+          «Написать» ведёт к письму из ERP, чтобы оно легло в переписку, а не ушло мимо */}
+      {customer.phone || customer.email ? (
+        <div className="flex gap-2 md:hidden">
+          {customer.phone ? (
+            <Button asChild variant="outline" className="flex-1">
+              <a href={`tel:${customer.phone}`}>
+                <Phone />
+                Позвонить
+              </a>
+            </Button>
+          ) : null}
+          {customer.email ? (
+            <Button asChild variant="outline" className="flex-1">
+              <a href="#emails">
+                <Mail />
+                Написать
+              </a>
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Телефон">

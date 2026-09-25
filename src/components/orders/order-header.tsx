@@ -1,10 +1,27 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { CreditCard, FileText, MoreHorizontal, Phone, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { OrderStatusBadge, PaymentBadge } from "@/components/orders/status-badge";
 import { CancelDialog } from "@/components/orders/cancel-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ORDER_STATUS_LABELS, availableTransitions } from "@/domain/order/status";
 import { formatMoscowDateTime } from "@/domain/datetime";
@@ -35,11 +52,23 @@ export type OrderHeaderProps = {
   sourceItemId: string | null;
   /** Из чего выбирать; пусто — источник не меняется (заказ с сайта или архивный) */
   sources: { id: string; name: string }[];
+  /** Телефон клиента — для кнопки «Позвонить» в нижней панели на телефоне */
+  customerPhone: string | null;
+  /** Адрес счёта PDF — для меню «…» в нижней панели на телефоне */
+  invoiceHref: string;
 };
 
 export function OrderHeader(props: OrderHeaderProps) {
   const [pending, startTransition] = useTransition();
   const [cancelOpen, setCancelOpen] = useState(false);
+  /** Смена статуса из нижней панели ждёт подтверждения: большая кнопка под пальцем — лёгкий промах */
+  // Цель не сбрасывается при закрытии — иначе пока окно гаснет, в заголовке мелькнуло бы «»
+  const [confirmTo, setConfirmTo] = useState<OrderStatus | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const askStatus = (to: OrderStatus) => {
+    setConfirmTo(to);
+    setConfirmOpen(true);
+  };
 
   // Кнопки показываем ровно те, что разрешает статусная машина для этой роли.
   const transitions = availableTransitions(props.status, props.role, props.paidKopecks).filter(
@@ -47,6 +76,21 @@ export function OrderHeader(props: OrderHeaderProps) {
   );
   const canCancel = availableTransitions(props.status, props.role, props.paidKopecks).includes("CANCELLED");
   const canTake = props.status === "NEW";
+
+  const changeStatus = (to: OrderStatus) =>
+    handle(
+      changeStatusAction({ orderId: props.orderId, orderNumber: props.orderNumber, to, expectedStatus: props.status }),
+      `Статус изменён: ${ORDER_STATUS_LABELS[to]}`,
+    );
+  const take = () => handle(takeOrderAction(props.orderId, props.orderNumber), "Заказ взят в работу");
+
+  // Нижняя панель на телефоне: одно главное действие под большим пальцем, остальное — в «…»
+  const primary: { label: string; run: () => void } | null = canTake
+    ? { label: "Взять себе", run: take }
+    : transitions[0]
+      ? { label: ORDER_STATUS_LABELS[transitions[0]], run: () => askStatus(transitions[0]) }
+      : null;
+  const secondary = canTake ? transitions : transitions.slice(1);
 
   function handle(result: Promise<ActionResult>, successMessage: string) {
     startTransition(async () => {
@@ -65,7 +109,7 @@ export function OrderHeader(props: OrderHeaderProps) {
         {props.externalId ? (
           <span className="text-muted-foreground text-sm">№ на сайте: {props.externalId}</span>
         ) : null}
-        <span className="text-muted-foreground ml-auto text-sm">Создан {formatMoscowDateTime(props.createdAt)}</span>
+        <span className="text-muted-foreground text-sm md:ml-auto">Создан {formatMoscowDateTime(props.createdAt)}</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -78,7 +122,7 @@ export function OrderHeader(props: OrderHeaderProps) {
               handle(assignManagerAction(props.orderId, props.orderNumber, managerId), "Ответственный изменён")
             }
           >
-            <SelectTrigger className="w-56" size="sm">
+            <SelectTrigger className="w-56 max-md:min-w-0 max-md:flex-1" size="sm">
               <SelectValue placeholder="не назначен" />
             </SelectTrigger>
             <SelectContent>
@@ -95,7 +139,7 @@ export function OrderHeader(props: OrderHeaderProps) {
           </span>
         )}
 
-        <span className="text-muted-foreground ml-4 text-sm">Источник:</span>
+        <span className="text-muted-foreground text-sm max-md:basis-full md:ml-4">Источник:</span>
         {props.sources.length > 0 ? (
           <Select
             value={props.sourceItemId ?? undefined}
@@ -104,7 +148,7 @@ export function OrderHeader(props: OrderHeaderProps) {
               handle(changeSourceAction(props.orderId, props.orderNumber, sourceItemId), "Источник изменён")
             }
           >
-            <SelectTrigger className="w-48" size="sm">
+            <SelectTrigger className="w-48 max-md:min-w-0 max-md:flex-1" size="sm">
               <SelectValue placeholder={props.sourceLabel} />
             </SelectTrigger>
             <SelectContent>
@@ -120,36 +164,16 @@ export function OrderHeader(props: OrderHeaderProps) {
         )}
 
         {canTake ? (
-          <Button
-            size="sm"
-            disabled={pending}
-            onClick={() => handle(takeOrderAction(props.orderId, props.orderNumber), "Заказ взят в работу")}
-          >
+          <Button size="sm" disabled={pending} onClick={take} className="max-md:hidden">
             Взять себе
           </Button>
         ) : null}
       </div>
 
       {transitions.length > 0 || canCancel ? (
-        <div className="flex flex-wrap gap-2 border-t pt-3">
+        <div className="flex flex-wrap gap-2 border-t pt-3 max-md:hidden">
           {transitions.map((to) => (
-            <Button
-              key={to}
-              size="sm"
-              variant="outline"
-              disabled={pending}
-              onClick={() =>
-                handle(
-                  changeStatusAction({
-                    orderId: props.orderId,
-                    orderNumber: props.orderNumber,
-                    to,
-                    expectedStatus: props.status,
-                  }),
-                  `Статус изменён: ${ORDER_STATUS_LABELS[to]}`,
-                )
-              }
-            >
+            <Button key={to} size="sm" variant="outline" disabled={pending} onClick={() => changeStatus(to)}>
               {ORDER_STATUS_LABELS[to]}
             </Button>
           ))}
@@ -166,10 +190,92 @@ export function OrderHeader(props: OrderHeaderProps) {
           ) : null}
         </div>
       ) : (
-        <p className="text-muted-foreground border-t pt-3 text-sm">
+        <p className="text-muted-foreground border-t pt-3 text-sm max-md:hidden">
           Заказ в статусе «{ORDER_STATUS_LABELS[props.status]}» — доступных переходов нет.
         </p>
       )}
+
+      <div className="bg-background/95 fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur md:hidden">
+        {primary ? (
+          <Button className="min-w-0 flex-1" disabled={pending} onClick={primary.run}>
+            <span className="truncate">{primary.label}</span>
+          </Button>
+        ) : (
+          <span className="text-muted-foreground flex-1 truncate text-sm">
+            «{ORDER_STATUS_LABELS[props.status]}» — переходов нет
+          </span>
+        )}
+        {props.customerPhone ? (
+          <Button asChild variant="outline" size="icon" aria-label="Позвонить клиенту">
+            <a href={`tel:${props.customerPhone}`}>
+              <Phone />
+            </a>
+          </Button>
+        ) : null}
+        {/* modal={false}: пункт открывает окно отмены, а модальное меню вернуло бы фокус себе и закрыло его */}
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon" aria-label="Другие действия с заказом">
+              <MoreHorizontal />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side="top" className="min-w-56">
+            {secondary.map((to) => (
+              <DropdownMenuItem key={to} disabled={pending} onSelect={() => askStatus(to)}>
+                {ORDER_STATUS_LABELS[to]}
+              </DropdownMenuItem>
+            ))}
+            {secondary.length ? <DropdownMenuSeparator /> : null}
+            <DropdownMenuItem asChild>
+              <a href="#payments">
+                <CreditCard />
+                Оплаты
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href={props.invoiceHref} target="_blank" rel="noopener">
+                <FileText />
+                Счёт PDF
+              </a>
+            </DropdownMenuItem>
+            {canCancel ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" disabled={pending} onSelect={() => setCancelOpen(true)}>
+                  <XCircle />
+                  Отменить заказ
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Статус «{confirmTo ? ORDER_STATUS_LABELS[confirmTo] : ""}»?</DialogTitle>
+            <DialogDescription>
+              Заказ №{props.orderNumber} перейдёт из «{ORDER_STATUS_LABELS[props.status]}» в «
+              {confirmTo ? ORDER_STATUS_LABELS[confirmTo] : ""}».
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Отмена</Button>
+            </DialogClose>
+            <Button
+              disabled={pending}
+              onClick={() => {
+                if (confirmTo) changeStatus(confirmTo);
+                setConfirmOpen(false);
+              }}
+            >
+              Перевести
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <CancelDialog
         open={cancelOpen}
