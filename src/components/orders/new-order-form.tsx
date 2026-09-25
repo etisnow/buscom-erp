@@ -119,7 +119,8 @@ export function NewOrderForm({
   const grossKopecks = items.reduce((sum, item) => sum + item.priceKopecks * item.quantity, 0);
   const itemsDiscount = items.reduce((sum, item) => sum + item.discountKopecks, 0);
   const itemsTotal = grossKopecks - itemsDiscount;
-  const total = Math.max(0, itemsTotal - discountKopecks) + deliveryPriceKopecks;
+  // Доставка в сумму не входит: клиент платит транспортной компании сам (src/domain/order/totals.ts)
+  const total = Math.max(0, itemsTotal - discountKopecks);
   const limit = maxDiscountKopecks(grossKopecks);
   const overLimit = itemsDiscount + discountKopecks > limit;
 
@@ -547,13 +548,16 @@ export function NewOrderForm({
         <dl className="grid w-fit grid-cols-[auto_auto] gap-x-6 gap-y-1 self-end text-sm">
           <dt className="text-muted-foreground">Товары</dt>
           <dd className="text-right">{formatRub(itemsTotal)}</dd>
-          <dt className="text-muted-foreground">Доставка</dt>
-          <dd className="text-right">{formatRub(deliveryPriceKopecks)}</dd>
           <dt className="text-muted-foreground">Скидка на заказ</dt>
           <dd className="text-right">−{formatRub(discountKopecks)}</dd>
           <dt className="font-medium">Итого</dt>
           <dd className="text-right font-medium">{formatRub(total)}</dd>
         </dl>
+        {deliveryPriceKopecks > 0 ? (
+          <p className="text-muted-foreground self-end text-xs">
+            Доставка {formatRub(deliveryPriceKopecks)} в сумму не входит — клиент оплачивает её транспортной компании.
+          </p>
+        ) : null}
 
         {overLimit ? (
           <p className="text-destructive self-end text-sm">

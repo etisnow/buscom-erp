@@ -189,9 +189,11 @@ export async function createOrderFromPayload(
     if (declared !== undefined) {
       const saved = await tx.order.findUniqueOrThrow({
         where: { id: order.id },
-        select: { totalKopecks: true },
+        select: { totalKopecks: true, deliveryPriceKopecks: true },
       });
-      if (saved.totalKopecks !== declared) {
+      // «Итого» сайта включает доставку, а сумма заказа в ERP — нет (доставку клиент
+      // платит транспортной компании): сверяем товары со скидками плюс доставку
+      if (saved.totalKopecks + saved.deliveryPriceKopecks !== declared) {
         await writeOrderEvent(tx, {
           orderId: order.id,
           user: null,

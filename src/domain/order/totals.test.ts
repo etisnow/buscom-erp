@@ -17,7 +17,7 @@ describe("lineTotal", () => {
 });
 
 describe("calculateOrderTotals", () => {
-  it("складывает позиции, вычитает скидку, добавляет доставку", () => {
+  it("складывает позиции и вычитает скидку; доставка в сумму заказа не входит", () => {
     expect(
       calculateOrderTotals({
         items: [
@@ -30,9 +30,14 @@ describe("calculateOrderTotals", () => {
     ).toEqual({
       itemsTotalKopecks: 2770000,
       discountKopecks: 100000,
+      // Доставку клиент платит транспортной компании сам — она только показывается
       deliveryPriceKopecks: 150000,
-      totalKopecks: 2820000,
+      totalKopecks: 2670000,
     });
+  });
+
+  it("стоимость доставки по-прежнему проверяется", () => {
+    expect(() => calculateOrderTotals({ items: [], deliveryPriceKopecks: -1 })).toThrow();
   });
 
   it("пустой заказ — нули", () => {

@@ -38,7 +38,6 @@ export function buildInvoice(order: OrderDetails, seller: SellerRequisites): TDo
     { label: "Товары", value: order.itemsTotalKopecks },
   ];
   if (order.discountKopecks > 0) totals.push({ label: "Скидка на заказ", value: -order.discountKopecks });
-  if (order.deliveryPriceKopecks > 0) totals.push({ label: "Доставка", value: order.deliveryPriceKopecks });
   totals.push({ label: "Итого к оплате", value: order.totalKopecks, bold: true });
 
   return {

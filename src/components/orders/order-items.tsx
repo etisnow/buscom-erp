@@ -119,7 +119,7 @@ export function OrderItems({
   const discountKopecks = parseRubles(discount) ?? 0;
   // Итоги считаем и на клиенте — только чтобы показать сумму до сохранения.
   // Настоящий итог придёт с сервера после записи.
-  const preview = safeTotals(items, discountKopecks, deliveryPriceKopecks);
+  const preview = safeTotals(items, discountKopecks);
   const grossKopecks = items.reduce((sum, item) => sum + item.priceKopecks * item.quantity, 0);
   const itemsDiscount = items.reduce((sum, item) => sum + item.discountKopecks, 0);
   const limit = maxDiscountKopecks(grossKopecks);
@@ -468,13 +468,16 @@ export function OrderItems({
         <dl className="grid grid-cols-[auto_auto] gap-x-6 gap-y-1 text-sm max-md:grid-cols-[1fr_auto]">
           <dt className="text-muted-foreground">Товары</dt>
           <dd className="text-right">{formatRub(preview.itemsTotalKopecks)}</dd>
-          <dt className="text-muted-foreground">Доставка</dt>
-          <dd className="text-right">{formatRub(deliveryPriceKopecks)}</dd>
           <dt className="text-muted-foreground">Скидка на заказ</dt>
           <dd className="text-right">−{formatRub(discountKopecks)}</dd>
           <dt className="font-medium">Итого</dt>
           <dd className="text-right font-medium">{formatRub(preview.totalKopecks)}</dd>
         </dl>
+        {deliveryPriceKopecks > 0 ? (
+          <p className="text-muted-foreground text-xs">
+            Доставка {formatRub(deliveryPriceKopecks)} в сумму не входит — клиент оплачивает её транспортной компании.
+          </p>
+        ) : null}
 
         {overLimit ? (
           <p className="text-destructive text-sm">
@@ -510,9 +513,9 @@ export function OrderItems({
 }
 
 /** Предпросмотр итогов не должен падать из-за промежуточного ввода (скидка больше суммы). */
-function safeTotals(items: ItemRow[], discountKopecks: number, deliveryPriceKopecks: number) {
+function safeTotals(items: ItemRow[], discountKopecks: number) {
   try {
-    return calculateOrderTotals({ items, discountKopecks, deliveryPriceKopecks });
+    return calculateOrderTotals({ items, discountKopecks });
   } catch {
     const itemsTotalKopecks = items.reduce(
       (sum, item) => sum + Math.max(0, item.priceKopecks * item.quantity - item.discountKopecks),
@@ -520,7 +523,7 @@ function safeTotals(items: ItemRow[], discountKopecks: number, deliveryPriceKope
     );
     return {
       itemsTotalKopecks,
-      totalKopecks: Math.max(0, itemsTotalKopecks - discountKopecks) + deliveryPriceKopecks,
+      totalKopecks: Math.max(0, itemsTotalKopecks - discountKopecks),
     };
   }
 }

@@ -1,6 +1,10 @@
 /**
  * Пересчёт итогов заказа. Итоги никогда не принимаются с клиента —
  * сервер вызывает calculateOrderTotals при каждом изменении позиций, скидки или доставки.
+ *
+ * Доставка в сумму заказа не входит (решение владельца, 2026-09-25): клиент платит
+ * транспортной компании сам. Стоимость доставки хранится и показывается в блоке
+ * «Доставка», но не попадает ни в итог, ни в счёт, ни в статус оплаты.
  */
 import { assertKopecks, type Kopecks } from "@/domain/money";
 
@@ -15,6 +19,7 @@ export type OrderTotalsInput = {
   items: OrderItemInput[];
   /** Скидка на заказ целиком */
   discountKopecks?: Kopecks;
+  /** Справочно: в итог не входит */
   deliveryPriceKopecks?: Kopecks;
 };
 
@@ -61,6 +66,6 @@ export function calculateOrderTotals({
     itemsTotalKopecks,
     discountKopecks,
     deliveryPriceKopecks,
-    totalKopecks: itemsTotalKopecks - discountKopecks + deliveryPriceKopecks,
+    totalKopecks: itemsTotalKopecks - discountKopecks,
   };
 }

@@ -130,6 +130,16 @@ describeDb("приём заказов с сайта (живая БД)", () => {
     expect(JSON.stringify(warning?.payload)).toContain("999999");
   });
 
+  it("доставка с сайта не входит в сумму заказа, но «Итого» сайта с ней сходится", async () => {
+    // «Итого» OpenCart = товары + доставка; в ERP сумма заказа — без доставки
+    await ingestSiteOrder(payload({ delivery: { method: "CARRIER", priceKopecks: 30_000 }, totalKopecks: 230_000 }));
+
+    const order = await testDb.order.findFirstOrThrow({ include: { events: true } });
+    expect(order.deliveryPriceKopecks).toBe(30_000);
+    expect(order.totalKopecks).toBe(200_000);
+    expect(order.events.some((event) => event.comment?.includes("не совпала"))).toBe(false);
+  });
+
   it("дата создания берётся из payload", async () => {
     await ingestSiteOrder(payload({ createdAt: "2026-09-19T10:15:00+03:00" }));
 

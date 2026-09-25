@@ -57,7 +57,9 @@ describeDb("сервис заказов (живая БД)", () => {
     });
 
     expect(order.itemsTotalKopecks).toBe(99_999);
-    expect(order.totalKopecks).toBe(149_999);
+    // Доставка хранится, но в сумму заказа не входит — её клиент платит транспортной компании
+    expect(order.deliveryPriceKopecks).toBe(50_000);
+    expect(order.totalKopecks).toBe(99_999);
   });
 
   it("скидка выше лимита отклоняется у менеджера и проходит у руководителя", async () => {
