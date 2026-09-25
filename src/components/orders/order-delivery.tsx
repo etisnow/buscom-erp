@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Loader2, ScanText } from "lucide-react";
 import { toast } from "sonner";
 import { DocumentUpload, type DocumentView } from "@/components/orders/document-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { rublesToKopecks } from "@/domain/money";
 import {
@@ -20,11 +22,17 @@ import { ORDER_DOCUMENT_LABELS } from "@/domain/order/order-document";
 import type { DeliveryMethod } from "@/generated/prisma/enums";
 import {
   deleteOrderDocumentAction,
+  recognizeWaybillAction,
   updateDeliveryAction,
   uploadOrderDocumentAction,
 } from "@/app/(app)/orders/[number]/actions";
 
 const NONE = "__none__";
+
+type FilledField =
+  "method" | "carrier" | "address" | "price" | "tracking" | "shipped" | "weight" | "length" | "width" | "height";
+
+const FILLED_CLASS = "ring-2 ring-amber-400";
 
 export function OrderDelivery({
   orderId,
@@ -71,6 +79,46 @@ export function OrderDelivery({
   const [width, setWidth] = useState(cargo.widthCm?.toString() ?? "");
   const [height, setHeight] = useState(cargo.heightCm?.toString() ?? "");
   const [pending, startTransition] = useTransition();
+  const [recognizing, startRecognition] = useTransition();
+  /** Поля, которые подставила накладная и которые ещё не сохранены, — подсвечены */
+  const [filled, setFilled] = useState<Set<FilledField>>(new Set());
+  const mark = (field: FilledField) => (filled.has(field) ? FILLED_CLASS : undefined);
+
+  function fillFromWaybill() {
+    startRecognition(async () => {
+      const result = await recognizeWaybillAction(orderId);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      const found = result.fields;
+      const changed = new Set<FilledField>();
+      /** Подставляет найденное значение, если оно отличается от того, что в форме. */
+      const apply = (field: FilledField, next: string | null, current: string, set: (value: string) => void) => {
+        if (next === null || next === current) return;
+        set(next);
+        changed.add(field);
+      };
+
+      if (found.carrier || found.trackingNumber) apply("method", "CARRIER", method, setMethod);
+      apply("carrier", found.carrier, carrierValue, setCarrier);
+      apply("tracking", found.trackingNumber, tracking, setTracking);
+      apply("shipped", found.shippedAt, shipped, setShipped);
+      apply("weight", found.weightGrams === null ? null : formatWeightKg(found.weightGrams), weight, setWeight);
+      apply("length", found.lengthCm?.toString() ?? null, length, setLength);
+      apply("width", found.widthCm?.toString() ?? null, width, setWidth);
+      apply("height", found.heightCm?.toString() ?? null, height, setHeight);
+      if (canEditPrice) {
+        apply("price", found.priceKopecks === null ? null : (found.priceKopecks / 100).toFixed(2), price, setPrice);
+      }
+      // В накладной только город назначения — точный адрес или терминал им не затираем.
+      if (!address.trim()) apply("address", found.destination, address, setAddress);
+
+      setFilled(changed);
+      if (changed.size === 0) toast.info("Нового в накладной не нашлось — поля уже совпадают или не распознаны");
+      else toast.success(`Подставлено полей: ${changed.size}. Проверьте подсвеченные и сохраните доставку`);
+    });
+  }
 
   function save() {
     let priceKopecks: number | undefined;
@@ -108,8 +156,10 @@ export function OrderDelivery({
         cargo: cargoValue,
         ...(priceKopecks === undefined ? {} : { deliveryPriceKopecks: priceKopecks }),
       });
-      if (result.ok) toast.success("Доставка сохранена");
-      else toast.error(result.error);
+      if (result.ok) {
+        toast.success("Доставка сохранена");
+        setFilled(new Set());
+      } else toast.error(result.error);
     });
   }
 
@@ -123,7 +173,7 @@ export function OrderDelivery({
             Способ
           </Label>
           <Select value={method} onValueChange={setMethod} disabled={!canEdit}>
-            <SelectTrigger id="delivery-method" size="sm">
+            <SelectTrigger id="delivery-method" size="sm" className={mark("method")}>
               <SelectValue placeholder="не выбран" />
             </SelectTrigger>
             <SelectContent>
@@ -142,7 +192,7 @@ export function OrderDelivery({
             Транспортная компания
           </Label>
           <Select value={carrierValue || NONE} onValueChange={(value) => setCarrier(value === NONE ? "" : value)}>
-            <SelectTrigger id="delivery-carrier" size="sm" disabled={!canEdit}>
+            <SelectTrigger id="delivery-carrier" size="sm" disabled={!canEdit} className={mark("carrier")}>
               <SelectValue placeholder="не выбрана" />
             </SelectTrigger>
             <SelectContent>
@@ -165,7 +215,7 @@ export function OrderDelivery({
             value={address}
             onChange={(event) => setAddress(event.target.value)}
             disabled={!canEdit}
-            className="h-8"
+            className={cn("h-8", mark("address"))}
           />
         </div>
 
@@ -179,7 +229,7 @@ export function OrderDelivery({
             value={price}
             onChange={(event) => setPrice(event.target.value)}
             disabled={!canEditPrice}
-            className="h-8 text-right"
+            className={cn("h-8 text-right", mark("price"))}
           />
         </div>
 
@@ -192,7 +242,7 @@ export function OrderDelivery({
             value={tracking}
             onChange={(event) => setTracking(event.target.value)}
             disabled={!canEdit}
-            className="h-8"
+            className={cn("h-8", mark("tracking"))}
           />
         </div>
 
@@ -206,7 +256,7 @@ export function OrderDelivery({
             value={shipped}
             onChange={(event) => setShipped(event.target.value)}
             disabled={!canEdit}
-            className="h-8"
+            className={cn("h-8", mark("shipped"))}
           />
         </div>
 
@@ -220,7 +270,7 @@ export function OrderDelivery({
             value={weight}
             onChange={(event) => setWeight(event.target.value)}
             disabled={!canEdit}
-            className="h-8 text-right"
+            className={cn("h-8 text-right", mark("weight"))}
           />
         </div>
 
@@ -229,11 +279,11 @@ export function OrderDelivery({
           <div className="flex items-center gap-2">
             {(
               [
-                ["delivery-length", "Длина", length, setLength],
-                ["delivery-width", "Ширина", width, setWidth],
-                ["delivery-height", "Высота", height, setHeight],
+                ["delivery-length", "Длина", length, setLength, "length"],
+                ["delivery-width", "Ширина", width, setWidth, "width"],
+                ["delivery-height", "Высота", height, setHeight, "height"],
               ] as const
-            ).map(([id, label, value, setValue], index) => (
+            ).map(([id, label, value, setValue, field], index) => (
               <div key={id} className="flex items-center gap-2">
                 {index > 0 ? <span className="text-muted-foreground">×</span> : null}
                 <Input
@@ -244,7 +294,7 @@ export function OrderDelivery({
                   value={value}
                   onChange={(event) => setValue(event.target.value)}
                   disabled={!canEdit}
-                  className="h-8 w-24 text-right"
+                  className={cn("h-8 w-24 text-right", mark(field))}
                 />
               </div>
             ))}
@@ -262,6 +312,19 @@ export function OrderDelivery({
               upload={(form) => uploadOrderDocumentAction(orderId, orderNumber, "WAYBILL", form)}
               remove={() => deleteOrderDocumentAction(orderId, orderNumber, "WAYBILL")}
             />
+            {waybill && canEdit ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" disabled={recognizing} onClick={fillFromWaybill}>
+                  {recognizing ? <Loader2 className="animate-spin" /> : <ScanText />}
+                  {recognizing ? "Читаю накладную…" : "Заполнить из накладной"}
+                </Button>
+                <span className="text-muted-foreground text-xs">
+                  {filled.size > 0
+                    ? "Подсвеченные поля взяты из накладной — проверьте их со сканом, распознавание ошибается в цифрах"
+                    : "Займёт до полуминуты; ничего не сохраняет — только подставит значения в поля"}
+                </span>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>

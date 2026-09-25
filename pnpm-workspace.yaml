@@ -4,5 +4,6 @@ allowBuilds:
   msgpackr-extract: false
   prisma: true
   sharp: false
+  tesseract.js: false
   unrs-resolver: false
   workerd: false

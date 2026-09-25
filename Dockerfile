@@ -72,6 +72,20 @@ RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Воркер Tesseract (распознавание накладной) ищет зависимости через скрытый
+# каталог pnpm node_modules/.pnpm/node_modules. Файлы пакетов standalone
+# получает из outputFileTracingIncludes (next.config.ts, тот же список), а вот
+# ссылки в этот каталог Next ставит только тем, кого нашла трассировка. Пакета
+# нет — сборка падает здесь, а не кнопкой «Заполнить из накладной» в бою.
+RUN cd node_modules/.pnpm && mkdir -p node_modules && \
+    for name in tesseract.js-core bmp-js idb-keyval is-url node-fetch regenerator-runtime \
+                wasm-feature-detect zlibjs whatwg-url tr46 webidl-conversions; do \
+      [ -e "node_modules/$name" ] && continue; \
+      dir=$(ls -d "$name"@*/ 2>/dev/null | head -n 1); \
+      [ -n "$dir" ] || { echo "Нет пакета $name в standalone"; exit 1; }; \
+      ln -s "../${dir%/}/node_modules/$name" "node_modules/$name"; \
+    done
+
 USER nextjs
 EXPOSE 3000
 

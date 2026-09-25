@@ -9,6 +9,7 @@ import { OrderEditError } from "@/domain/order/editing";
 import { OrderTransitionError } from "@/domain/order/status";
 import { isOrderDocumentKind } from "@/domain/order/order-document";
 import { SupplierDocumentError } from "@/domain/order/supplier-document";
+import type { WaybillFields } from "@/domain/order/waybill-parse";
 import { ProductOptionError } from "@/domain/product/options";
 import { isSupplierActionKey } from "@/domain/supplier/actions";
 import { SupplierStageError } from "@/domain/supplier/stages";
@@ -19,6 +20,7 @@ import { updateOrderDelivery } from "@/server/orders/delivery";
 import { OrderConflictError, OrderNotFoundError } from "@/server/orders/internal";
 import { updateOrderItems } from "@/server/orders/items";
 import { deleteOrderDocument, uploadOrderDocument } from "@/server/orders/order-documents";
+import { recognizeWaybill, WaybillRecognitionError } from "@/server/orders/waybill-recognition";
 import { addPayment } from "@/server/orders/payments";
 import { changeOrderStatus } from "@/server/orders/status";
 import { changeOrderSource } from "@/server/orders/source";
@@ -333,6 +335,22 @@ export async function uploadOrderDocumentAction(
 
   const data = new Uint8Array(await file.arrayBuffer());
   return run(orderNumber, () => uploadOrderDocument(orderId, kind, fileName, data, user));
+}
+
+export type RecognizeWaybillResult = { ok: true; fields: WaybillFields } | { ok: false; error: string };
+
+/** Поля доставки из прикреплённой накладной — только чтение, форму сохраняет менеджер. */
+export async function recognizeWaybillAction(orderId: string): Promise<RecognizeWaybillResult> {
+  const user = await requireUser();
+  try {
+    return { ok: true, fields: await recognizeWaybill(z.string().min(1).parse(orderId), user) };
+  } catch (error) {
+    if (error instanceof WaybillRecognitionError || error instanceof ForbiddenError) {
+      return { ok: false, error: error.message };
+    }
+    console.error("Распознавание накладной", error);
+    return { ok: false, error: "Не удалось прочитать накладную — заполните поля вручную" };
+  }
 }
 
 export async function deleteOrderDocumentAction(
