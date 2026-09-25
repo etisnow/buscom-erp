@@ -1,9 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { z } from "zod";
 import { notificationTopicsSchema } from "@/domain/notification/topics";
+import { pushSubscriptionSchema } from "@/domain/push/payload";
 import { notificationAddress, notificationEmailSchema } from "@/domain/user/settings";
 import { mailConfigured, sendLetter, testNotificationLetter } from "@/server/mail";
+import { removePushSubscription, savePushSubscription, sendPush } from "@/server/push/service";
 import { requireUser } from "@/server/session";
 import { saveNotificationEmail, saveNotificationTopics } from "@/server/users/settings";
 
@@ -71,4 +75,33 @@ export async function sendTestNotificationAction(value: string): Promise<UserSet
     const reason = error instanceof Error ? error.message : "неизвестная ошибка";
     return { ok: false, error: `Не удалось отправить: ${reason}` };
   }
+}
+
+/** Включить пуши на этом устройстве: подписку браузера сохраняем за сотрудником из сессии. */
+export async function subscribePushAction(subscription: unknown): Promise<UserSettingsResult> {
+  const user = await requireUser();
+  const parsed = pushSubscriptionSchema.safeParse(subscription);
+  if (!parsed.success) return { ok: false, error: "Браузер прислал неподходящую подписку" };
+  await savePushSubscription(user.id, parsed.data, (await headers()).get("user-agent"));
+  return { ok: true, message: "Уведомления на этом устройстве включены" };
+}
+
+export async function unsubscribePushAction(endpoint: string): Promise<UserSettingsResult> {
+  const user = await requireUser();
+  const parsed = z.string().min(1).max(1000).safeParse(endpoint);
+  if (!parsed.success) return { ok: false, error: "Неизвестное устройство" };
+  await removePushSubscription(user.id, parsed.data);
+  return { ok: true, message: "Уведомления на этом устройстве выключены" };
+}
+
+/** Проверочный пуш на все свои устройства. */
+export async function sendTestPushAction(): Promise<UserSettingsResult> {
+  const user = await requireUser();
+  const summary = await sendPush(
+    { userIds: [user.id] },
+    { title: "BusCom ERP", body: "Проверка: уведомления работают", url: "/settings", tag: "test" },
+  );
+  if (summary.sent) return { ok: true, message: `Отправлено на устройств: ${summary.sent}` };
+  if (summary.removed) return { ok: false, error: "Подписка устарела — выключите и включите уведомления заново" };
+  return { ok: false, error: "Не удалось отправить — подробности в логе сервера" };
 }

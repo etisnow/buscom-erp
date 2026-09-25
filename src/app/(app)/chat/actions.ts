@@ -1,7 +1,9 @@
 "use server";
 
+import { after } from "next/server";
 import { z } from "zod";
 import { ChatError, MAX_ATTACHMENT_NAME } from "@/domain/chat/message";
+import { pushChatMessage } from "@/server/chat/push";
 import {
   deleteChatMessage,
   editChatMessage,
@@ -42,7 +44,10 @@ export async function sendChatMessageAction(
   );
 
   try {
-    return { ok: true, message: await postChatMessage(user, typeof text === "string" ? text : "", inputs) };
+    const message = await postChatMessage(user, typeof text === "string" ? text : "", inputs);
+    // Пуши — после ответа: отправитель не ждёт сервисы Google и Apple
+    after(() => pushChatMessage(message));
+    return { ok: true, message };
   } catch (error) {
     if (error instanceof ChatError) return { ok: false, error: error.message };
     throw error;

@@ -21,10 +21,11 @@ export const config = {
   /**
    * Под защитой всё, кроме: `/login`, страниц восстановления пароля,
    * `/api/auth/*` (сам вход), `/api/integrations/*` (вебхуки сайта, своя подпись HMAC),
-   * `/robots.txt` (робот должен увидеть запрет, а не редирект на вход)
-   * и статики Next.
+   * `/robots.txt` (робот должен увидеть запрет, а не редирект на вход),
+   * манифеста, service worker и иконок приложения (браузер берёт их без cookie —
+   * редирект на вход сломал бы установку на главный экран и пуши) и статики Next.
    */
   matcher: [
-    "/((?!login|forgot-password|reset-password|api/auth|api/integrations|robots.txt|_next/static|_next/image|favicon.ico).*)",
+    "/((?!login|forgot-password|reset-password|api/auth|api/integrations|robots.txt|manifest.webmanifest|sw.js|icons/|_next/static|_next/image|favicon.ico).*)",
   ],
 };

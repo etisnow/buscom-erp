@@ -28,6 +28,7 @@ export function dbTestsEnabled(): boolean {
 export const describeDb = dbTestsEnabled() ? describe : describe.skip;
 
 const TABLES = [
+  '"PushSubscription"',
   '"ChatAttachment"',
   '"ChatMessage"',
   '"EmailAttachment"',

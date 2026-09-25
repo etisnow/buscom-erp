@@ -20,6 +20,10 @@ export const metadata: Metadata = {
   // Админку поисковикам не отдаём. Тот же запрет идёт заголовком X-Robots-Tag
   // (next.config.ts) — тег в разметке остаётся, даже если запрос пройдёт мимо него.
   robots: { index: false, follow: false },
+  // Приложение на главном экране iPhone: без адресной строки и со своей иконкой.
+  // Манифест — src/app/manifest.ts
+  appleWebApp: { capable: true, title: "BusCom", statusBarStyle: "default" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

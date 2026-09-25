@@ -46,6 +46,7 @@ model User {
   payments      Payment[]
   sentEmails    Email[]
   chatMessages  ChatMessage[]
+  pushDevices   PushSubscription[]
 
   @@map("user")
 }
@@ -834,4 +835,23 @@ model ChatAttachment {
 
   @@index([messageId])
   @@index([createdAt])
+}
+
+/// Устройство, на которое сотрудник включил пуш-уведомления (браузер телефона или
+/// компьютера). Адрес `endpoint` выдаёт сервис пушей браузера (Google, Apple, Mozilla);
+/// `p256dh` и `auth` — ключи шифрования: текст уведомления сервис пушей не видит.
+/// Подписка, от которой сервис отказался (404/410), удаляется при отправке.
+model PushSubscription {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  /// Браузер и система — чтобы сотрудник узнал своё устройство в списке
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  lastSentAt DateTime?
+
+  @@index([userId])
 }

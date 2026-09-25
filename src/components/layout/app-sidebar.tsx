@@ -1,17 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Boxes,
-  ChartColumn,
-  ClipboardList,
-  Mail,
-  Factory,
-  MessagesSquare,
-  Package,
-  Settings,
-  Users,
-} from "lucide-react";
+import { ChartColumn, ClipboardList, Mail, Factory, MessagesSquare, Package, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CHAT_UNREAD_EVENT } from "@/components/chat/events";
@@ -62,7 +52,8 @@ export function AppSidebar({ items }: { items: NavItem[] }) {
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="BusCom ERP">
               <Link href="/orders">
-                <Boxes className="size-5 shrink-0" />
+                {/* eslint-disable-next-line @next/next/no-img-element -- статичная иконка 96 px, оптимизатор не нужен */}
+                <img src="/icons/logo-96.png" alt="" className="size-6 shrink-0 rounded-md" />
                 <span className="font-heading text-base font-semibold">BusCom ERP</span>
               </Link>
             </SidebarMenuButton>

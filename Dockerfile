@@ -71,6 +71,8 @@ RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 # standalone уже содержит отобранные зависимости; статику Next кладёт отдельно.
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# public/ standalone тоже не берёт: иконки приложения для телефона (манифест, пуши).
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Воркер Tesseract (распознавание накладной) ищет зависимости через скрытый
 # каталог pnpm node_modules/.pnpm/node_modules. Файлы пакетов standalone
