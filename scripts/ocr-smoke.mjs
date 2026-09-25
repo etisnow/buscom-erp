@@ -1,25 +1,42 @@
 /**
  * Проверка распознавания накладной в собранном образе (Dockerfile, шаг после
- * копирования standalone). Запускается из /app: грузит те же пакеты, что
- * src/server/orders/waybill-recognition.ts, рисует строку, читает её Tesseract
- * с моделью по тому же пути. Не прочиталось — сборка падает, до выката.
+ * копирования standalone). Лежит на время проверки в /app/.next/server и
+ * подключает пакеты так же, как собранное приложение: Turbopack обращается к
+ * внешним пакетам по ссылкам с хешем в .next/node_modules (`zxing-wasm-910d…`),
+ * а не из /app/node_modules. Дальше — те же шаги, что в
+ * src/server/orders/waybill-recognition.ts: картинка, штрихкоды, Tesseract с
+ * моделью по тому же пути. Не прочиталось — сборка падает, до выката.
  *
  * Зачем: Tesseract грузит воркер, ядро и модель по путям, которых трассировка
  * standalone не видит. Первый выкат 25.09.2026 собрался и прошёл проверку
  * живости, а кнопка «Заполнить из накладной» в бою падала «Cannot find module».
  */
+import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
-import { pathToFileURL } from "node:url";
 
-const require = createRequire(path.join(process.cwd(), "package.json"));
-const load = (name) => import(pathToFileURL(require.resolve(name)).href);
+const app = process.cwd();
+
+/** Имя ссылки, под которым сборка подключает пакет: `@napi-rs/canvas` → `@napi-rs/canvas-101b…`. */
+function linked(name) {
+  const [scope, base] = name.startsWith("@") ? name.split("/") : ["", name];
+  const entry = fs
+    .readdirSync(path.join(app, ".next", "node_modules", scope))
+    .find((item) => item.startsWith(`${base}-`) && /-[0-9a-f]{16}$/.test(item));
+  if (!entry) throw new Error(`Сборка не подключает пакет ${name} (.next/node_modules)`);
+  return scope ? `${scope}/${entry}` : entry;
+}
+
+/** CommonJS-пакет из import() приходит в default. */
+const load = async (specifier) => {
+  const loaded = await import(specifier);
+  return loaded.default ?? loaded;
+};
 
 const started = Date.now();
-const { createCanvas, loadImage } = require("@napi-rs/canvas");
-const { readBarcodes } = await load("zxing-wasm/reader");
-const { getDocumentProxy } = await load("unpdf");
-const { createWorker } = require("tesseract.js");
+const { createCanvas, loadImage } = await load(linked("@napi-rs/canvas"));
+const { readBarcodes } = await import(`${linked("zxing-wasm")}/reader`);
+const { getDocumentProxy } = await import(linked("unpdf"));
+const { createWorker } = await load(linked("tesseract.js"));
 
 // Строка «Итог 2973,00», двухцветный PNG. Не рисуем текст сами: для этого canvas
 // нужны данные ICU, которых в standalone нет, — приложению они и не нужны.

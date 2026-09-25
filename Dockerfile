@@ -87,10 +87,11 @@ RUN cd node_modules/.pnpm && mkdir -p node_modules && \
     done
 
 # Распознавание накладной проверяется в самом образе: проверка живости его не
-# трогает, и первый выкат с OCR прошёл её при неработающей кнопке. Скрипт в
+# трогает, и первый выкат с OCR прошёл её при неработающей кнопке. Скрипт
+# кладётся в .next/server, чтобы подключать пакеты как само приложение; в
 # образе не остаётся.
-COPY --from=builder /app/scripts/ocr-smoke.mjs /tmp/ocr-smoke.mjs
-RUN node /tmp/ocr-smoke.mjs && rm /tmp/ocr-smoke.mjs
+COPY --from=builder /app/scripts/ocr-smoke.mjs ./.next/server/ocr-smoke.mjs
+RUN node .next/server/ocr-smoke.mjs && rm .next/server/ocr-smoke.mjs
 
 USER nextjs
 EXPOSE 3000
