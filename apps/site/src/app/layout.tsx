@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Golos_Text, IBM_Plex_Mono } from "next/font/google";
+import { CatalogNav } from "@/components/catalog-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { SITE_ORIGIN } from "@/config/company";
@@ -27,11 +28,15 @@ export const metadata: Metadata = {
   openGraph: { siteName: "Баском", locale: "ru_RU", type: "website" },
 };
 
+// Меню каталога читает базу — рендер на запрос, данные из кеша (src/server/catalog.ts)
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ru" className={`${golos.variable} ${plexMono.variable} antialiased`}>
       <body className="flex min-h-screen flex-col font-sans">
         <SiteHeader />
+        <CatalogNav />
         <main className="mx-auto w-full max-w-7xl grow px-4 py-8">{children}</main>
         <SiteFooter />
       </body>

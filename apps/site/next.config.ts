@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: ROOT,
   turbopack: { root: ROOT },
-  transpilePackages: ["@buscom/domain"],
+  transpilePackages: ["@buscom/db", "@buscom/domain"],
   poweredByHeader: false,
 };
 

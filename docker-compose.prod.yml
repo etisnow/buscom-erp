@@ -98,7 +98,7 @@ services:
     ports:
       - "${APP_PORT:-81}:3000"
 
-  # Сайт bus-com.ru (apps/site, docs/SITE-PLAN.md). Пока в базу не ходит — каркас.
+  # Сайт bus-com.ru (apps/site, docs/SITE-PLAN.md): каталог из общей с ERP базы.
   # До переключения DNS закрыт от индексации (SITE_INDEXING=false) и доступен по
   # временному адресу: в панели Джино на SITE_PORT проксируется отдельный домен.
   site:
@@ -108,9 +108,15 @@ services:
       target: site
     restart: unless-stopped
     environment:
+      DATABASE_URL: ${DATABASE_URL:?переменная обязательна}
       SITE_URL: ${SITE_URL:-https://bus-com.ru}
       SITE_INDEXING: ${SITE_INDEXING:-false}
       TZ: Europe/Moscow
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "${SITE_PORT:-82}:3000"
 
