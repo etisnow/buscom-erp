@@ -26,7 +26,7 @@ describeDb("адрес и метатеги на сайте (живая БД)", (
   });
 
   it("смена адреса оставляет 301 со старого; возврат адреса убирает переадресацию", async () => {
-    const { id } = await createProduct({ sku: "A-1", name: "Клей", priceKopecks: 100 }, manager);
+    const { id } = await createProduct({ sku: "A-1", name: "Клей", priceKopecks: 100, site: site("klei") }, manager);
     await updateProduct(id, { site: site("klei-1kg", "Клей купить") }, manager);
     expect(await testDb.urlRedirect.findUnique({ where: { fromPath: "/klei" } })).toMatchObject({
       productId: id,
