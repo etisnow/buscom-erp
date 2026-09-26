@@ -1,4 +1,6 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
+import { sendSiteOrderConfirmation } from "@/server/emails/service";
+import { appendToSent } from "@/server/integrations/mailbox";
 import { env } from "@/server/env";
 import { ingestSiteOrder } from "@/server/integrations/site-orders";
 import { verifySignature } from "@/server/integrations/signature";
@@ -26,8 +28,24 @@ export async function POST(request: NextRequest) {
   const result = await ingestSiteOrder(payload);
 
   switch (result.status) {
-    case 201:
-      return NextResponse.json({ orderNumber: result.orderNumber }, { status: 201 });
+    case 201: {
+      // Письмо покупателю — после ответа сайту: заказ уже сохранён, а почтовый сервер
+      // не должен задерживать страницу «Заказ принят». Сбой письма — только в лог
+      const { orderNumber, confirmation } = result;
+      if (confirmation) {
+        after(async () => {
+          try {
+            const sent = await sendSiteOrderConfirmation(orderNumber, confirmation);
+            await appendToSent(sent.source).catch((error) =>
+              console.error("[mail] Копия письма о заказе в «Отправленные» не сохранена", error),
+            );
+          } catch (error) {
+            console.error(`[mail] Письмо покупателю о заказе № ${orderNumber} не отправлено`, error);
+          }
+        });
+      }
+      return NextResponse.json({ orderNumber }, { status: 201 });
+    }
     case 200:
       return NextResponse.json({ orderNumber: result.orderNumber, duplicate: true }, { status: 200 });
     case 202:

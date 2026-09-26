@@ -109,7 +109,7 @@ async function processStoredEmail(inboxId: string, email: SiteEmail): Promise<In
         .filter(Boolean)
         .join("; "),
     });
-    return { status: 201, orderNumber };
+    return { status: 201, orderNumber, confirmation: null };
   } catch (error) {
     return fail(inboxId, error instanceof Error ? error.message : "Неизвестная ошибка при создании заказа");
   }

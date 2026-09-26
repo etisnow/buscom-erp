@@ -10,6 +10,7 @@ import {
   type CartLine,
   type PricedCart,
 } from "@buscom/domain/site/cart";
+import { SlidingWindowLimiter } from "@buscom/domain/site/rate-limit";
 import { db } from "@/server/db";
 
 /**
@@ -27,6 +28,14 @@ const checkoutEnvSchema = z.object({
   /** Тот же секрет, что `SITE_WEBHOOK_SECRET` у ERP */
   SITE_WEBHOOK_SECRET: z.string().min(32),
 });
+
+/**
+ * Защита ERP от потока заказов: 5 отправок за 10 минут с одного IP и 60 в час на
+ * весь сайт (на случай спама с многих адресов). Засчитываются только отправки,
+ * прошедшие проверку формы и корзины, — опечатки лимит не тратят.
+ */
+const perIp = new SlidingWindowLimiter(5, 10 * 60 * 1000);
+const overall = new SlidingWindowLimiter(60, 60 * 60 * 1000);
 
 async function loadProducts(ids: string[]): Promise<Map<string, CatalogProduct>> {
   const products = await db.product.findMany({
@@ -62,7 +71,8 @@ export type PlaceOrderResult =
   | { ok: true; orderNumber: number }
   | { ok: false; error: string; fieldErrors?: Record<string, string>; cart?: PricedCart };
 
-export async function placeOrder(cartInput: unknown, formInput: unknown): Promise<PlaceOrderResult> {
+/** `ip` — адрес покупателя из заголовков прокси; неизвестен — действует только общий лимит. */
+export async function placeOrder(cartInput: unknown, formInput: unknown, ip: string | null): Promise<PlaceOrderResult> {
   const form = checkoutSchema.safeParse(formInput);
   if (!form.success) {
     const fieldErrors: Record<string, string> = {};
@@ -76,6 +86,11 @@ export async function placeOrder(cartInput: unknown, formInput: unknown): Promis
   const cart = priceCart(parsedCart.data, await loadProducts(parsedCart.data.map((line: CartLine) => line.productId)));
   if (cart.dropped.length > 0 || cart.lines.length === 0) {
     return { ok: false, error: "Часть товаров изменилась — проверьте корзину и отправьте заказ ещё раз", cart };
+  }
+
+  if ((ip && !perIp.take(ip)) || !overall.take("all")) {
+    console.warn(`[checkout] Лимит заказов: ${ip ?? "IP неизвестен"}`);
+    return { ok: false, error: "Слишком много заказов подряд. Подождите несколько минут или позвоните нам" };
   }
 
   const env = checkoutEnvSchema.safeParse(process.env);

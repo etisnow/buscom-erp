@@ -6,7 +6,10 @@ import {
   normalizeMessageId,
   orderNumberFromSubject,
 } from "@buscom/domain/email/letters";
+import { COMPANY } from "@buscom/domain/company";
+import { CONFIRMATION_TEMPLATE, orderConfirmationLetter } from "@buscom/domain/email/order-confirmation";
 import { EMAIL_TEMPLATE_KEYS, type EmailTemplateKey } from "@buscom/domain/email/templates";
+import { parseOrderItemOptions } from "@buscom/domain/product/options";
 import { requisitesReady } from "@buscom/domain/settings";
 import type { Prisma } from "@buscom/db/client";
 import { buildInvoice } from "@/server/documents/invoice";
@@ -81,6 +84,81 @@ export async function sendOrderEmail(input: SendOrderEmailInput): Promise<{ id: 
     });
   }
 
+  return deliverOrderLetter(order, { ...input, attachments });
+}
+
+/**
+ * Письмо покупателю о заказе с нового сайта (docs/SITE-PRD.md, «Заказ с сайта»).
+ * Отправляет система (автора нет), письмо ложится в переписку клиента, как любое
+ * исходящее: ответ покупателя подтянется к этому же заказу по цепочке.
+ */
+export async function sendSiteOrderConfirmation(
+  orderNumber: number,
+  to: { email: string; customerName: string },
+): Promise<{ id: string; source: Buffer }> {
+  const order = await db.order.findFirst({
+    where: { number: orderNumber, deletedAt: null },
+    select: {
+      id: true,
+      customerId: true,
+      totalKopecks: true,
+      deliveryMethod: true,
+      carrier: true,
+      deliveryAddress: true,
+      customer: { select: { email: true } },
+      items: {
+        orderBy: { sortOrder: "asc" },
+        select: { name: true, sku: true, quantity: true, priceKopecks: true, options: true },
+      },
+    },
+  });
+  if (!order) throw new OrderNotFoundError();
+  const letter = orderConfirmationLetter(
+    {
+      number: orderNumber,
+      customerName: to.customerName,
+      items: order.items.map((item) => ({ ...item, options: parseOrderItemOptions(item.options) })),
+      totalKopecks: order.totalKopecks,
+      deliveryMethod: order.deliveryMethod,
+      carrier: order.carrier,
+      deliveryAddress: order.deliveryAddress,
+    },
+    {
+      phone: COMPANY.phone.display,
+      email: COMPANY.email,
+      pickupAddress: `${COMPANY.warehouse.city}, ${COMPANY.warehouse.street}`,
+      hours: COMPANY.hours,
+    },
+  );
+  return deliverOrderLetter(order, {
+    to: [to.email],
+    subject: letter.subject,
+    body: letter.body,
+    template: CONFIRMATION_TEMPLATE,
+    user: null,
+    attachments: [],
+  });
+}
+
+type OrderLetter = {
+  to: string[];
+  subject: string;
+  body: string;
+  template?: string | null;
+  /** null — письмо отправила система (подтверждение заказа с сайта) */
+  user: SessionUser | null;
+  attachments: { fileName: string; contentType: string; content: Buffer }[];
+};
+
+/**
+ * Отправка письма по заказу и запись в переписку клиента с событием заказа.
+ * SMTP — первым: в переписке не должно быть писем, которых клиент не получил.
+ */
+async function deliverOrderLetter(
+  order: { id: string; customerId: string; customer: { email: string | null } },
+  input: OrderLetter,
+): Promise<{ id: string; source: Buffer }> {
+  const { attachments } = input;
   // Ответ продолжает цепочку последнего письма переписки с клиентом: у клиента письма
   // собираются в один разговор, а его ответ мы узнаем по References.
   // Последнее — по времени попадания в ERP, а не по заголовку Date: часы у
@@ -120,7 +198,7 @@ export async function sendOrderEmail(input: SendOrderEmailInput): Promise<{ id: 
         subject: input.subject,
         body: input.body,
         template: input.template ?? null,
-        userId: input.user.id,
+        userId: input.user?.id ?? null,
         readAt: sentAt,
         sentAt,
         attachments: {

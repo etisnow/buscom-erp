@@ -11,11 +11,13 @@ import {
   recentCustomerEmails,
   searchCustomersForEmail,
   sendOrderEmail,
+  sendSiteOrderConfirmation,
   sentTemplates,
   storeMailboxLetter,
   type IncomingEmail,
 } from "@/server/emails/service";
 import { createOrder } from "@/server/orders/create";
+import { ingestSiteOrder } from "@/server/integrations/site-orders";
 import { describeDb, resetDb } from "@/test/db";
 import { makeUser } from "@/test/fixtures";
 import type { ClientLetter } from "@/server/mail";
@@ -301,5 +303,39 @@ describeDb("переписка с клиентом (живая БД)", () => {
     const reply = await ingestSentEmail(outbound({ toEmails: ["other@mail.ru"], references: ["web-1@bus-com.ru"] }));
     expect(reply.status).toBe("stored");
     expect(await db.email.count({ where: { customerId: order.customerId } })).toBe(3);
+  });
+
+  it("заказ с нового сайта: письмо покупателю с составом ложится в переписку от системы", async () => {
+    const payload = {
+      externalId: "web-1",
+      numberedByErp: true,
+      customer: { type: "PERSON", name: "Пётр", phone: "+7 900 111-22-33", email: "Petr@Mail.ru" },
+      items: [{ sku: "X-1", name: "Люк", priceKopecks: 300_000, quantity: 2 }],
+      delivery: { method: "PICKUP" },
+    };
+    const result = await ingestSiteOrder(payload);
+    if (result.status !== 201) throw new Error("заказ не создан");
+    expect(result.confirmation).toEqual({ email: "petr@mail.ru", customerName: "Пётр" });
+
+    await sendSiteOrderConfirmation(result.orderNumber, result.confirmation!);
+    expect(sent.at(-1)).toMatchObject({
+      to: ["petr@mail.ru"],
+      subject: `Заказ № ${result.orderNumber} принят — Баском`,
+    });
+    expect(sent.at(-1)?.text).toContain("• Люк, арт. X-1 — 2 шт.");
+    const email = await db.email.findFirstOrThrow({ where: { template: "site_order" } });
+    expect(email).toMatchObject({ direction: "OUTBOUND", userId: null, toEmails: ["petr@mail.ru"] });
+    const event = await db.orderEvent.findFirstOrThrow({ where: { type: "EMAIL_SENT", orderId: email.orderId! } });
+    expect(event.userId).toBeNull();
+
+    // Заказ старого сайта и заказ без почты — без письма
+    const old = await ingestSiteOrder({ ...payload, externalId: "2828", numberedByErp: undefined });
+    expect(old).toMatchObject({ status: 201, confirmation: null });
+    const noEmail = await ingestSiteOrder({
+      ...payload,
+      externalId: "web-2",
+      customer: { ...payload.customer, email: "" },
+    });
+    expect(noEmail).toMatchObject({ status: 201, confirmation: null });
   });
 });
