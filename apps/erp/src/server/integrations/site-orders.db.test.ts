@@ -158,8 +158,9 @@ describeDb("приём заказов с сайта (живая БД)", () => {
       }),
     );
     expect(result.status).toBe(201);
-    const order = await testDb.order.findFirstOrThrow({ include: { items: true } });
+    const order = await testDb.order.findFirstOrThrow({ include: { items: true, events: true } });
     expect(order.externalId).toBe("web-abc");
+    expect(order.events[0].comment).toBe("Заказ оформлен на сайте bus-com.ru");
     expect(order.siteNumber).toBeNull();
     expect(order.items[0].options).toEqual(options);
     expect(order.totalKopecks).toBe(250_000);

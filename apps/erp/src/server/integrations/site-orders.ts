@@ -163,7 +163,11 @@ export async function createOrderFromPayload(
       user: null,
       type: "CREATED",
       toStatus: "NEW",
-      comment: options.eventComment ?? `Заказ принят с сайта, № на сайте ${payload.externalId}`,
+      comment:
+        options.eventComment ??
+        (payload.numberedByErp
+          ? "Заказ оформлен на сайте bus-com.ru"
+          : `Заказ принят с сайта, № на сайте ${payload.externalId}`),
     });
 
     // Предоплата с сайта, если она была, сразу видна в карточке.
