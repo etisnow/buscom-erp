@@ -3,6 +3,7 @@
  * Схема зафиксирована здесь: при несовместимых изменениях заводится /v2, а не правится эта.
  */
 import { z } from "zod";
+import { orderItemOptionSchema } from "../product/options";
 
 const kopecks = z.number().int().min(0, { error: "Суммы — целые копейки, не меньше нуля" });
 
@@ -27,6 +28,11 @@ export const siteOrderSchema = z.object({
         name: z.string().min(1, { error: "У позиции должно быть название" }),
         priceKopecks: kopecks,
         quantity: z.number().int().positive({ error: "Количество — целое положительное число" }),
+        /**
+         * Добавлено 2026-09-26, необязательное — совместимо с v1. Снимок выбранных
+         * опций (новый сайт на общей базе); цена позиции уже включает их надбавки
+         */
+        options: z.array(orderItemOptionSchema).optional(),
       }),
     )
     .min(1, { error: "В заказе должна быть хотя бы одна позиция" }),
@@ -46,6 +52,12 @@ export const siteOrderSchema = z.object({
     .optional(),
   totalKopecks: kopecks.optional(),
   comment: z.string().nullish(),
+  /**
+   * Добавлено 2026-09-26, необязательное — совместимо с v1. `true` — у сайта своего
+   * номера заказа нет, покупателю сообщают номер ERP (новый сайт). Тогда номер
+   * сайта не сохраняется, а письма с «№ …» в теме ищут заказ по номеру ERP.
+   */
+  numberedByErp: z.boolean().optional(),
 });
 
 export type SiteOrderPayload = z.infer<typeof siteOrderSchema>;

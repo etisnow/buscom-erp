@@ -8,8 +8,8 @@
     "./enums": "./src/generated/prisma/enums.ts"
   },
   "scripts": {
-    "migrate": "prisma migrate dev",
-    "deploy": "prisma migrate deploy",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
     "generate": "prisma generate",
     "studio": "prisma studio",
     "validate": "prisma validate",

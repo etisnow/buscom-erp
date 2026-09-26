@@ -130,7 +130,7 @@ export async function createOrderFromPayload(
         source: "SITE",
         sourceItemId,
         externalId: payload.externalId,
-        siteNumber: payload.externalId,
+        siteNumber: payload.numberedByErp ? null : payload.externalId,
         status: "NEW",
         statusChangedAt: createdAt,
         slaDueAt: slaDueAtFor("NEW", createdAt, slaMinutes),
@@ -149,6 +149,7 @@ export async function createOrderFromPayload(
             priceKopecks: item.priceKopecks,
             quantity: item.quantity,
             sortOrder: index,
+            ...(item.options?.length ? { options: item.options } : {}),
           })),
         },
       },
@@ -228,6 +229,7 @@ type MatchedItem = {
   name: string;
   priceKopecks: number;
   quantity: number;
+  options?: SiteOrderPayload["items"][number]["options"];
 };
 
 /**
@@ -257,6 +259,7 @@ async function matchItems(tx: Tx, payload: SiteOrderPayload): Promise<MatchedIte
       name: item.name,
       priceKopecks: item.priceKopecks,
       quantity: item.quantity,
+      options: item.options,
     };
   });
 }

@@ -206,7 +206,9 @@ async function matchCustomer(email: MatchInput): Promise<{ customerId: string | 
         select: { customerId: true },
       })) ??
       (await db.order.findFirst({
-        where: { number, source: { notIn: ["SITE", "LEGACY"] }, deletedAt: null },
+        // Номер ERP знает клиент заказа, заведённого руками, и заказа с нового сайта
+        // (у него нет своего номера — siteNumber пуст)
+        where: { number, OR: [{ source: { notIn: ["SITE", "LEGACY"] } }, { siteNumber: null }], deletedAt: null },
         select: { customerId: true },
       }));
     if (order) return { customerId: order.customerId, by: "subject" };

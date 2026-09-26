@@ -169,6 +169,13 @@ describe("опции товара на сайте", () => {
         Трехточечный      (+1 750 руб.)
       </label></div>
     </div>
+    <div class="options form-group required" quantity="1" option_name="Цвет">
+      <label class="control-label">Цвет</label>
+      <div class="radio"><label>
+        <input type="radio" priceRaw="0" price="" name="option[400]" value="700" />
+        <img src="https://bus-com.ru/image/cache/beige-50x50.jpg" alt="Бежевый" class="img-thumbnail" /> Бежевый
+      </label></div>
+    </div>
     <div class="options form-group">
       <label class="control-label" for="input-option274">Номер цвета</label>
       <input type="text" name="option[274]" value="" class="form-control" />
@@ -194,6 +201,13 @@ describe("опции товара на сайте", () => {
           { externalId: "582", name: "Нет", priceDeltaKopecks: 0 },
           { externalId: "584", name: "Трехточечный", priceDeltaKopecks: 175_000 },
         ],
+      },
+      {
+        // Вариант-плашка: превью <img> в названии не остаётся
+        externalId: "400",
+        name: "Цвет",
+        required: true,
+        values: [{ externalId: "700", name: "Бежевый", priceDeltaKopecks: 0 }],
       },
     ]);
   });

@@ -109,6 +109,9 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?переменная обязательна}
+      # Заказы с сайта уходят в ERP по её API с подписью HMAC — внутри сети compose
+      ERP_API_URL: http://app:3000
+      SITE_WEBHOOK_SECRET: ${SITE_WEBHOOK_SECRET:?переменная обязательна}
       SITE_URL: ${SITE_URL:-https://bus-com.ru}
       SITE_INDEXING: ${SITE_INDEXING:-false}
       TZ: Europe/Moscow

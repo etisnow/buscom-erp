@@ -146,4 +146,27 @@ describeDb("приём заказов с сайта (живая БД)", () => {
     const order = await testDb.order.findFirstOrThrow();
     expect(order.createdAt.toISOString()).toBe("2026-09-19T07:15:00.000Z");
   });
+
+  it("новый сайт: опции позиции сохраняются снимком, номер сайта не заводится", async () => {
+    const options = [{ valueId: "v1", optionName: "Ремень", valueName: "Трёхточечный", priceDeltaKopecks: 150_000 }];
+    const result = await ingestSiteOrder(
+      payload({
+        externalId: "web-abc",
+        numberedByErp: true,
+        items: [{ sku: "TEST-1", name: "Сиденье", priceKopecks: 250_000, quantity: 1, options }],
+        totalKopecks: 250_000,
+      }),
+    );
+    expect(result.status).toBe(201);
+    const order = await testDb.order.findFirstOrThrow({ include: { items: true } });
+    expect(order.externalId).toBe("web-abc");
+    expect(order.siteNumber).toBeNull();
+    expect(order.items[0].options).toEqual(options);
+    expect(order.totalKopecks).toBe(250_000);
+  });
+
+  it("без numberedByErp номер сайта — externalId, как раньше", async () => {
+    await ingestSiteOrder(payload());
+    expect((await testDb.order.findFirstOrThrow()).siteNumber).toBe("WEB-1");
+  });
 });

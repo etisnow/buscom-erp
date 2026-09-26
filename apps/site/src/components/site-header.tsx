@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CartLink } from "@/components/cart/cart-link";
 import { COMPANY } from "@/config/company";
 
 /** Разделы меню MVP. Переоборудование и акции — после запуска (решение владельца 26.09.2026). */
@@ -41,6 +42,7 @@ export function SiteHeader() {
           </a>
           <span className="text-muted text-sm">Max: {COMPANY.max.display}</span>
         </div>
+        <CartLink />
       </div>
     </header>
   );

@@ -78,6 +78,7 @@ function ProductView({ product }: { product: ProductPage }) {
             <p className="text-subtle mt-2 font-mono text-sm">Код товара: {product.sku}</p>
           </div>
           <ProductConfigurator
+            productId={product.id}
             basePriceKopecks={product.basePriceKopecks}
             groups={product.options}
             isActive={product.isActive}
