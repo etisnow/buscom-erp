@@ -27,6 +27,7 @@
     "mail:poll": "tsx --tsconfig tsconfig.scripts.json scripts/mail-poll.ts",
     "fetch:emails": "tsx --tsconfig tsconfig.scripts.json scripts/fetch-emails.ts",
     "import:site-images": "tsx --tsconfig tsconfig.scripts.json scripts/import-site-images.ts",
+    "snapshot:old-site": "tsx --tsconfig tsconfig.scripts.json scripts/snapshot-old-site.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },
