@@ -171,28 +171,35 @@ model CustomerAddress {
 
 /// Каталог без количеств: склада нет, остаток и резерв не ведутся.
 model Product {
-  id            String           @id @default(cuid())
-  sku           String           @unique
-  name          String
+  id              String           @id @default(cuid())
+  sku             String           @unique
+  name            String
   /// Описание с сайта, приведённое к тексту (абзацы переводом строки, пункты «• »).
   /// HTML не храним — docs/DECISIONS.md, «Описание товара»
-  description   String?
+  description     String?
   /// Категория из справочника (docs/DECISIONS.md, «Справочник категорий»)
-  categoryId    String?
-  category      ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  priceKopecks  Int
+  categoryId      String?
+  category        ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  priceKopecks    Int
   /// Совместимые модели авто: ["ГАЗель Next", "Ford Transit", ...]
-  compatibility String[]
+  compatibility   String[]
   /// ID товара на bus-com.ru
-  externalId    String?          @unique
-  isActive      Boolean          @default(true)
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  externalId      String?          @unique
+  isActive        Boolean          @default(true)
+  /// Адрес на сайте: bus-com.ru/{slug}. Общий с категориями — один уровень адресов.
+  /// Не меняется при переименовании; смена руками — только с записью в UrlRedirect
+  slug            String?          @unique
+  /// Метатеги сайта. Пусто — шаблон из названия (docs/SITE-PRD.md, «Метатеги»)
+  metaTitle       String?
+  metaDescription String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   orderItems OrderItem[]
   suppliers  ProductSupplier[]
   options    ProductOption[]
   images     ProductImage[]
+  redirects  UrlRedirect[]
 
   @@index([categoryId])
 }
@@ -201,18 +208,44 @@ model Product {
 /// Правила — src/domain/product/categories.ts. Категорию с товарами или
 /// подкатегориями не удалить — её сначала освобождают.
 model ProductCategory {
-  id        String            @id @default(cuid())
-  name      String
-  parentId  String?
-  parent    ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
-  children  ProductCategory[] @relation("CategoryTree")
-  sortOrder Int               @default(0)
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  id              String            @id @default(cuid())
+  name            String
+  parentId        String?
+  parent          ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children        ProductCategory[] @relation("CategoryTree")
+  sortOrder       Int               @default(0)
+  /// Адрес на сайте: bus-com.ru/{slug} — см. Product.slug
+  slug            String?           @unique
+  metaTitle       String?
+  metaDescription String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
-  products Product[]
+  products  Product[]
+  redirects UrlRedirect[]
 
   @@index([parentId])
+}
+
+/// Переадресация старого адреса сайта (docs/SITE-PRD.md, «Адреса»). Цель — товар
+/// или категория (тогда ведём на их текущий слуг и смена слуга ссылки не ломает),
+/// иначе путь `toPath`. 410 — адрес убран насовсем, цели нет. Удалили товар или
+/// категорию — ссылка обнуляется, и адрес ведёт на главную, а не в 404.
+model UrlRedirect {
+  id         String           @id @default(cuid())
+  /// Путь со строкой запроса, без хвостового слэша: `/detali-salona/polki`,
+  /// `/index.php?route=product/product&product_id=470`
+  fromPath   String           @unique
+  productId  String?
+  product    Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  categoryId String?
+  category   ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  toPath     String?
+  statusCode Int              @default(301)
+  createdAt  DateTime         @default(now())
+
+  @@index([productId])
+  @@index([categoryId])
 }
 
 /// Картинка товара. Сейчас у товара одна — аватарка, но хранение сразу

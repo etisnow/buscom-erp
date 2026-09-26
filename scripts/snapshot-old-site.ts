@@ -15,26 +15,14 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { oldPath, parseOldPage, parseSitemapEntries, type OldPage } from "../src/domain/site/old-site";
+import { oldPath, parseOldPage, parseSitemapEntries } from "../src/domain/site/old-site";
+import type { OldSnapshotRow as SnapshotRow } from "../src/domain/site/seo-import";
 
 const SITE = "https://bus-com.ru";
 const PAUSE_MS = 300;
 const outDir = process.argv.slice(2).find((arg) => !arg.startsWith("--")) ?? "docs/site-snapshot";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-export type SnapshotRow = {
-  path: string;
-  url: string;
-  /** Откуда адрес: из карты сайта, canonical другой страницы или добавлен руками (главная) */
-  source: "sitemap" | "canonical" | "extra";
-  priority: string | null;
-  status: number;
-  /** Куда ведёт переадресация, если она есть */
-  location: string | null;
-  page: OldPage | null;
-  error?: string;
-};
 
 async function snapshot(url: string): Promise<Pick<SnapshotRow, "status" | "location" | "page" | "error">> {
   for (let attempt = 1; ; attempt++) {
