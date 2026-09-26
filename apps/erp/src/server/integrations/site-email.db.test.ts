@@ -7,7 +7,8 @@ import { ingestSiteOrder } from "@/server/integrations/site-orders";
 import { describeDb, resetDb, testDb } from "@/test/db";
 import { makeCustomer, makeProduct } from "@/test/fixtures";
 
-const fixture = (name: string) => readFileSync(join(__dirname, "../../domain/integration/fixtures", name), "utf8");
+const fixture = (name: string) =>
+  readFileSync(join(__dirname, "../../../../../packages/domain/src/integration/fixtures", name), "utf8");
 
 function companyEmail(overrides: Partial<StoredEmail> = {}): StoredEmail {
   return {

@@ -72,3 +72,4 @@ jobs:
           set -euo pipefail
           docker build --target runner -t buscom-erp-app:ci .
           docker build --target migrator -t buscom-erp-migrate:ci .
+          docker build --target site -t buscom-site:ci .

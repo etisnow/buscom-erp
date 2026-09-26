@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+/*
+ * Палитра и шрифты из макета «Баском Редизайн» (docs/SITE-PRD.md, «Страницы»).
+ * Токены — в @theme: из них Tailwind строит классы bg-brand, text-ink и т. п.
+ */
+@theme {
+  --color-brand: #008244;
+  --color-brand-hover: #006b38;
+  --color-brand-soft: #e5f3eb;
+  --color-accent: #f39200;
+  --color-accent-hover: #e08600;
+  --color-ink: #15191e;
+  --color-ink-2: #46505c;
+  --color-muted: #5a6370;
+  --color-subtle: #88909a;
+  --color-surface: #f5f6f5;
+  --color-surface-2: #eceeec;
+  --color-line: #e3e5e2;
+
+  --font-sans: var(--font-golos), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+html {
+  color: var(--color-ink);
+  background: #fff;
+}

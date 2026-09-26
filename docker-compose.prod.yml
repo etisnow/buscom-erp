@@ -98,6 +98,22 @@ services:
     ports:
       - "${APP_PORT:-81}:3000"
 
+  # Сайт bus-com.ru (apps/site, docs/SITE-PLAN.md). Пока в базу не ходит — каркас.
+  # До переключения DNS закрыт от индексации (SITE_INDEXING=false) и доступен по
+  # временному адресу: в панели Джино на SITE_PORT проксируется отдельный домен.
+  site:
+    image: ${SITE_IMAGE:-buscom-site:local}
+    build:
+      context: .
+      target: site
+    restart: unless-stopped
+    environment:
+      SITE_URL: ${SITE_URL:-https://bus-com.ru}
+      SITE_INDEXING: ${SITE_INDEXING:-false}
+      TZ: Europe/Moscow
+    ports:
+      - "${SITE_PORT:-82}:3000"
+
   # HTTPS своими силами — только если у сервера есть выделенный IP и порты
   # 80/443 действительно приходят на него. На хостинге, который сам проксирует
   # 80/443 и терминирует SSL (Джино), этот сервис не нужен и порты занять не даст.

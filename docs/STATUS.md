@@ -376,7 +376,9 @@
 - [x] Шаг 1 в CI: образы собрались, проверка OCR в образе прошла; упал только `format:check` (STATUS не отформатирован) — починено в шаге 2
 - [x] **Шаг 2 — `packages/db`**: схема, миграции, `prisma.config.ts` и сгенерированный клиент; импорты ERP `@/generated/prisma/*` → `@buscom/db/client`, `@buscom/db/enums`. Сид остался в ERP (`apps/erp/scripts/seed.ts`, `pnpm erp db:seed`) — он заводит администратора через better-auth. Команды Prisma — из корня: `pnpm db:migrate`, `db:deploy`, `db:generate`, `db:studio`. `.env` Prisma берёт из окружения, иначе из `apps/erp/.env`
 - [x] **Шаг 3 — `packages/domain`**: `src/domain` целиком, импорты `@buscom/domain/<путь>`, внутри пакета — относительные; свои `tsconfig` и `vitest.config` (586 тестов; в ERP осталось 25 + 190 по живой БД). Фикстуры писем и страниц — в `.prettierignore` по новым путям
-- [ ] Шаг 4 — каркас `apps/site`, второй образ и сервис в compose
+- [x] **Шаг 4 — каркас сайта `apps/site`** (порт 3001 в dev): шапка, подвал, шрифты Golos Text и IBM Plex Mono, палитра макета токенами Tailwind, главная с метатегами старого сайта, `yandex-verification`, `robots.txt` и `sitemap.xml` (пока только главная), 404. Закрыт от индексации переменной `SITE_INDEXING` (DECISIONS от 26.09). Образ `site` в Dockerfile, сервис `site` в compose (`SITE_PORT`, по умолчанию 82 — свободен на сервере), выкат пушит и проверяет его. Локально проверено `next start`: 200, `X-Robots-Tag: noindex`, robots запрещает всё, запросов к Google Fonts нет. Standalone на Windows не запускается (симлинки pnpm) — в образе Linux это не мешает
+- [ ] **Временный адрес сайта**: владельцу — в панели Джино спроксировать поддомен (например, `new.bus-com.ru`) на порт 82 (docs/DEPLOY.md, «Сайт bus-com.ru»)
+- [ ] Этап 1 закрыт после выката в бой и проверки обоих контейнеров; дальше — этап 3 (картинки в хранилище) и этап 4 (каталог)
 
 Что выяснил аудитом живого сайта (24.09):
 

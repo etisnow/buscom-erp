@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Пакеты GHCR: ghcr.io/<владелец>/<репозиторий>/app и /migrate
+  # Пакеты GHCR: ghcr.io/<владелец>/<репозиторий>/app, /migrate и /site
   IMAGE_BASE: ghcr.io/${{ github.repository }}
 
 jobs:
@@ -70,10 +70,13 @@ jobs:
             -t "$IMAGE_BASE/app:$SHA" -t "$IMAGE_BASE/app:latest" .
           docker build --target migrator \
             -t "$IMAGE_BASE/migrate:$SHA" -t "$IMAGE_BASE/migrate:latest" .
-          docker push "$IMAGE_BASE/app:$SHA"
-          docker push "$IMAGE_BASE/app:latest"
-          docker push "$IMAGE_BASE/migrate:$SHA"
-          docker push "$IMAGE_BASE/migrate:latest"
+          # Сайт bus-com.ru — свой образ (apps/site)
+          docker build --target site \
+            -t "$IMAGE_BASE/site:$SHA" -t "$IMAGE_BASE/site:latest" .
+          for image in app migrate site; do
+            docker push "$IMAGE_BASE/$image:$SHA"
+            docker push "$IMAGE_BASE/$image:latest"
+          done
 
   deploy:
     needs: build
@@ -153,6 +156,7 @@ jobs:
 
           export APP_IMAGE="$IMAGE_BASE/app:$SHA"
           export MIGRATE_IMAGE="$IMAGE_BASE/migrate:$SHA"
+          export SITE_IMAGE="$IMAGE_BASE/site:$SHA"
           COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.production"
 
           # Место чистим ДО скачивания, а не после удачного выката: диска 9.8 ГБ,
@@ -173,7 +177,7 @@ jobs:
           df -h / < /dev/null || true
           docker system df < /dev/null || true
 
-          $COMPOSE pull postgres app migrate
+          $COMPOSE pull postgres app migrate site
 
           # Миграции накатывает одноразовый контейнер; приложение стартует только
           # после его успеха — это задано зависимостями в compose.
@@ -192,6 +196,23 @@ jobs:
           for i in $(seq 1 30); do
             if curl -sf --max-time 5 -o /dev/null "http://127.0.0.1:$CHECK_PORT/login" < /dev/null; then
               echo "Приложение отвечает на порту $CHECK_PORT"
+              # Сайт: главная статическая и в базу не ходит — поднимается быстро.
+              # Не ответил — выкат красный (ERP при этом уже на новой версии).
+              SITE_SPEC=$(sed -n 's/^SITE_PORT=//p' .env.production | head -1)
+              SITE_CHECK=${SITE_SPEC##*:}
+              SITE_CHECK=${SITE_CHECK:-82}
+              for j in $(seq 1 12); do
+                if curl -sf --max-time 5 -o /dev/null "http://127.0.0.1:$SITE_CHECK/" < /dev/null; then
+                  echo "Сайт отвечает на порту $SITE_CHECK"
+                  break
+                fi
+                if [ "$j" = 12 ]; then
+                  echo "Сайт не ответил за 60 секунд — логи ниже" >&2
+                  $COMPOSE logs --tail 40 site < /dev/null >&2
+                  exit 1
+                fi
+                sleep 5
+              done
               # Прошлая версия остаётся в GHCR, а не на диске: 168-часовой фильтр,
               # который стоял здесь раньше, не удалял ничего — выкаты одного дня
               # все моложе недели, и диск кончился именно на них. Контейнер

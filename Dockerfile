@@ -11,6 +11,7 @@
 # Цели сборки:
 #   runner   — приложение (по умолчанию)
 #   migrator — тот же код плюс Prisma CLI, чтобы накатывать миграции и сид
+#   site     — сайт bus-com.ru (apps/site)
 #
 # Node 22 — та же мажорная версия, что в CI (.github/workflows/ci.yml).
 
@@ -30,6 +31,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/erp/package.json ./apps/erp/
 COPY packages/db/package.json packages/db/prisma.config.ts ./packages/db/
 COPY packages/domain/package.json ./packages/domain/
+COPY apps/site/package.json ./apps/site/
 COPY packages/db/prisma ./packages/db/prisma
 # postinstall пакета db запускает prisma generate — отсюда packages/db/src/generated/prisma
 RUN pnpm install --frozen-lockfile
@@ -65,6 +67,31 @@ ENV NODE_ENV=production
 # администратора (`run --rm migrate pnpm db:seed`, docs/DEPLOY.md)
 WORKDIR /app/apps/erp
 CMD ["pnpm", "--filter", "@buscom/db", "exec", "prisma", "migrate", "deploy"]
+
+# ---------------------------------------------------------------------------
+# Сайт bus-com.ru (apps/site). Своя сборка: ей не нужны заглушки переменных ERP,
+# а правка сайта не пересобирает ERP и наоборот.
+# ---------------------------------------------------------------------------
+FROM deps AS site-builder
+COPY . .
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm --filter @buscom/site build
+
+FROM base AS site
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
+RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
+COPY --from=site-builder --chown=nextjs:nodejs /app/apps/site/.next/standalone ./
+COPY --from=site-builder --chown=nextjs:nodejs /app/apps/site/.next/static ./apps/site/.next/static
+WORKDIR /app/apps/site
+USER nextjs
+EXPOSE 3000
+# Главная — статическая страница: отвечает без базы
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "server.js"]
 
 # ---------------------------------------------------------------------------
 # Рабочий образ
