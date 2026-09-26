@@ -2,6 +2,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { db } from "@/server/db";
 import {
   ingestClientEmail,
+  ingestSentEmail,
   linkEmailToCustomer,
   listCustomerEmails,
   listMailbox,
@@ -29,6 +30,7 @@ vi.mock("@/server/mail", async (importOriginal) => ({
   sendClientLetter: async (letter: ClientLetter) => {
     if (smtpFails) throw new Error("SMTP недоступен");
     sent.push(letter);
+    return Buffer.from(`Message-ID: <${letter.messageId}>\r\n\r\n${letter.text}`);
   },
 }));
 
@@ -65,7 +67,7 @@ describeDb("переписка с клиентом (живая БД)", () => {
   });
 
   it("отправленное письмо ложится в переписку с событием заказа и шаблоном", async () => {
-    await sendOrderEmail({
+    const result = await sendOrderEmail({
       orderId: order.id,
       to: ["client@mail.ru"],
       subject: "Ваш заказ оплачен",
@@ -77,6 +79,7 @@ describeDb("переписка с клиентом (живая БД)", () => {
 
     expect(sent).toHaveLength(1);
     expect(sent[0].messageId).toMatch(/@bus-com\.ru$/);
+    expect(result.source.toString()).toContain(sent[0].messageId);
     const email = await db.email.findFirstOrThrow({ where: { orderId: order.id } });
     expect(email).toMatchObject({
       direction: "OUTBOUND",
@@ -263,5 +266,40 @@ describeDb("переписка с клиентом (живая БД)", () => {
     await linkEmailToCustomer(result.emailId, order.customerId);
     expect((await db.email.findUniqueOrThrow({ where: { id: result.emailId } })).customerId).toBe(order.customerId);
     expect(await db.orderEvent.count({ where: { type: "EMAIL_RECEIVED" } })).toBe(0);
+  });
+
+  it("наше письмо из «Отправленных»: клиенту — в переписку, ушедшее из ERP и чужое — нет", async () => {
+    const outbound = (overrides: Partial<IncomingEmail> = {}) =>
+      incoming({ fromEmail: "info@bus-com.ru", fromName: "BusCom", toEmails: ["client@mail.ru"], ...overrides });
+
+    const stored = await ingestSentEmail(outbound({ messageId: "web-1@bus-com.ru", subject: "Трек-номер" }));
+    expect(stored.status).toBe("stored");
+    const email = await db.email.findFirstOrThrow({ where: { messageId: "web-1@bus-com.ru" } });
+    expect(email).toMatchObject({ direction: "OUTBOUND", customerId: order.customerId, userId: null });
+    expect(email.readAt).not.toBeNull();
+    expect((await recentCustomerEmails({ id: order.customerId, email: "client@mail.ru" })).items).toHaveLength(1);
+    expect(await ingestSentEmail(outbound({ messageId: "web-1@bus-com.ru" }))).toEqual({ status: "duplicate" });
+
+    // Ушедшее из ERP уже в базе — копия из «Отправленных» его не повторяет
+    const { id } = await sendOrderEmail({
+      orderId: order.id,
+      to: ["client@mail.ru"],
+      subject: "Счёт",
+      body: "Во вложении",
+      attachInvoice: false,
+      user: manager,
+    });
+    const { messageId } = await db.email.findUniqueOrThrow({ where: { id } });
+    expect(await ingestSentEmail(outbound({ messageId: `<${messageId}>` }))).toEqual({ status: "duplicate" });
+
+    // Поставщику с номером заказа в теме — не переписка клиента
+    expect(await ingestSentEmail(outbound({ toEmails: ["supplier@x.ru"], subject: `Заказ №${order.number}` }))).toEqual(
+      { status: "skipped" },
+    );
+
+    // Ответ в цепочке клиента — его, даже на незнакомый адрес
+    const reply = await ingestSentEmail(outbound({ toEmails: ["other@mail.ru"], references: ["web-1@bus-com.ru"] }));
+    expect(reply.status).toBe("stored");
+    expect(await db.email.count({ where: { customerId: order.customerId } })).toBe(3);
   });
 });

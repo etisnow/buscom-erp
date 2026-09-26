@@ -180,13 +180,28 @@ export async function senderAddress(): Promise<string | null> {
  * Письмо клиенту. В отличие от `sendLetter`, без настроенной почты не пишет в лог,
  * а бросает ошибку: человек нажал «Отправить» и должен узнать, что письмо не ушло.
  * Ошибку SMTP тоже не глушит — её показывают в форме.
+ *
+ * Письмо сначала собирается целиком и уходит готовым текстом: этот же текст
+ * кладётся копией в «Отправленные» ящика — с тем же Message-ID, что в базе, так
+ * опрос «Отправленных» узнает его и не заведёт второй раз. Возвращает текст письма.
  */
-export async function sendClientLetter(letter: ClientLetter): Promise<void> {
+export async function sendClientLetter(letter: ClientLetter): Promise<Buffer> {
   const smtp = await resolveSmtp();
   if (!smtp) throw new MailNotConfiguredError();
 
-  await getTransporter(smtp).sendMail({
-    from: smtp.from || env.SMTP_FROM,
+  const { source, envelope } = await buildClientLetter(smtp.from || env.SMTP_FROM, letter);
+  await getTransporter(smtp).sendMail({ envelope, raw: source });
+  return source;
+}
+
+/** Письмо в виде текста MIME и конверт с голыми адресами — без отправки. */
+async function buildClientLetter(
+  from: string,
+  letter: ClientLetter,
+): Promise<{ source: Buffer; envelope: { from: string; to: string[] } }> {
+  const composer = nodemailer.createTransport({ streamTransport: true, buffer: true, newline: "windows" });
+  const info = await composer.sendMail({
+    from,
     to: letter.to,
     subject: letter.subject,
     text: letter.text,
@@ -199,4 +214,6 @@ export async function sendClientLetter(letter: ClientLetter): Promise<void> {
       content: file.content,
     })),
   });
+  const envelope = info.envelope as { from: string | false; to: string[] };
+  return { source: info.message as Buffer, envelope: { from: envelope.from || from, to: envelope.to } };
 }

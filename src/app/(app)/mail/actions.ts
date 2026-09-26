@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { parseAddressList } from "@/domain/email/letters";
 import { EMAIL_TEMPLATE_KEYS } from "@/domain/email/templates";
@@ -22,6 +23,7 @@ import {
   trashLetter,
 } from "@/server/emails/mailbox-browser";
 import { ForbiddenError } from "@/server/errors";
+import { appendToSent } from "@/server/integrations/mailbox";
 import { MailNotConfiguredError } from "@/server/mail";
 import { OrderConflictError, OrderNotFoundError } from "@/server/orders/internal";
 import { requireUser } from "@/server/session";
@@ -64,7 +66,7 @@ export async function sendOrderEmailAction(input: z.input<typeof sendSchema>): P
   if (to.valid.length === 0) return { ok: false, error: "Укажите адрес клиента" };
 
   try {
-    await sendOrderEmail({
+    const { source } = await sendOrderEmail({
       orderId: data.orderId,
       to: to.valid,
       subject: data.subject,
@@ -73,6 +75,11 @@ export async function sendOrderEmailAction(input: z.input<typeof sendSchema>): P
       attachInvoice: data.attachInvoice,
       user,
     });
+    // Копия в «Отправленные» ящика — после ответа: письмо уже ушло и в базе,
+    // а сбой копии не повод говорить человеку, что отправка не удалась
+    after(() =>
+      appendToSent(source).catch((error) => console.error("[mail] Копия письма в «Отправленные» не сохранена", error)),
+    );
   } catch (error) {
     const known = errorText(error);
     if (known) return { ok: false, error: known };

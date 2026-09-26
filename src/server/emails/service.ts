@@ -55,7 +55,11 @@ export type SendOrderEmailInput = {
   user: SessionUser;
 };
 
-export async function sendOrderEmail(input: SendOrderEmailInput): Promise<{ id: string }> {
+/**
+ * Возвращает и текст ушедшего письма: вызывающий кладёт его копией в «Отправленные»
+ * ящика (`appendToSent`) — уже после ответа человеку, копия не должна задерживать отправку.
+ */
+export async function sendOrderEmail(input: SendOrderEmailInput): Promise<{ id: string; source: Buffer }> {
   const order = await db.order.findFirst({
     where: { id: input.orderId, deletedAt: null },
     select: { id: true, number: true, customerId: true, customer: { select: { email: true } } },
@@ -92,7 +96,7 @@ export async function sendOrderEmail(input: SendOrderEmailInput): Promise<{ id: 
 
   const from = await senderAddress();
   const messageId = `${randomUUID()}@${messageIdDomain(from)}`;
-  await sendClientLetter({
+  const source = await sendClientLetter({
     to: input.to,
     subject: input.subject,
     text: input.body,
@@ -103,7 +107,7 @@ export async function sendOrderEmail(input: SendOrderEmailInput): Promise<{ id: 
   });
 
   const sentAt = new Date();
-  return db.$transaction(async (tx) => {
+  const email = await db.$transaction(async (tx) => {
     const email = await tx.email.create({
       data: {
         direction: "OUTBOUND",
@@ -139,6 +143,7 @@ export async function sendOrderEmail(input: SendOrderEmailInput): Promise<{ id: 
     });
     return email;
   });
+  return { id: email.id, source };
 }
 
 export type IncomingEmail = {
@@ -169,6 +174,8 @@ type MatchInput = {
   date: Date | null;
   /** С кем письмо: отправитель входящего или получатели нашего */
   counterparts: string[];
+  /** Искать ли по номеру заказа в теме. По умолчанию — да */
+  bySubject?: boolean;
 };
 
 async function matchCustomer(email: MatchInput): Promise<{ customerId: string | null; by: IncomingMatch }> {
@@ -185,7 +192,7 @@ async function matchCustomer(email: MatchInput): Promise<{ customerId: string | 
   // с сайта и у архивных; «… - Заказ 2828» в письме OpenCart). Номера в архиве
   // повторяются, поэтому берём самый свежий заказ за год до письма. У заказа,
   // заведённого руками, номера сайта нет — клиенту сообщают номер в ERP.
-  const number = orderNumberFromSubject(email.subject);
+  const number = email.bySubject === false ? null : orderNumberFromSubject(email.subject);
   if (number !== null) {
     const at = (email.date ?? new Date()).getTime();
     const order =
@@ -263,6 +270,44 @@ export async function ingestClientEmail(email: IncomingEmail): Promise<IncomingR
     select: { id: true },
   });
   return { status: "stored", emailId: stored.id, customerLinked: match.customerId !== null, matchedBy: match.by };
+}
+
+export type SentResult = { status: "duplicate" } | { status: "skipped" } | { status: "stored"; emailId: string };
+
+/**
+ * Наше письмо из «Отправленных» ящика — написанное в веб-почте или почтовой
+ * программе, мимо ERP. В переписку ложится, только если оно клиенту: ответ в
+ * цепочке его переписки или на адрес ровно одного клиента. Номер заказа в теме
+ * здесь не довод — так пишут и поставщикам, а их письма клиенту не показываются.
+ * Письма, ушедшие из ERP, уже в базе и узнаются по Message-ID.
+ */
+export async function ingestSentEmail(email: IncomingEmail): Promise<SentResult> {
+  const messageId = normalizeMessageId(email.messageId);
+  if (messageId && (await db.email.findUnique({ where: { messageId }, select: { id: true } }))) {
+    return { status: "duplicate" };
+  }
+
+  const match = await matchCustomer({ ...email, counterparts: email.toEmails, bySubject: false });
+  if (!match.customerId) return { status: "skipped" };
+
+  const stored = await db.email.create({
+    data: {
+      direction: "OUTBOUND",
+      customerId: match.customerId,
+      messageId,
+      references: email.references,
+      fromEmail: email.fromEmail,
+      fromName: email.fromName,
+      toEmails: email.toEmails,
+      subject: email.subject,
+      body: email.body,
+      readAt: new Date(),
+      sentAt: email.date ?? new Date(),
+      attachments: { create: attachmentsToStore(email.attachments) },
+    },
+    select: { id: true },
+  });
+  return { status: "stored", emailId: stored.id };
 }
 
 /**

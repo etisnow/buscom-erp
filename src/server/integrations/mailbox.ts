@@ -8,7 +8,7 @@ import { imapConfigured, type ImapSettings } from "@/domain/settings";
 import { readSettings } from "@/server/settings/service";
 import type { MailFolder } from "@/domain/email/folders";
 import { normalizeEmailAddress, referencedMessageIds } from "@/domain/email/letters";
-import { ingestClientEmail, type IncomingEmail } from "@/server/emails/service";
+import { ingestClientEmail, ingestSentEmail, type IncomingEmail } from "@/server/emails/service";
 import { ingestSiteEmail, type StoredEmail } from "@/server/integrations/site-email";
 
 /**
@@ -21,12 +21,17 @@ import { ingestSiteEmail, type StoredEmail } from "@/server/integrations/site-em
  * писем сброшена) запоминаем текущий конец ящика и берём только новые письма:
  * старые заказы уже заведены руками или перенесены из прежней ERP.
  *
+ * Вторым проходом читаются «Отправленные» — со своим курсором: письма клиентам,
+ * написанные в веб-почте мимо ERP, тоже ложатся в переписку. Туда же ERP кладёт
+ * копии своих писем (`appendToSent`) — их опрос узнаёт по Message-ID.
+ *
  * Куда подключаться — из «Справочники → Почта входящая», иначе из `IMAP_*`
  * окружения. Настройки читаются на каждом проходе: правка в интерфейсе действует
  * без перезапуска сервера.
  */
 
 const CURSOR_KEY = "siteEmailCursor";
+const SENT_CURSOR_KEY = "sentEmailCursor";
 /** Писем за один проход — чтобы ящик с завалом не держал соединение минутами */
 const BATCH = 50;
 
@@ -48,6 +53,8 @@ export type PollSummary = {
   /** Письма клиентов, легшие в переписку; из них привязаны к заказу */
   letters: number;
   lettersLinked: number;
+  /** Наши письма клиентам из «Отправленных», написанные мимо ERP */
+  sentLetters: number;
   /** Остались письма сверх BATCH — заберём следующим проходом */
   more: boolean;
 };
@@ -78,16 +85,16 @@ function accountOf(connection: ImapSettings): string {
   return `${connection.user.toLowerCase()}@${connection.host.toLowerCase()}`;
 }
 
-async function readCursor(): Promise<Cursor | null> {
-  const row = await db.setting.findUnique({ where: { key: CURSOR_KEY } });
+async function readCursor(key = CURSOR_KEY): Promise<Cursor | null> {
+  const row = await db.setting.findUnique({ where: { key } });
   const parsed = cursorSchema.safeParse(row?.value);
   return parsed.success ? parsed.data : null;
 }
 
-async function writeCursor(cursor: Cursor): Promise<void> {
+async function writeCursor(cursor: Cursor, key = CURSOR_KEY): Promise<void> {
   await db.setting.upsert({
-    where: { key: CURSOR_KEY },
-    create: { key: CURSOR_KEY, value: cursor },
+    where: { key },
+    create: { key, value: cursor },
     update: { value: cursor },
   });
 }
@@ -154,6 +161,33 @@ export async function listMailboxFolders(connection: ImapSettings): Promise<Mail
   }
 }
 
+/** Папка «Отправленные»: по флагу сервера Sent, иначе по привычному названию. */
+async function findSentFolder(client: ImapFlow): Promise<string | null> {
+  const folders = await readFolders(client, false);
+  const flagged = folders.find((folder) => folder.specialUse === "\Sent" && folder.selectable);
+  if (flagged) return flagged.path;
+  const named = folders.find((folder) => /^(sent|отправленные)$/i.test(folder.name) && folder.selectable);
+  return named?.path ?? null;
+}
+
+/**
+ * Копия письма, ушедшего из ERP, — в «Отправленные» ящика, прочитанной: чтобы её
+ * видели и в веб-почте. SMTP сам копий не кладёт. Ящик не настроен — ничего.
+ */
+export async function appendToSent(source: Buffer): Promise<void> {
+  const connection = await resolveMailbox();
+  if (!connection) return;
+  const client = createClient(connection);
+  await client.connect();
+  try {
+    const path = await findSentFolder(client);
+    if (!path) throw new Error("В ящике нет папки «Отправленные»");
+    await client.append(path, source, ["\Seen"]);
+  } finally {
+    await client.logout().catch(() => client.close());
+  }
+}
+
 function toStoredEmail(mail: ParsedMail): StoredEmail {
   return {
     messageId: mail.messageId ?? null,
@@ -172,7 +206,7 @@ function addresses(value: AddressObject | AddressObject[] | undefined): string[]
   );
 }
 
-/** Письмо клиента для переписки. Встроенные в HTML картинки (подписи, логотипы) вложениями не считаем. */
+/** Письмо для переписки. Встроенные в HTML картинки (подписи, логотипы) вложениями не считаем. */
 function toIncomingEmail(mail: ParsedMail): IncomingEmail | null {
   const sender = mail.from?.value[0];
   const fromEmail = normalizeEmailAddress(sender?.address);
@@ -182,7 +216,7 @@ function toIncomingEmail(mail: ParsedMail): IncomingEmail | null {
     references: referencedMessageIds(mail.inReplyTo, mail.references),
     fromEmail,
     fromName: sender?.name || null,
-    toEmails: addresses(mail.to),
+    toEmails: [...addresses(mail.to), ...addresses(mail.cc)],
     subject: mail.subject ?? "(без темы)",
     body: (mail.text ?? "").trim(),
     date: mail.date ?? null,
@@ -218,6 +252,7 @@ async function pollOnce(options: PollOptions): Promise<PollSummary> {
     skipped: 0,
     letters: 0,
     lettersLinked: 0,
+    sentLetters: 0,
     more: false,
   };
   const client = createClient(connection);
@@ -240,48 +275,97 @@ async function pollOnce(options: PollOptions): Promise<PollSummary> {
         await writeCursor({ uidValidity, lastUid: Math.max(0, mailbox.uidNext - 1), account });
         return { ...summary, baseline: true };
       }
-      if (mailbox.uidNext - 1 <= cursor.lastUid) return summary;
-
-      // Сначала собираем письма, потом разбираем: внутри fetch imapflow не даёт
-      // отправлять другие команды (отметку «прочитано»). Диапазон «N:*» вернёт
-      // последнее письмо, даже если оно старше N, — поэтому фильтр по UID.
-      const messages: { uid: number; source: Buffer }[] = [];
-      for await (const message of client.fetch(`${cursor.lastUid + 1}:*`, { uid: true, source: true }, { uid: true })) {
-        if (message.uid > cursor.lastUid && message.source) messages.push({ uid: message.uid, source: message.source });
-      }
-      messages.sort((a, b) => a.uid - b.uid);
-      summary.more = messages.length > BATCH;
-
-      for (const message of messages.slice(0, BATCH)) {
-        // Ошибка здесь — не про письмо (его разбор ошибок не бросает), а про базу
-        // или сеть: курсор не двигаем, письмо заберём следующим проходом.
-        const mail = await simpleParser(message.source);
-        const result = await ingestSiteEmail(toStoredEmail(mail));
-
-        if (result.status === "skipped") {
-          // Не заказ с сайта — значит, письмо клиента. Отметку «прочитано» не ставим:
-          // ящик читают и люди, а в ERP у письма своя отметка.
-          const incoming = toIncomingEmail(mail);
-          const letter = incoming ? await ingestClientEmail(incoming) : null;
-          if (letter?.status === "stored") {
-            summary.letters++;
-            if (letter.customerLinked) summary.lettersLinked++;
-          } else summary.skipped++;
-        } else {
-          if (result.status === 201) summary.created.push(result.orderNumber);
-          else if (result.status === 200) summary.duplicates++;
-          else summary.failed++;
-          await client.messageFlagsAdd(String(message.uid), ["\\Seen"], { uid: true });
-        }
-        await writeCursor({ uidValidity, lastUid: message.uid, account });
-      }
-
-      return summary;
+      if (mailbox.uidNext - 1 > cursor.lastUid) await pollInbox(client, cursor.lastUid, uidValidity, account, summary);
     } finally {
       lock.release();
     }
+    if (!summary.baseline) await pollSent(client, account, summary);
+    return summary;
   } finally {
     await client.logout().catch(() => client.close());
+  }
+}
+
+/** Новые письма INBOX: заказы с сайта и письма клиентов. Папка уже открыта. */
+async function pollInbox(
+  client: ImapFlow,
+  lastUid: number,
+  uidValidity: string,
+  account: string,
+  summary: PollSummary,
+): Promise<void> {
+  const messages = await fetchAfter(client, lastUid);
+  summary.more = messages.length > BATCH;
+
+  for (const message of messages.slice(0, BATCH)) {
+    // Ошибка здесь — не про письмо (его разбор ошибок не бросает), а про базу
+    // или сеть: курсор не двигаем, письмо заберём следующим проходом.
+    const mail = await simpleParser(message.source);
+    const result = await ingestSiteEmail(toStoredEmail(mail));
+
+    if (result.status === "skipped") {
+      // Не заказ с сайта — значит, письмо клиента. Отметку «прочитано» не ставим:
+      // ящик читают и люди, а в ERP у письма своя отметка.
+      const incoming = toIncomingEmail(mail);
+      const letter = incoming ? await ingestClientEmail(incoming) : null;
+      if (letter?.status === "stored") {
+        summary.letters++;
+        if (letter.customerLinked) summary.lettersLinked++;
+      } else summary.skipped++;
+    } else {
+      if (result.status === 201) summary.created.push(result.orderNumber);
+      else if (result.status === 200) summary.duplicates++;
+      else summary.failed++;
+      await client.messageFlagsAdd(String(message.uid), ["\\Seen"], { uid: true });
+    }
+    await writeCursor({ uidValidity, lastUid: message.uid, account });
+  }
+}
+
+/**
+ * Письма открытой папки с UID больше данного, по возрастанию. Сначала собираем,
+ * потом разбираем: внутри fetch imapflow не даёт отправлять другие команды
+ * (отметку «прочитано»). Диапазон «N:*» вернёт последнее письмо, даже если оно
+ * старше N, — поэтому фильтр по UID.
+ */
+async function fetchAfter(client: ImapFlow, lastUid: number): Promise<{ uid: number; source: Buffer }[]> {
+  const messages: { uid: number; source: Buffer }[] = [];
+  for await (const message of client.fetch(`${lastUid + 1}:*`, { uid: true, source: true }, { uid: true })) {
+    if (message.uid > lastUid && message.source) messages.push({ uid: message.uid, source: message.source });
+  }
+  return messages.sort((a, b) => a.uid - b.uid);
+}
+
+/**
+ * «Отправленные»: наши письма клиентам, написанные мимо ERP. Курсор свой, первый
+ * проход запоминает конец папки — прежние письма переносит импорт истории.
+ */
+async function pollSent(client: ImapFlow, account: string, summary: PollSummary): Promise<void> {
+  const path = await findSentFolder(client);
+  if (!path) return;
+  const lock = await client.getMailboxLock(path, { readOnly: true });
+  try {
+    const mailbox = client.mailbox;
+    if (!mailbox) return;
+    const uidValidity = String(mailbox.uidValidity);
+    const cursor = await readCursor(SENT_CURSOR_KEY);
+    if (!cursor || cursor.uidValidity !== uidValidity || cursor.account !== account) {
+      await writeCursor({ uidValidity, lastUid: Math.max(0, mailbox.uidNext - 1), account }, SENT_CURSOR_KEY);
+      return;
+    }
+    if (mailbox.uidNext - 1 <= cursor.lastUid) return;
+
+    const messages = await fetchAfter(client, cursor.lastUid);
+    if (messages.length > BATCH) summary.more = true;
+
+    for (const message of messages.slice(0, BATCH)) {
+      const letter = toIncomingEmail(await simpleParser(message.source));
+      const result = letter ? await ingestSentEmail(letter) : null;
+      if (result?.status === "stored") summary.sentLetters++;
+      await writeCursor({ uidValidity, lastUid: message.uid, account }, SENT_CURSOR_KEY);
+    }
+  } finally {
+    lock.release();
   }
 }
 
@@ -307,6 +391,7 @@ export function describePoll(summary: PollSummary): string {
   if (summary.failed) parts.push(`с ошибкой разбора: ${summary.failed} — см. журнал`);
   if (summary.letters)
     parts.push(`писем в переписку: ${summary.letters}, из них с известным клиентом: ${summary.lettersLinked}`);
+  if (summary.sentLetters) parts.push(`наших писем клиентам из «Отправленных»: ${summary.sentLetters}`);
   if (summary.skipped) parts.push(`пропущено: ${summary.skipped}`);
   if (summary.more) parts.push("остальные письма — следующим проходом");
   return parts.length ? parts.join("; ") : "Новых писем нет";
