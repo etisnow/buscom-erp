@@ -23,8 +23,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ORDER_STATUS_LABELS, availableTransitions } from "@/domain/order/status";
-import { formatMoscowDateTime } from "@/domain/datetime";
+import { ORDER_STATUS_LABELS, availableTransitions } from "@buscom/domain/order/status";
+import { formatMoscowDateTime } from "@buscom/domain/datetime";
 import type { OrderStatus, UserRole } from "@buscom/db/enums";
 import {
   assignManagerAction,

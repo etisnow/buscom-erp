@@ -2,14 +2,14 @@ import "server-only";
 import type { Readable } from "node:stream";
 import type { ImapFlow, MessageStructureObject } from "imapflow";
 import { simpleParser } from "mailparser";
-import type { MailFolder } from "@/domain/email/folders";
-import { headerValue, htmlToText, letterParts } from "@/domain/email/history";
+import type { MailFolder } from "@buscom/domain/email/folders";
+import { headerValue, htmlToText, letterParts } from "@buscom/domain/email/history";
 import {
   MAX_ATTACHMENT_BYTES,
   normalizeEmailAddress,
   normalizeMessageId,
   referencedMessageIds,
-} from "@/domain/email/letters";
+} from "@buscom/domain/email/letters";
 import { db } from "@/server/db";
 import { storeMailboxLetter } from "@/server/emails/service";
 import { createClient, readFolders, resolveMailbox } from "@/server/integrations/mailbox";

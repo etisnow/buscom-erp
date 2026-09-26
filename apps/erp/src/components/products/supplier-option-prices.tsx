@@ -2,9 +2,9 @@
 
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatRub } from "@/domain/money";
-import type { SupplierCombo } from "@/domain/product/option-matching";
-import type { VariantSelection } from "@/domain/product/vanproject";
+import { formatRub } from "@buscom/domain/money";
+import type { SupplierCombo } from "@buscom/domain/product/option-matching";
+import type { VariantSelection } from "@buscom/domain/product/vanproject";
 import type { OptionGroupForm } from "@/components/products/product-options-editor";
 import { cn } from "@/lib/utils";
 

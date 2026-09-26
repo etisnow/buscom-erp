@@ -4,9 +4,9 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatRub, rublesToKopecks } from "@/domain/money";
-import { profitCommission } from "@/domain/order/margin";
-import { parsePercentInput, percentInputValue } from "@/domain/supplier/price-economics";
+import { formatRub, rublesToKopecks } from "@buscom/domain/money";
+import { profitCommission } from "@buscom/domain/order/margin";
+import { parsePercentInput, percentInputValue } from "@buscom/domain/supplier/price-economics";
 import { setSupplierProfitCommissionAction } from "@/app/(app)/suppliers/actions";
 
 function parseRubles(value: string): number | null {
@@ -21,7 +21,7 @@ function parseRubles(value: string): number | null {
  * «Комиссия с прибыли»: какую долю нашей прибыли по его товарам в заказе
  * удерживает поставщик. Прибыль — продажа минус стоимость для нас (с «Экономикой
  * цены» и расходами на заказ) минус доля скидки на заказ; считает её маржа
- * заказа (`src/domain/order/margin.ts`).
+ * заказа (`packages/domain/src/order/margin.ts`).
  */
 export function ProfitCommissionEditor({
   supplierId,

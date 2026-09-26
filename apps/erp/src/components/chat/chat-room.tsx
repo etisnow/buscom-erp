@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useCoarsePointer } from "@/hooks/use-mobile";
-import { canDeleteMessage, canEditMessage, MAX_ATTACHMENTS, replyPreview } from "@/domain/chat/message";
+import { canDeleteMessage, canEditMessage, MAX_ATTACHMENTS, replyPreview } from "@buscom/domain/chat/message";
 import type { UserRole } from "@buscom/db/enums";
 import { cn } from "@/lib/utils";
 import {

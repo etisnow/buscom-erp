@@ -1,6 +1,6 @@
 import { Readable } from "node:stream";
 import { beforeEach, expect, it, vi } from "vitest";
-import type { MailFolder } from "@/domain/email/folders";
+import type { MailFolder } from "@buscom/domain/email/folders";
 import { db } from "@/server/db";
 import { readHistoryImport, startHistoryImport } from "@/server/emails/history-import";
 import { describeDb, resetDb } from "@/test/db";

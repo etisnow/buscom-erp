@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from "vitest";
-import { resolvePeriod } from "@/domain/analytics/period";
+import { resolvePeriod } from "@buscom/domain/analytics/period";
 import type { OrderStatus } from "@buscom/db/enums";
 import { getDashboard } from "@/server/analytics/dashboard";
 import { db } from "@/server/db";

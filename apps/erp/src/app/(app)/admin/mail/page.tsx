@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { EmailTemplatesEditor } from "@/components/admin/email-templates-editor";
 import { HistoryImportPanel } from "@/components/admin/history-import-panel";
 import { ImapEditor, SmtpEditor } from "@/components/admin/mail-settings";
-import { ADMIN_ROLES } from "@/domain/user/role";
+import { ADMIN_ROLES } from "@buscom/domain/user/role";
 import { historyImportRunning, readHistoryImport } from "@/server/emails/history-import";
 import { resolveMailbox } from "@/server/integrations/mailbox";
 import { getSettings } from "@/server/settings/service";

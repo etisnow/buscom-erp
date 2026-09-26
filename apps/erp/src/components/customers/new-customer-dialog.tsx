@@ -11,13 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { InnField } from "@/components/customers/inn-field";
-import { applyCompanyInfo } from "@/domain/customer/company-lookup";
+import { applyCompanyInfo } from "@buscom/domain/customer/company-lookup";
 import {
   CUSTOMER_REQUISITES_FIELDS,
   CUSTOMER_REQUISITES_LABELS,
   EMPTY_CUSTOMER_REQUISITES,
   type CustomerRequisites,
-} from "@/domain/customer/requisites";
+} from "@buscom/domain/customer/requisites";
 import type { CustomerType } from "@buscom/db/enums";
 import { createCustomerAction } from "@/app/(app)/customers/actions";
 

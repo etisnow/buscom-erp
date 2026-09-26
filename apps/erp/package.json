@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@buscom/db": "workspace:*",
+    "@buscom/domain": "workspace:*",
     "@napi-rs/canvas": "^1.0.9",
     "@prisma/adapter-pg": "^7.10.0",
     "@tesseract.js-data/rus": "^1.0.0",

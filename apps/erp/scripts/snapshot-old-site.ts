@@ -11,12 +11,12 @@
  * карту как есть — по ней после переключения проверяется, что ни один старый
  * адрес не отдаёт 404. В базу не ходит.
  *
- * Обход вежливый: по одному запросу с паузой. Разбор — `src/domain/site/old-site.ts`.
+ * Обход вежливый: по одному запросу с паузой. Разбор — `packages/domain/src/site/old-site.ts`.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { oldPath, parseOldPage, parseSitemapEntries } from "../src/domain/site/old-site";
-import type { OldSnapshotRow as SnapshotRow } from "../src/domain/site/seo-import";
+import { oldPath, parseOldPage, parseSitemapEntries } from "@buscom/domain/site/old-site";
+import type { OldSnapshotRow as SnapshotRow } from "@buscom/domain/site/seo-import";
 
 const SITE = "https://bus-com.ru";
 const PAUSE_MS = 300;

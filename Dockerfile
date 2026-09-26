@@ -29,6 +29,7 @@ FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/erp/package.json ./apps/erp/
 COPY packages/db/package.json packages/db/prisma.config.ts ./packages/db/
+COPY packages/domain/package.json ./packages/domain/
 COPY packages/db/prisma ./packages/db/prisma
 # postinstall пакета db запускает prisma generate — отсюда packages/db/src/generated/prisma
 RUN pnpm install --frozen-lockfile

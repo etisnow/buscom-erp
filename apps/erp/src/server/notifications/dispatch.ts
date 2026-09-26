@@ -1,5 +1,5 @@
 import "server-only";
-import { notificationAddress } from "@/domain/user/settings";
+import { notificationAddress } from "@buscom/domain/user/settings";
 import { db } from "@/server/db";
 import { sendLetter } from "@/server/mail";
 

@@ -12,8 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
-import { splitOrderLinks } from "@/domain/chat/order-links";
-import { formatMoscowDateTime } from "@/domain/datetime";
+import { splitOrderLinks } from "@buscom/domain/chat/order-links";
+import { formatMoscowDateTime } from "@buscom/domain/datetime";
 import { cn } from "@/lib/utils";
 import type { ChatActionResult } from "@/app/(app)/chat/actions";
 import type { ChatAttachmentView, ChatMessageView } from "@/server/chat/service";

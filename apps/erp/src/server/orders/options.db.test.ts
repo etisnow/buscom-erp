@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from "vitest";
-import { ProductOptionError } from "@/domain/product/options";
+import { ProductOptionError } from "@buscom/domain/product/options";
 import { createOrder } from "@/server/orders/create";
 import { updateOrderItems } from "@/server/orders/items";
 import { replaceProductOptions } from "@/server/products/service";

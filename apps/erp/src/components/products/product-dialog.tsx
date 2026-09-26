@@ -16,16 +16,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatRub, rublesToKopecks } from "@/domain/money";
+import { formatRub, rublesToKopecks } from "@buscom/domain/money";
 import {
   availableValues,
   checkSelection,
   describeSelection,
   type VariantOption,
   type VariantSelection,
-} from "@/domain/product/vanproject";
-import { toggleModel } from "@/domain/product/compatibility";
-import { calculateUnitCost } from "@/domain/supplier/price-economics";
+} from "@buscom/domain/product/vanproject";
+import { toggleModel } from "@buscom/domain/product/compatibility";
+import { calculateUnitCost } from "@buscom/domain/supplier/price-economics";
 import { CategorySelect } from "@/components/products/category-select";
 import { ProductGalleryEditor } from "@/components/products/product-image";
 import {
@@ -42,7 +42,7 @@ import {
   SupplierOptionPrices,
   type OptionPriceDraft,
 } from "@/components/products/supplier-option-prices";
-import { matchOptionValue } from "@/domain/product/option-matching";
+import { matchOptionValue } from "@buscom/domain/product/option-matching";
 import {
   createProductAction,
   fetchSupplierCombosAction,

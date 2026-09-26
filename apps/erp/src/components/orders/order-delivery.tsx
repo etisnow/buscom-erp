@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { rublesToKopecks } from "@/domain/money";
+import { rublesToKopecks } from "@buscom/domain/money";
 import {
   CargoInputError,
   DELIVERY_METHOD_LABELS as METHOD_LABELS,
@@ -17,8 +17,8 @@ import {
   parseSideCm,
   parseWeightKg,
   type Cargo,
-} from "@/domain/order/delivery";
-import { ORDER_DOCUMENT_LABELS } from "@/domain/order/order-document";
+} from "@buscom/domain/order/delivery";
+import { ORDER_DOCUMENT_LABELS } from "@buscom/domain/order/order-document";
 import type { DeliveryMethod } from "@buscom/db/enums";
 import {
   deleteOrderDocumentAction,

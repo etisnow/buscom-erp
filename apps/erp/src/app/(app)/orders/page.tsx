@@ -9,7 +9,7 @@ import { ListPagination } from "@/components/layout/list-pagination";
 import { OrdersTable } from "@/components/orders/orders-table";
 import { OrderViews } from "@/components/orders/order-views";
 import { Button } from "@/components/ui/button";
-import { ORDER_CREATE_ROLES, hasRole } from "@/domain/user/role";
+import { ORDER_CREATE_ROLES, hasRole } from "@buscom/domain/user/role";
 import { defaultView, listManagers, listOrders } from "@/server/orders/list";
 import { listDictionary } from "@/server/settings/service";
 import { requirePageUser } from "@/server/session";

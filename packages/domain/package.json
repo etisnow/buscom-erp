@@ -1,0 +1,23 @@
+{
+  "name": "@buscom/domain",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Чистая бизнес-логика без БД и Next: деньги, статусы, итоги, опции, нормализация — общая для ERP и сайта",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "pnpm typecheck && pnpm test"
+  },
+  "dependencies": {
+    "@buscom/db": "workspace:*",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5",
+    "vitest": "^5.0.1"
+  }
+}

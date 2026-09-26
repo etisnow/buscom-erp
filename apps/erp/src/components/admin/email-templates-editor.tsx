@@ -12,7 +12,7 @@ import {
   EMAIL_TEMPLATE_LABELS,
   TEMPLATE_PLACEHOLDERS,
   type EmailTemplates,
-} from "@/domain/email/templates";
+} from "@buscom/domain/email/templates";
 import { saveEmailTemplatesAction } from "@/app/(app)/admin/mail/actions";
 
 /**

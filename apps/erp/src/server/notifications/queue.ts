@@ -9,8 +9,8 @@ import {
   type Letter,
   type OrderBrief,
   type OrderChannel,
-} from "@/domain/notification/topics";
-import { paymentStatus, type PaymentStatus } from "@/domain/order/payment-status";
+} from "@buscom/domain/notification/topics";
+import { paymentStatus, type PaymentStatus } from "@buscom/domain/order/payment-status";
 import { env } from "@/server/env";
 import { scheduleDispatch } from "@/server/notifications/dispatch";
 import type { Tx } from "@/server/orders/internal";

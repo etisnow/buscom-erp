@@ -3,8 +3,8 @@
 import { Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { rublesToKopecks } from "@/domain/money";
-import type { OptionGroupDraft } from "@/domain/product/options";
+import { rublesToKopecks } from "@buscom/domain/money";
+import type { OptionGroupDraft } from "@buscom/domain/product/options";
 
 /** Группа опций в форме: надбавка — строкой в рублях, как её вводят. */
 export type OptionGroupForm = {

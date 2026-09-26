@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { ImapSettings, SmtpSettings } from "@/domain/settings";
+import type { ImapSettings, SmtpSettings } from "@buscom/domain/settings";
 import type { SettingsResult } from "@/app/(app)/admin/dictionaries/actions";
 import {
   listImapFoldersAction,
@@ -15,7 +15,12 @@ import {
   sendTestMailAction,
   testImapAction,
 } from "@/app/(app)/admin/mail/actions";
-import { buildFolderTree, flattenFolderTree, SPECIAL_FOLDER_LABELS, type MailFolderNode } from "@/domain/email/folders";
+import {
+  buildFolderTree,
+  flattenFolderTree,
+  SPECIAL_FOLDER_LABELS,
+  type MailFolderNode,
+} from "@buscom/domain/email/folders";
 
 /** Действие настройки: ожидание и итог тостом. */
 function useSettingsAction() {

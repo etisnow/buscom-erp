@@ -6,11 +6,11 @@ import { CustomerAddresses, CustomerForm, DeleteCustomer, MergeCustomers } from 
 import { OrderStatusBadge, PaymentBadge } from "@/components/orders/status-badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { parseCustomerRequisites } from "@/domain/customer/requisites";
-import { formatMoscowDateTime } from "@/domain/datetime";
-import { formatRub } from "@/domain/money";
+import { parseCustomerRequisites } from "@buscom/domain/customer/requisites";
+import { formatMoscowDateTime } from "@buscom/domain/datetime";
+import { formatRub } from "@buscom/domain/money";
 import { findCustomer } from "@/server/customers/list";
-import { CUSTOMER_DELETE_ROLES, ORDER_CREATE_ROLES, hasRole } from "@/domain/user/role";
+import { CUSTOMER_DELETE_ROLES, ORDER_CREATE_ROLES, hasRole } from "@buscom/domain/user/role";
 import { canEditCustomers } from "@/server/customers/service";
 import { requirePageUser } from "@/server/session";
 import { EmailMessage } from "@/components/emails/email-thread";

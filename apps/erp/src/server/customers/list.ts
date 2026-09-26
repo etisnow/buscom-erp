@@ -1,5 +1,5 @@
 import "server-only";
-import { normalizePhone } from "@/domain/customer/phone";
+import { normalizePhone } from "@buscom/domain/customer/phone";
 import type { Prisma } from "@buscom/db/client";
 import type { CustomerType } from "@buscom/db/enums";
 import { db } from "@/server/db";

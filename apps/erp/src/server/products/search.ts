@@ -1,7 +1,7 @@
 import "server-only";
-import type { OptionGroup } from "@/domain/product/options";
-import type { OptionPurchase } from "@/domain/product/option-matching";
-import { parsePriceFormula, unitCostFor, type PriceFormula } from "@/domain/supplier/price-economics";
+import type { OptionGroup } from "@buscom/domain/product/options";
+import type { OptionPurchase } from "@buscom/domain/product/option-matching";
+import { parsePriceFormula, unitCostFor, type PriceFormula } from "@buscom/domain/supplier/price-economics";
 import { db } from "@/server/db";
 import { matchProductsCaseInsensitive } from "@/server/products/name-match";
 

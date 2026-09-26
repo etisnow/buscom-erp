@@ -1,6 +1,6 @@
 import "server-only";
-import { assertSupplierDocument, canManageSupplierDocuments } from "@/domain/order/supplier-document";
-import type { SupplierActionKey } from "@/domain/supplier/actions";
+import { assertSupplierDocument, canManageSupplierDocuments } from "@buscom/domain/order/supplier-document";
+import type { SupplierActionKey } from "@buscom/domain/supplier/actions";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import { loadOrder, writeOrderEvent } from "@/server/orders/internal";
@@ -9,7 +9,7 @@ import type { SessionUser } from "@/server/session";
 /**
  * Артефакты по поставщику в заказе (`OrderSupplierDocument`) — сейчас только
  * счёт от поставщика клиенту, ключ `"SUPPLIER_INVOICE"`. Права и типы файлов —
- * `src/domain/order/supplier-document.ts`. Каждое изменение пишет `OrderEvent`
+ * `packages/domain/src/order/supplier-document.ts`. Каждое изменение пишет `OrderEvent`
  * в той же транзакции — это и история в карточке, и аудит.
  */
 

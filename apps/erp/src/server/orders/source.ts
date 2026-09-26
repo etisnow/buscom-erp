@@ -1,6 +1,6 @@
 import "server-only";
-import { OrderEditError } from "@/domain/order/editing";
-import { canChangeOrderSource, ORDER_SOURCE_LABELS, type SystemOrderSource } from "@/domain/order/source";
+import { OrderEditError } from "@buscom/domain/order/editing";
+import { canChangeOrderSource, ORDER_SOURCE_LABELS, type SystemOrderSource } from "@buscom/domain/order/source";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import { loadOrder, writeOrderEvent, type Tx } from "@/server/orders/internal";

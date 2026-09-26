@@ -1,8 +1,8 @@
 import { ArrowDownLeft, ArrowUpRight, Paperclip } from "lucide-react";
 import Link from "next/link";
-import { formatMoscowDateTime } from "@/domain/datetime";
-import { splitQuotedReply } from "@/domain/email/letters";
-import { EMAIL_TEMPLATE_LABELS, type EmailTemplateKey } from "@/domain/email/templates";
+import { formatMoscowDateTime } from "@buscom/domain/datetime";
+import { splitQuotedReply } from "@buscom/domain/email/letters";
+import { EMAIL_TEMPLATE_LABELS, type EmailTemplateKey } from "@buscom/domain/email/templates";
 import { cn } from "@/lib/utils";
 
 export type EmailView = {

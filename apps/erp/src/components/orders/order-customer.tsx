@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import { ExternalLink, Mail, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CUSTOMER_TYPE_LABELS } from "@/domain/customer/type";
-import { formatMoscowDate, formatPhone } from "@/domain/datetime";
+import { CUSTOMER_TYPE_LABELS } from "@buscom/domain/customer/type";
+import { formatMoscowDate, formatPhone } from "@buscom/domain/datetime";
 import type { CustomerType } from "@buscom/db/enums";
 
 export type OrderCustomerData = {

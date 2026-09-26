@@ -1,6 +1,6 @@
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
-import { smtpConfigured, type SmtpSettings } from "@/domain/settings";
+import { smtpConfigured, type SmtpSettings } from "@buscom/domain/settings";
 import { env } from "@/server/env";
 import { readSettings } from "@/server/settings/service";
 

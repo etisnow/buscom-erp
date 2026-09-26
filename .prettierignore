@@ -3,5 +3,5 @@ pnpm-lock.yaml
 **/.next
 .claude/skills
 # настоящие письма сайта (обезличенные) — байт в байт, иначе тесты парсера проверяют не тот шаблон
-apps/erp/src/domain/integration/fixtures
-apps/erp/src/domain/product/fixtures
+packages/domain/src/integration/fixtures
+packages/domain/src/product/fixtures

@@ -1,9 +1,9 @@
 import "server-only";
 import type { Prisma } from "@buscom/db/client";
 import type { OrderEventType, OrderStatus } from "@buscom/db/enums";
-import { paymentStatus } from "@/domain/order/payment-status";
-import { calculateOrderTotals } from "@/domain/order/totals";
-import { addWorkingMinutes, DEFAULT_SLA_MINUTES } from "@/domain/sla";
+import { paymentStatus } from "@buscom/domain/order/payment-status";
+import { calculateOrderTotals } from "@buscom/domain/order/totals";
+import { addWorkingMinutes, DEFAULT_SLA_MINUTES } from "@buscom/domain/sla";
 import { notifyPaymentStatusChange } from "@/server/notifications/queue";
 import type { SessionUser } from "@/server/session";
 

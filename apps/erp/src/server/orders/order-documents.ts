@@ -1,6 +1,10 @@
 import "server-only";
-import { canManageOrderDocuments, ORDER_DOCUMENT_LABELS, type OrderDocumentKind } from "@/domain/order/order-document";
-import { assertSupplierDocument } from "@/domain/order/supplier-document";
+import {
+  canManageOrderDocuments,
+  ORDER_DOCUMENT_LABELS,
+  type OrderDocumentKind,
+} from "@buscom/domain/order/order-document";
+import { assertSupplierDocument } from "@buscom/domain/order/supplier-document";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import { loadOrder, writeOrderEvent } from "@/server/orders/internal";

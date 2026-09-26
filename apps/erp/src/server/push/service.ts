@@ -1,6 +1,6 @@
 import "server-only";
 import webpush, { WebPushError } from "web-push";
-import type { PushPayload, PushSubscriptionInput } from "@/domain/push/payload";
+import type { PushPayload, PushSubscriptionInput } from "@buscom/domain/push/payload";
 import { db } from "@/server/db";
 import { env } from "@/server/env";
 

@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from "vitest";
-import { ProductImageError } from "@/domain/product/images";
+import { ProductImageError } from "@buscom/domain/product/images";
 import { addImages, deleteImage, makeImageMain, readImage } from "@/server/products/images";
 import type { SessionUser } from "@/server/session";
 import { describeDb, resetDb, testDb } from "@/test/db";

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { CategoryError } from "@/domain/product/categories";
+import { CategoryError } from "@buscom/domain/product/categories";
 import { ForbiddenError } from "@/server/errors";
 import { createCategory, deleteCategory, updateCategory } from "@/server/products/categories";
 import { requireUser } from "@/server/session";

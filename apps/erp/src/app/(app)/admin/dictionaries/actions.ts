@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { discountLimitSchema, sellerRequisitesSchema, slaMinutesSchema } from "@/domain/settings";
-import { ADMIN_ROLES } from "@/domain/user/role";
+import { discountLimitSchema, sellerRequisitesSchema, slaMinutesSchema } from "@buscom/domain/settings";
+import { ADMIN_ROLES } from "@buscom/domain/user/role";
 import {
   addDictionaryItem,
   deleteDictionaryItem,

@@ -1,7 +1,7 @@
 import "server-only";
-import { normalizePhone } from "@/domain/customer/phone";
-import { hasCustomerRequisites, type CustomerRequisites } from "@/domain/customer/requisites";
-import { CUSTOMER_DELETE_ROLES, hasRole } from "@/domain/user/role";
+import { normalizePhone } from "@buscom/domain/customer/phone";
+import { hasCustomerRequisites, type CustomerRequisites } from "@buscom/domain/customer/requisites";
+import { CUSTOMER_DELETE_ROLES, hasRole } from "@buscom/domain/user/role";
 import { Prisma } from "@buscom/db/client";
 import type { CustomerType } from "@buscom/db/enums";
 import { db } from "@/server/db";

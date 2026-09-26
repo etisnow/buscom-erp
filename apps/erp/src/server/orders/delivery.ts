@@ -1,7 +1,7 @@
 import "server-only";
-import type { Kopecks } from "@/domain/money";
-import type { Cargo } from "@/domain/order/delivery";
-import { TERMINAL_STATUSES } from "@/domain/order/status";
+import type { Kopecks } from "@buscom/domain/money";
+import type { Cargo } from "@buscom/domain/order/delivery";
+import { TERMINAL_STATUSES } from "@buscom/domain/order/status";
 import type { DeliveryMethod } from "@buscom/db/enums";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";

@@ -1,7 +1,7 @@
 import "server-only";
-import type { Kopecks } from "@/domain/money";
-import { isAvitoUrl, parseAvitoPrice } from "@/domain/product/avito";
-import { comboLabel, enumerateCombos, type SupplierCombo } from "@/domain/product/option-matching";
+import type { Kopecks } from "@buscom/domain/money";
+import { isAvitoUrl, parseAvitoPrice } from "@buscom/domain/product/avito";
+import { comboLabel, enumerateCombos, type SupplierCombo } from "@buscom/domain/product/option-matching";
 import {
   checkSelection,
   isVanprojectUrl,
@@ -12,11 +12,11 @@ import {
   VANPROJECT_ACTION_URL,
   type VariantOption,
   type VariantSelection,
-} from "@/domain/product/vanproject";
+} from "@buscom/domain/product/vanproject";
 
 /**
  * Цена товара со страницы поставщика — для кнопки «Подтянуть цену» в карточке
- * товара. Разбор разметки живёт в `src/domain/product/*`, здесь только выбор
+ * товара. Разбор разметки живёт в `packages/domain/src/product/*`, здесь только выбор
  * сайта по ссылке и поход в сеть.
  *
  * Чего ждать: сайты не любят автоматические запросы (Авито отвечает то 403, то

@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
-import type { EmailTemplates } from "@/domain/email/templates";
-import { CANCEL_REASONS } from "@/domain/order/cancel-reasons";
+import type { EmailTemplates } from "@buscom/domain/email/templates";
+import { CANCEL_REASONS } from "@buscom/domain/order/cancel-reasons";
 import {
   DEFAULT_SETTINGS,
   parseSetting,
@@ -10,7 +10,7 @@ import {
   type ImapSettings,
   type SellerRequisites,
   type SmtpSettings,
-} from "@/domain/settings";
+} from "@buscom/domain/settings";
 import type { Prisma } from "@buscom/db/client";
 import type { DictionaryType, OrderSource, OrderStatus } from "@buscom/db/enums";
 import { db } from "@/server/db";

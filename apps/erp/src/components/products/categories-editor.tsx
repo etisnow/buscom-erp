@@ -11,7 +11,7 @@ import {
   CATEGORY_MAX_DEPTH,
   flattenCategoryTree,
   withDescendants,
-} from "@/domain/product/categories";
+} from "@buscom/domain/product/categories";
 import type { CategoryRow } from "@/server/products/categories";
 import {
   createCategoryAction,

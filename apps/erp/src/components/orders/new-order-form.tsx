@@ -12,10 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { formatPhone } from "@/domain/datetime";
-import { formatRub, rublesToKopecks } from "@/domain/money";
-import { DEFAULT_DISCOUNT_LIMIT_PERCENT, maxDiscountKopecks } from "@/domain/order/discount";
-import { describeOptions, type OrderItemOption } from "@/domain/product/options";
+import { formatPhone } from "@buscom/domain/datetime";
+import { formatRub, rublesToKopecks } from "@buscom/domain/money";
+import { DEFAULT_DISCOUNT_LIMIT_PERCENT, maxDiscountKopecks } from "@buscom/domain/order/discount";
+import { describeOptions, type OrderItemOption } from "@buscom/domain/product/options";
 import type { CustomerMatch } from "@/server/customers/lookup";
 import type { ProductSuggestion, ProductSupplierOption } from "@/server/products/search";
 import {
@@ -119,7 +119,7 @@ export function NewOrderForm({
   const grossKopecks = items.reduce((sum, item) => sum + item.priceKopecks * item.quantity, 0);
   const itemsDiscount = items.reduce((sum, item) => sum + item.discountKopecks, 0);
   const itemsTotal = grossKopecks - itemsDiscount;
-  // Доставка в сумму не входит: клиент платит транспортной компании сам (src/domain/order/totals.ts)
+  // Доставка в сумму не входит: клиент платит транспортной компании сам (packages/domain/src/order/totals.ts)
   const total = Math.max(0, itemsTotal - discountKopecks);
   const limit = maxDiscountKopecks(grossKopecks);
   const overLimit = itemsDiscount + discountKopecks > limit;

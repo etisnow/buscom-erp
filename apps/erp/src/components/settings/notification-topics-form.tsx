@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { GENERAL_TOPIC_GROUPS, supplierStageTopic } from "@/domain/notification/topics";
+import { GENERAL_TOPIC_GROUPS, supplierStageTopic } from "@buscom/domain/notification/topics";
 import { saveNotificationTopicsAction } from "@/app/(app)/settings/actions";
 
 type Supplier = { id: string; name: string; stages: { id: string; name: string }[] };

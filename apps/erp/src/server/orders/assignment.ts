@@ -1,6 +1,6 @@
 import "server-only";
-import { assertTransition } from "@/domain/order/status";
-import { canReassignManager } from "@/domain/order/editing";
+import { assertTransition } from "@buscom/domain/order/status";
+import { canReassignManager } from "@buscom/domain/order/editing";
 import { db } from "@/server/db";
 import {
   loadOrder,

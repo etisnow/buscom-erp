@@ -31,7 +31,7 @@ model User {
   isActive           Boolean   @default(true)
   /// Почта для уведомлений из личных настроек. null — не задана, уведомления идут на `email` входа
   notificationEmail  String?
-  /// На что подписан: ключи тем из src/domain/notification/topics.ts
+  /// На что подписан: ключи тем из packages/domain/src/notification/topics.ts
   notificationTopics String[]  @default([])
   /// Сообщения чата до этого момента прочитаны; null — чат ещё не открывал
   chatReadAt         DateTime?
@@ -205,7 +205,7 @@ model Product {
 }
 
 /// Категория товаров. Дерево: у подкатегории есть родитель («Климат» → «Люки»).
-/// Правила — src/domain/product/categories.ts. Категорию с товарами или
+/// Правила — packages/domain/src/product/categories.ts. Категорию с товарами или
 /// подкатегориями не удалить — её сначала освобождают.
 model ProductCategory {
   id              String            @id @default(cuid())
@@ -272,7 +272,7 @@ model ProductImage {
 }
 
 /// Группа опций товара: «Опора», «Ремень», «Выбор стекла». Покупатель выбирает
-/// в группе один вариант, его надбавка прибавляется к цене товара. Правила — src/domain/product/options.ts
+/// в группе один вариант, его надбавка прибавляется к цене товара. Правила — packages/domain/src/product/options.ts
 model ProductOption {
   id         String               @id @default(cuid())
   productId  String
@@ -332,19 +332,19 @@ model Supplier {
   updatedAt     DateTime     @updatedAt
 
   /// Включённые действия/артефакты для заказа с этим поставщиком — ключи из
-  /// фиксированного списка в src/domain/supplier/actions.ts. По умолчанию —
+  /// фиксированного списка в packages/domain/src/supplier/actions.ts. По умолчанию —
   /// «Заказ поставщику»: раньше это была единственная и обязательная функция,
   /// значение по умолчанию бэкфилит уже заведённых поставщиков тем же составом.
   enabledActions String[] @default(["SUPPLIER_REQUEST"])
 
   /// «Экономика цены»: шаги от номинала к стоимости закупки для нас и расходы
-  /// на заказ. Форма — `PriceFormula` в src/domain/supplier/price-economics.ts;
+  /// на заказ. Форма — `PriceFormula` в packages/domain/src/supplier/price-economics.ts;
   /// null — без надбавок, стоимость для нас равна номиналу
   priceFormula Json?
 
   /// «Комиссия с прибыли»: какую долю нашей прибыли по его товарам в заказе
   /// удерживает поставщик, сотые доли процента (2000 = 20%). 0 — не удерживает.
-  /// Расчёт — src/domain/order/margin.ts
+  /// Расчёт — packages/domain/src/order/margin.ts
   profitCommissionHundredths Int @default(0)
 
   stages     SupplierStage[]
@@ -384,7 +384,7 @@ model ProductSupplier {
   /// не разыскивая её заново. Своя у каждой пары товар–поставщик
   url                  String?
   /// Выбранные варианты товара на странице поставщика ({ category: "заднее", … }),
-  /// когда цена там зависит от выпадающих списков (src/domain/product/vanproject.ts).
+  /// когда цена там зависит от выпадающих списков (packages/domain/src/product/vanproject.ts).
   /// По ним «Подтянуть цену» спрашивает цену именно этого варианта
   variant              Json?
   updatedAt            DateTime @updatedAt
@@ -398,7 +398,7 @@ model ProductSupplier {
 
 /// Закупка варианта опции товара у поставщика. Закупка позиции в заказе — базовая
 /// закупка пары товар–поставщик плюс закупки выбранных вариантов, как цена продажи
-/// (src/domain/product/option-matching.ts). Живёт, пока живы и пара, и вариант
+/// (packages/domain/src/product/option-matching.ts). Живёт, пока живы и пара, и вариант
 model ProductSupplierOptionPrice {
   id                   String             @id @default(cuid())
   productId            String
@@ -418,7 +418,7 @@ model ProductSupplierOptionPrice {
 // Заказы
 // ---------------------------------------------------------------------------
 
-/// Переходы между статусами — только через src/domain/order/status.ts.
+/// Переходы между статусами — только через packages/domain/src/order/status.ts.
 /// Глобальных статусов четыре; промежуточные этапы — в цепочках поставщиков
 /// (docs/DECISIONS.md, «Статусная модель упрощена»)
 enum OrderStatus {
@@ -467,13 +467,13 @@ model Order {
   managerId  String?
   manager    User?    @relation("OrderManager", fields: [managerId], references: [id])
 
-  /// Итоги пересчитываются только на сервере из позиций (src/domain/order/totals.ts)
+  /// Итоги пересчитываются только на сервере из позиций (packages/domain/src/order/totals.ts)
   itemsTotalKopecks    Int @default(0)
   discountKopecks      Int @default(0)
   deliveryPriceKopecks Int @default(0)
   totalKopecks         Int @default(0)
   /// Сумма принятых платежей. Кэш для фильтра и сортировки по оплате: сам статус оплаты
-  /// не хранится, его считает src/domain/order/payment-status.ts из этой суммы и итога.
+  /// не хранится, его считает packages/domain/src/order/payment-status.ts из этой суммы и итога.
   paidKopecks          Int @default(0)
 
   deliveryMethod   DeliveryMethod?
@@ -541,7 +541,7 @@ model OrderItem {
   /// поставщика на тот же момент. Правка формулы старые заказы не меняет
   purchaseCostKopecks  Int?
   /// Снимок выбранных опций: [{ optionName, valueName, priceDeltaKopecks, valueId }].
-  /// Форма — `OrderItemOption` в src/domain/product/options.ts
+  /// Форма — `OrderItemOption` в packages/domain/src/product/options.ts
   options              Json?
 
   @@index([orderId])
@@ -570,7 +570,7 @@ model OrderSupplierTrack {
   @@index([supplierId])
 }
 
-/// Артефакт по действию из src/domain/supplier/actions.ts (сейчас — только
+/// Артефакт по действию из packages/domain/src/supplier/actions.ts (сейчас — только
 /// счёт поставщика, `kind: "SUPPLIER_INVOICE"`). Отдельно от `OrderSupplierTrack`
 /// намеренно: тот трек удаляется, когда позиций этого поставщика в заказе не
 /// осталось (syncSupplierTracks), а прикреплённый файл должен пережить это.
@@ -592,7 +592,7 @@ model OrderSupplierDocument {
 }
 
 /// Файл самого заказа, не поставщика: транспортная накладная и т.п. Вид — ключ
-/// из src/domain/order/order-document.ts; у заказа один активный файл каждого вида.
+/// из packages/domain/src/order/order-document.ts; у заказа один активный файл каждого вида.
 model OrderDocument {
   id          String   @id @default(cuid())
   orderId     String
@@ -793,7 +793,7 @@ model Email {
   subject    String
   /// Текст письма. У HTML-писем — текстовая версия, которую собирает mailparser
   body       String
-  /// Шаблон, которым написано исходящее: invoice / paid / shipped (src/domain/email/templates.ts)
+  /// Шаблон, которым написано исходящее: invoice / paid / shipped (packages/domain/src/email/templates.ts)
   template   String?
   /// Кто отправил исходящее
   userId     String?

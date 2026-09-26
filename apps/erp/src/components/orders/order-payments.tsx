@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatMoscowDate } from "@/domain/datetime";
-import { formatRub, rublesToKopecks } from "@/domain/money";
-import { PAYMENT_STATUS_LABELS, paymentStatus, remainingToPay } from "@/domain/order/payment-status";
+import { formatMoscowDate } from "@buscom/domain/datetime";
+import { formatRub, rublesToKopecks } from "@buscom/domain/money";
+import { PAYMENT_STATUS_LABELS, paymentStatus, remainingToPay } from "@buscom/domain/order/payment-status";
 import type { PaymentMethod } from "@buscom/db/enums";
 import { addPaymentAction } from "@/app/(app)/orders/[number]/actions";
 

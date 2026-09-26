@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { customerRequisitesSchema } from "@/domain/customer/requisites";
-import { priceFormulaSchema } from "@/domain/supplier/price-economics";
-import { SupplierStageError } from "@/domain/supplier/stages";
+import { customerRequisitesSchema } from "@buscom/domain/customer/requisites";
+import { priceFormulaSchema } from "@buscom/domain/supplier/price-economics";
+import { SupplierStageError } from "@buscom/domain/supplier/stages";
 import { ForbiddenError } from "@/server/errors";
 import {
   createSupplier,

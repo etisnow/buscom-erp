@@ -6,7 +6,7 @@
  *
  * Ключ повторного прогона — `product_id` сайта в `Product.externalId`: второй
  * прогон ничего не задвоит, а обновит товары по сайту. Правила переноса —
- * `src/server/products/site-import.ts` и `src/domain/product/site-catalog.ts`.
+ * `src/server/products/site-import.ts` и `packages/domain/src/product/site-catalog.ts`.
  */
 import "dotenv/config";
 import { readFileSync } from "node:fs";

@@ -6,7 +6,7 @@ import { OrderSearch } from "@/components/layout/order-search";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { ADMIN_SECTION_ROLES, ANALYTICS_ROLES, hasRole, roleLabel } from "@/domain/user/role";
+import { ADMIN_SECTION_ROLES, ANALYTICS_ROLES, hasRole, roleLabel } from "@buscom/domain/user/role";
 import { unreadChatCount } from "@/server/chat/service";
 import { unreadEmailCount } from "@/server/emails/service";
 import { requireUser } from "@/server/session";

@@ -4,8 +4,8 @@ import { createCanvas, loadImage, type Image } from "@napi-rs/canvas";
 import { createWorker } from "tesseract.js";
 import { extractText, getDocumentProxy, renderPageAsImage } from "unpdf";
 import { readBarcodes } from "zxing-wasm/reader";
-import { canManageOrderDocuments } from "@/domain/order/order-document";
-import { parseWaybill, type WaybillFields } from "@/domain/order/waybill-parse";
+import { canManageOrderDocuments } from "@buscom/domain/order/order-document";
+import { parseWaybill, type WaybillFields } from "@buscom/domain/order/waybill-parse";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import { getCarriers } from "@/server/settings/service";
@@ -16,7 +16,7 @@ import type { SessionUser } from "@/server/session";
  * PDF с текстовым слоем читается как есть; скан — картинкой через Tesseract
  * (русская модель из пакета `@tesseract.js-data/rus`, в сеть не ходит), плюс
  * штрихкоды через zxing — по ним сверяется номер. Разбор текста в поля —
- * `src/domain/order/waybill-parse.ts`.
+ * `packages/domain/src/order/waybill-parse.ts`.
  *
  * На сервере одно ядро и 1,5 ГБ памяти: распознаём строго по одному, воркер
  * Tesseract (~250 МБ) создаётся на запрос и сразу закрывается.

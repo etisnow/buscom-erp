@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { hasRole, MAILBOX_ROLES } from "@/domain/user/role";
+import { hasRole, MAILBOX_ROLES } from "@buscom/domain/user/role";
 import { downloadLetterPart } from "@/server/emails/mailbox-browser";
 import { getSessionUser } from "@/server/session";
 

@@ -5,7 +5,7 @@ import {
   normalizeCategoryName,
   withDescendants,
   type CategoryNode,
-} from "@/domain/product/categories";
+} from "@buscom/domain/product/categories";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import type { Tx } from "@/server/orders/internal";

@@ -12,19 +12,19 @@ import { OrderItems } from "@/components/orders/order-items";
 import { OrderMarginBlock } from "@/components/orders/order-margin";
 import { OrderPayments } from "@/components/orders/order-payments";
 import { SupplierTracks } from "@/components/orders/supplier-tracks";
-import { parseCustomerRequisites } from "@/domain/customer/requisites";
-import { toDateInput } from "@/domain/datetime";
-import { canEditItems, canReassignManager } from "@/domain/order/editing";
-import { calculateOrderMargin } from "@/domain/order/margin";
-import { canChangeOrderSource, orderSourceLabel } from "@/domain/order/source";
-import { TERMINAL_STATUSES } from "@/domain/order/status";
-import { buildSupplierRequest } from "@/domain/order/supplier-request";
-import { canManageOrderDocuments } from "@/domain/order/order-document";
-import { canManageSupplierDocuments } from "@/domain/order/supplier-document";
-import { parseOrderItemOptions } from "@/domain/product/options";
-import { hasSupplierAction } from "@/domain/supplier/actions";
-import { parsePriceFormula, unitCostFor } from "@/domain/supplier/price-economics";
-import { canMoveStages } from "@/domain/supplier/stages";
+import { parseCustomerRequisites } from "@buscom/domain/customer/requisites";
+import { toDateInput } from "@buscom/domain/datetime";
+import { canEditItems, canReassignManager } from "@buscom/domain/order/editing";
+import { calculateOrderMargin } from "@buscom/domain/order/margin";
+import { canChangeOrderSource, orderSourceLabel } from "@buscom/domain/order/source";
+import { TERMINAL_STATUSES } from "@buscom/domain/order/status";
+import { buildSupplierRequest } from "@buscom/domain/order/supplier-request";
+import { canManageOrderDocuments } from "@buscom/domain/order/order-document";
+import { canManageSupplierDocuments } from "@buscom/domain/order/supplier-document";
+import { parseOrderItemOptions } from "@buscom/domain/product/options";
+import { hasSupplierAction } from "@buscom/domain/supplier/actions";
+import { parsePriceFormula, unitCostFor } from "@buscom/domain/supplier/price-economics";
+import { canMoveStages } from "@buscom/domain/supplier/stages";
 import { findOrderByNumber } from "@/server/orders/details";
 import { listManagers } from "@/server/orders/list";
 import { listCategories } from "@/server/products/categories";
@@ -33,14 +33,14 @@ import { canEditCatalog } from "@/server/products/service";
 import { getCancelReasons, getCarModels, getCarriers, getOrderSources } from "@/server/settings/service";
 import { requirePageUser } from "@/server/session";
 import { OrderEmails } from "@/components/emails/order-emails";
-import { replySubject, suggestedTemplates } from "@/domain/email/letters";
+import { replySubject, suggestedTemplates } from "@buscom/domain/email/letters";
 import {
   clientOrderNumber,
   EMAIL_TEMPLATE_KEYS,
   renderEmailTemplate,
   templateVariables,
-} from "@/domain/email/templates";
-import { requisitesReady } from "@/domain/settings";
+} from "@buscom/domain/email/templates";
+import { requisitesReady } from "@buscom/domain/settings";
 import { recentCustomerEmails, sentTemplates } from "@/server/emails/service";
 import { mailConfigured } from "@/server/mail";
 import { getSettings } from "@/server/settings/service";

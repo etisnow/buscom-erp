@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { planSiteSeo, type OldSnapshotRow, type SeoPlan } from "@/domain/site/seo-import";
+import { planSiteSeo, type OldSnapshotRow, type SeoPlan } from "@buscom/domain/site/seo-import";
 import { db } from "@/server/db";
 
 /**

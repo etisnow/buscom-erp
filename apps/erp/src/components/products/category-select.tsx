@@ -1,7 +1,7 @@
 "use client";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { buildCategoryTree, flattenCategoryTree, type CategoryNode } from "@/domain/product/categories";
+import { buildCategoryTree, flattenCategoryTree, type CategoryNode } from "@buscom/domain/product/categories";
 
 const EMPTY = "__empty__";
 

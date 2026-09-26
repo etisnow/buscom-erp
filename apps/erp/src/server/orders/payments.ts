@@ -1,6 +1,6 @@
 import "server-only";
-import type { Kopecks } from "@/domain/money";
-import { paymentStatus } from "@/domain/order/payment-status";
+import type { Kopecks } from "@buscom/domain/money";
+import { paymentStatus } from "@buscom/domain/order/payment-status";
 import type { PaymentMethod } from "@buscom/db/enums";
 import { db } from "@/server/db";
 import {
@@ -25,7 +25,7 @@ export type AddPaymentInput = {
 
 /**
  * Отметка оплаты. Статус заказа она не меняет: статуса «Оплачен» больше нет,
- * степень оплаты считается из суммы платежей (src/domain/order/payment-status.ts).
+ * степень оплаты считается из суммы платежей (packages/domain/src/order/payment-status.ts).
  */
 export async function addPayment(input: AddPaymentInput): Promise<OrderWithItems> {
   if (!Number.isSafeInteger(input.amountKopecks) || input.amountKopecks <= 0) {

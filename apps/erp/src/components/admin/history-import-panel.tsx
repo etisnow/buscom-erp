@@ -4,8 +4,8 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { formatMoscowDate, formatMoscowDateTime } from "@/domain/datetime";
-import { HISTORY_YEARS, type HistoryFolder } from "@/domain/email/history";
+import { formatMoscowDate, formatMoscowDateTime } from "@buscom/domain/datetime";
+import { HISTORY_YEARS, type HistoryFolder } from "@buscom/domain/email/history";
 import type { HistoryImportState } from "@/server/emails/history-import";
 import {
   historyFoldersAction,

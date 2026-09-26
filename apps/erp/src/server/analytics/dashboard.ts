@@ -1,5 +1,5 @@
 import "server-only";
-import type { Period } from "@/domain/analytics/period";
+import type { Period } from "@buscom/domain/analytics/period";
 import {
   revenueSeries,
   summarizeCompleted,
@@ -8,10 +8,10 @@ import {
   type CompletedSummary,
   type SeriesPoint,
   type TopProduct,
-} from "@/domain/analytics/summary";
-import type { Kopecks } from "@/domain/money";
-import { ORDER_STATUSES } from "@/domain/order/status";
-import { ANALYTICS_ROLES, hasRole } from "@/domain/user/role";
+} from "@buscom/domain/analytics/summary";
+import type { Kopecks } from "@buscom/domain/money";
+import { ORDER_STATUSES } from "@buscom/domain/order/status";
+import { ANALYTICS_ROLES, hasRole } from "@buscom/domain/user/role";
 import type { OrderStatus } from "@buscom/db/enums";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";

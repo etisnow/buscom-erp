@@ -1,11 +1,11 @@
 import { Fragment } from "react";
-import { formatRub } from "@/domain/money";
-import type { OrderMargin } from "@/domain/order/margin";
-import { formatPercent } from "@/domain/supplier/price-economics";
+import { formatRub } from "@buscom/domain/money";
+import type { OrderMargin } from "@buscom/domain/order/margin";
+import { formatPercent } from "@buscom/domain/supplier/price-economics";
 import { cn } from "@/lib/utils";
 
 /**
- * Маржа заказа по сохранённым снимкам закупки (`src/domain/order/margin.ts`).
+ * Маржа заказа по сохранённым снимкам закупки (`packages/domain/src/order/margin.ts`).
  * Несохранённые правки позиций сюда не попадают — блок обновится после сохранения.
  */
 export function OrderMarginBlock({ margin, orderCostsKopecks }: { margin: OrderMargin; orderCostsKopecks: number }) {

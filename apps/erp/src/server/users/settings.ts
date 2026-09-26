@@ -1,5 +1,5 @@
 import "server-only";
-import { filterKnownTopics } from "@/domain/notification/topics";
+import { filterKnownTopics } from "@buscom/domain/notification/topics";
 import { db } from "@/server/db";
 
 export type UserSettings = {

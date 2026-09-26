@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatRub, rublesToKopecks } from "@/domain/money";
+import { formatRub, rublesToKopecks } from "@buscom/domain/money";
 import {
   buildOptionSnapshot,
   priceWithOptions,
   type OptionGroup,
   type OrderItemOption,
-} from "@/domain/product/options";
+} from "@buscom/domain/product/options";
 
 /** Что нужно окну от каталога: базовая цена и группы опций товара. */
 export type ItemCatalog = { priceKopecks: number; options: OptionGroup[] };

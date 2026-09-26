@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { ProductOptionsChooser, type OptionsSelection } from "@/components/orders/product-options-chooser";
 import { Input } from "@/components/ui/input";
-import { formatRub } from "@/domain/money";
+import { formatRub } from "@buscom/domain/money";
 import { searchProductsAction } from "@/app/(app)/orders/[number]/actions";
 import type { ProductSuggestion } from "@/server/products/search";
 

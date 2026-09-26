@@ -8,7 +8,7 @@ export type SupplierDocumentView = DocumentView;
 /**
  * Загрузчик артефакта по поставщику (счёт и т.п.) — виден в заказе, только
  * когда у поставщика включено соответствующее действие
- * (`src/domain/supplier/actions.ts`, раздел «Действия и артефакты» в его карточке).
+ * (`packages/domain/src/supplier/actions.ts`, раздел «Действия и артефакты» в его карточке).
  */
 export function SupplierDocumentUpload({
   orderId,

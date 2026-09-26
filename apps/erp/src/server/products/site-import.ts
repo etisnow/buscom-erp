@@ -1,8 +1,8 @@
 import "server-only";
 import { z } from "zod";
-import type { OptionGroupDraft } from "@/domain/product/options";
-import { categoryPath } from "@/domain/product/categories";
-import { assignSkus, uniqueOptionNames, type SiteOptionGroup } from "@/domain/product/site-catalog";
+import type { OptionGroupDraft } from "@buscom/domain/product/options";
+import { categoryPath } from "@buscom/domain/product/categories";
+import { assignSkus, uniqueOptionNames, type SiteOptionGroup } from "@buscom/domain/product/site-catalog";
 import { db } from "@/server/db";
 import { resolveCategoryPath } from "@/server/products/categories";
 import { replaceProductOptions } from "@/server/products/service";

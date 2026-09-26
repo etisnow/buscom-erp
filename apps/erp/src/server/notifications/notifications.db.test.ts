@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { orderCreatedTopic, paymentStatusTopic, supplierStageTopic } from "@/domain/notification/topics";
+import { orderCreatedTopic, paymentStatusTopic, supplierStageTopic } from "@buscom/domain/notification/topics";
 import { dispatchNotifications, MAX_ATTEMPTS } from "@/server/notifications/dispatch";
 import { createOrder } from "@/server/orders/create";
 import { updateOrderItems } from "@/server/orders/items";

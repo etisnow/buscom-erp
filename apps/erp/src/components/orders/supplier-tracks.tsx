@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { SupplierDocumentUpload, type SupplierDocumentView } from "@/components/orders/supplier-document-upload";
 import { SupplierRequestDialog } from "@/components/orders/supplier-request-dialog";
-import { hasSupplierAction } from "@/domain/supplier/actions";
+import { hasSupplierAction } from "@buscom/domain/supplier/actions";
 import { cn } from "@/lib/utils";
 import { changeSupplierStageAction } from "@/app/(app)/orders/[number]/actions";
 

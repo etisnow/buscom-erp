@@ -6,7 +6,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hashPassword } from "better-auth/crypto";
-import { CANCEL_REASONS } from "../src/domain/order/cancel-reasons";
+import { CANCEL_REASONS } from "@buscom/domain/order/cancel-reasons";
 import { z } from "zod";
 import { PrismaClient } from "@buscom/db/client";
 

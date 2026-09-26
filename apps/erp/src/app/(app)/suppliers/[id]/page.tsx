@@ -7,10 +7,10 @@ import { ProfitCommissionEditor } from "@/components/suppliers/profit-commission
 import { SupplierActionsEditor } from "@/components/suppliers/supplier-actions-editor";
 import { DeleteSupplier, SupplierForm, SupplierStages } from "@/components/suppliers/supplier-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { parseCustomerRequisites } from "@/domain/customer/requisites";
-import { formatRub } from "@/domain/money";
-import { calculateUnitCost, parsePriceFormula } from "@/domain/supplier/price-economics";
-import { hasRole, SUPPLIER_DELETE_ROLES } from "@/domain/user/role";
+import { parseCustomerRequisites } from "@buscom/domain/customer/requisites";
+import { formatRub } from "@buscom/domain/money";
+import { calculateUnitCost, parsePriceFormula } from "@buscom/domain/supplier/price-economics";
+import { hasRole, SUPPLIER_DELETE_ROLES } from "@buscom/domain/user/role";
 import { findSupplier } from "@/server/suppliers/list";
 import { canEditSuppliers } from "@/server/suppliers/service";
 import { requirePageUser } from "@/server/session";

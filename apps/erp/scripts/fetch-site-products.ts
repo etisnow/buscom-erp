@@ -10,7 +10,7 @@
  * файлу повторяется сколько угодно раз.
  *
  * Обход вежливый: запросы по одному с паузой, чтобы не нагружать магазин.
- * Разбор страниц — `src/domain/product/site-catalog.ts`.
+ * Разбор страниц — `packages/domain/src/product/site-catalog.ts`.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
@@ -23,7 +23,7 @@ import {
   productKeyFromUrl,
   type SiteCategory,
   type SiteProduct,
-} from "../src/domain/product/site-catalog";
+} from "@buscom/domain/product/site-catalog";
 
 const SITE = "https://bus-com.ru";
 const PAUSE_MS = 300;

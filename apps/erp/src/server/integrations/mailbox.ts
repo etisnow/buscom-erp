@@ -4,10 +4,10 @@ import { simpleParser, type AddressObject, type ParsedMail } from "mailparser";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { env } from "@/server/env";
-import { imapConfigured, type ImapSettings } from "@/domain/settings";
+import { imapConfigured, type ImapSettings } from "@buscom/domain/settings";
 import { readSettings } from "@/server/settings/service";
-import type { MailFolder } from "@/domain/email/folders";
-import { normalizeEmailAddress, referencedMessageIds } from "@/domain/email/letters";
+import type { MailFolder } from "@buscom/domain/email/folders";
+import { normalizeEmailAddress, referencedMessageIds } from "@buscom/domain/email/letters";
 import { ingestClientEmail, ingestSentEmail, type IncomingEmail } from "@/server/emails/service";
 import { ingestSiteEmail, type StoredEmail } from "@/server/integrations/site-email";
 

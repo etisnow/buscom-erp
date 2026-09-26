@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { UsersTable } from "@/components/admin/users-table";
-import { ADMIN_ROLES } from "@/domain/user/role";
+import { ADMIN_ROLES } from "@buscom/domain/user/role";
 import { listUsers } from "@/server/users/service";
 import { requirePageUser } from "@/server/session";
 

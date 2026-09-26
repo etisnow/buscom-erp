@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { checkInn } from "@/domain/customer/company-lookup";
-import { customerRequisitesSchema } from "@/domain/customer/requisites";
+import { checkInn } from "@buscom/domain/customer/company-lookup";
+import { customerRequisitesSchema } from "@buscom/domain/customer/requisites";
 import { ForbiddenError } from "@/server/errors";
 import { findCompanyByInn, type CompanyLookupResult } from "@/server/customers/company-lookup";
 import { lookupCustomers, type CustomerMatch } from "@/server/customers/lookup";

@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from "vitest";
-import { OrderEditError } from "@/domain/order/editing";
+import { OrderEditError } from "@buscom/domain/order/editing";
 import { createOrder } from "@/server/orders/create";
 import { changeOrderSource, resolveSystemSource } from "@/server/orders/source";
 import type { SessionUser } from "@/server/session";

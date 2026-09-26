@@ -4,13 +4,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatRub } from "@/domain/money";
+import { formatRub } from "@buscom/domain/money";
 import {
   buildOptionSnapshot,
   priceWithOptions,
   type OptionGroup,
   type OrderItemOption,
-} from "@/domain/product/options";
+} from "@buscom/domain/product/options";
 import type { ProductSuggestion } from "@/server/products/search";
 
 export type OptionsSelection = {

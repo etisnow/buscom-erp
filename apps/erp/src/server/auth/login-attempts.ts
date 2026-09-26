@@ -3,13 +3,13 @@ import {
   evaluateFailedLogins,
   FAILED_LOGIN_WINDOW_MINUTES,
   type LoginThrottleState,
-} from "@/domain/auth/login-throttle";
+} from "@buscom/domain/auth/login-throttle";
 import { db } from "@/server/db";
 
 /**
  * Счётчик неудачных попыток входа (PRD, M8).
  *
- * Правило считает домен (`src/domain/auth/login-throttle.ts`), здесь только хранение:
+ * Правило считает домен (`packages/domain/src/auth/login-throttle.ts`), здесь только хранение:
  * строка на каждую неудачу, успешный вход их стирает. Ключ — email, потому что PRD
  * ограничивает подбор пароля к учётной записи; лимитер Better Auth по адресу
  * остаётся защитой от флуда.

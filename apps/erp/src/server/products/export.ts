@@ -1,7 +1,7 @@
 import "server-only";
-import { categoryPath } from "@/domain/product/categories";
-import { csvFileName, EXPORT_LIMIT, toCsv } from "@/domain/csv";
-import { formatRubPlain } from "@/domain/money";
+import { categoryPath } from "@buscom/domain/product/categories";
+import { csvFileName, EXPORT_LIMIT, toCsv } from "@buscom/domain/csv";
+import { formatRubPlain } from "@buscom/domain/money";
 import { db } from "@/server/db";
 import { productsWhere, type ProductFilters } from "@/server/products/list";
 

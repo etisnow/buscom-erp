@@ -29,7 +29,7 @@ Next 16 и Prisma 7 новее, чем твои знания: перед код�
 ```bash
 pnpm dev                # dev-сервер ERP на :3000
 pnpm check              # format:check + typecheck + lint + test во всех пакетах — прогоняй перед «готово»
-pnpm erp test src/domain/order/status.test.ts   # одиночный файл
+pnpm --filter @buscom/domain test src/order/status.test.ts   # одиночный файл (так же `pnpm erp test …`)
 pnpm format             # prettier
 pnpm db:tunnel          # SSH-туннель до общей dev-базы — нужен всё время, пока идёт работа (docs/DEV-DB.md)
 pnpm erp db:up          # Postgres в Docker (docker-compose.yml) — запасная локальная база
@@ -48,22 +48,22 @@ apps/erp/       ERP (erp.bus-com.ru). Всё, что ниже, — внутри 
 src/
   app/          страницы, layout, route handlers (api/). Тонкий слой: вызывает server/
   server/       серверные сервисы, доступ к БД, авторизация, проверка прав. Всё с `import "server-only"`
-  domain/       чистая бизнес-логика без БД и Next: статусы, деньги, итоги, нормализация. Покрыта тестами
 scripts/        импорт, выгрузки, снимок старого сайта (tsx)
 ---
 apps/site/      сайт bus-com.ru — в работе (docs/SITE-PLAN.md)
+packages/domain/ чистая бизнес-логика без БД и Next: статусы, деньги, итоги, нормализация (`@buscom/domain/<путь>`). Покрыта тестами
 packages/db/    схема Prisma, миграции, сгенерированный клиент (`@buscom/db/client`, `@buscom/db/enums`) — не редактировать, не коммитить src/generated
 docs/           PRD и прочие документы (в корне)
 scripts/        серверные скрипты и туннель (в корне)
 ```
 
-Зависимости только сверху вниз: `app → server → domain`. `domain/` не импортирует ни Prisma Client, ни Next (типы enum из `@buscom/db/enums` — можно).
+Зависимости только сверху вниз: `app → server → @buscom/domain`. Домен не импортирует ни Prisma Client, ни Next, ни код приложений (типы enum из `@buscom/db/enums` — можно); внутри пакета импорты относительные.
 
 ## Правила предметной области
 
-- **Деньги — целые копейки** (`Int`, поля `*Kopecks`, тип `Kopecks` из `src/domain/money.ts`). Никаких float-рублей в расчётах и в БД; рубли только в UI через `formatRub` / `rublesToKopecks`.
+- **Деньги — целые копейки** (`Int`, поля `*Kopecks`, тип `Kopecks` из `packages/domain/src/money.ts`). Никаких float-рублей в расчётах и в БД; рубли только в UI через `formatRub` / `rublesToKopecks`.
 - **Итоги заказа считает сервер** через `calculateOrderTotals`. Суммы с клиента не принимаются.
-- **Статус заказа меняется только через `assertTransition`** (`src/domain/order/status.ts`). Новый статус или переход — сначала туда + тест, потом UI.
+- **Статус заказа меняется только через `assertTransition`** (`packages/domain/src/order/status.ts`). Новый статус или переход — сначала туда + тест, потом UI.
 - **Каждое изменение заказа пишет `OrderEvent`** в той же транзакции (`db.$transaction`). Это и история в карточке, и аудит.
 - **Позиция заказа хранит снимок** sku/name/price — не ссылайся на текущую цену товара при показе старых заказов.
 - **Заказы не удаляются физически** — только `deletedAt`.

@@ -17,8 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatMoscowDate } from "@/domain/datetime";
-import { ROLE_LABELS } from "@/domain/user/role";
+import { formatMoscowDate } from "@buscom/domain/datetime";
+import { ROLE_LABELS } from "@buscom/domain/user/role";
 import type { UserRole } from "@buscom/db/enums";
 import type { UserRow } from "@/server/users/service";
 import {

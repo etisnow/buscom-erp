@@ -5,9 +5,9 @@ import {
   normalizeEmailAddress,
   normalizeMessageId,
   orderNumberFromSubject,
-} from "@/domain/email/letters";
-import { EMAIL_TEMPLATE_KEYS, type EmailTemplateKey } from "@/domain/email/templates";
-import { requisitesReady } from "@/domain/settings";
+} from "@buscom/domain/email/letters";
+import { EMAIL_TEMPLATE_KEYS, type EmailTemplateKey } from "@buscom/domain/email/templates";
+import { requisitesReady } from "@buscom/domain/settings";
 import type { Prisma } from "@buscom/db/client";
 import { buildInvoice } from "@/server/documents/invoice";
 import { renderPdf } from "@/server/documents/pdf";
@@ -15,7 +15,7 @@ import { db } from "@/server/db";
 import { sendClientLetter, senderAddress } from "@/server/mail";
 import { findOrderByNumber } from "@/server/orders/details";
 import { OrderConflictError, OrderNotFoundError, writeOrderEvent } from "@/server/orders/internal";
-import { normalizePhone } from "@/domain/customer/phone";
+import { normalizePhone } from "@buscom/domain/customer/phone";
 import { readSettings } from "@/server/settings/service";
 import type { SessionUser } from "@/server/session";
 

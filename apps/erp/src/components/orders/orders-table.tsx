@@ -2,10 +2,10 @@ import Link from "next/link";
 import { OrderRowLink } from "@/components/orders/order-row-link";
 import { OrderStatusBadge, PaymentBadge } from "@/components/orders/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatMoscowDate, formatMoscowDateTime, formatPhone } from "@/domain/datetime";
-import { formatRub } from "@/domain/money";
-import { formatWorkingMinutes, SLA_ENABLED, workingMinutesBetween } from "@/domain/sla";
-import { isTrackComplete } from "@/domain/supplier/stages";
+import { formatMoscowDate, formatMoscowDateTime, formatPhone } from "@buscom/domain/datetime";
+import { formatRub } from "@buscom/domain/money";
+import { formatWorkingMinutes, SLA_ENABLED, workingMinutesBetween } from "@buscom/domain/sla";
+import { isTrackComplete } from "@buscom/domain/supplier/stages";
 import { cn } from "@/lib/utils";
 import type { OrderListRow } from "@/server/orders/list";
 

@@ -6,14 +6,14 @@
  *
  * Файл ждём в том виде, в каком его отдаёт прежняя ERP: CSV, разделитель `;`,
  * кодировка cp1251 (для UTF-8 — `--encoding=utf8`). Разбор колонок и решения по
- * полям — `src/domain/customer/legacy-import.ts` и `docs/STATUS.md`.
+ * полям — `packages/domain/src/customer/legacy-import.ts` и `docs/STATUS.md`.
  *
  * Сначала `--dry-run`: он ничего не пишет, только считает, что получится.
  * Выгрузка содержит персональные данные — файл держим в `misc`, она в `.gitignore`.
  */
 import "dotenv/config";
 import { readFileSync } from "node:fs";
-import { parseCsvRows } from "../src/domain/csv";
+import { parseCsvRows } from "@buscom/domain/csv";
 import { importLegacyCustomers } from "../src/server/customers/import";
 import { db } from "../src/server/db";
 

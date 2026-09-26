@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
-import { parseAddressList } from "@/domain/email/letters";
-import { EMAIL_TEMPLATE_KEYS } from "@/domain/email/templates";
+import { parseAddressList } from "@buscom/domain/email/letters";
+import { EMAIL_TEMPLATE_KEYS } from "@buscom/domain/email/templates";
 import {
   EmailNotFoundError,
   linkEmailToCustomer,
@@ -13,7 +13,7 @@ import {
   searchCustomersForEmail,
   sendOrderEmail,
 } from "@/server/emails/service";
-import { MAILBOX_ROLES } from "@/domain/user/role";
+import { MAILBOX_ROLES } from "@buscom/domain/user/role";
 import {
   addLetterToCorrespondence,
   MailboxUnavailableError,

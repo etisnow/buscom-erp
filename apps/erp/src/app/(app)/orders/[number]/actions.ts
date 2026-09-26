@@ -2,17 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { parseDateInput } from "@/domain/datetime";
-import { MAX_CARGO_SIDE_CM, MAX_CARGO_WEIGHT_GRAMS } from "@/domain/order/delivery";
-import { DiscountLimitError } from "@/domain/order/discount";
-import { OrderEditError } from "@/domain/order/editing";
-import { OrderTransitionError } from "@/domain/order/status";
-import { isOrderDocumentKind } from "@/domain/order/order-document";
-import { SupplierDocumentError } from "@/domain/order/supplier-document";
-import type { WaybillFields } from "@/domain/order/waybill-parse";
-import { ProductOptionError } from "@/domain/product/options";
-import { isSupplierActionKey } from "@/domain/supplier/actions";
-import { SupplierStageError } from "@/domain/supplier/stages";
+import { parseDateInput } from "@buscom/domain/datetime";
+import { MAX_CARGO_SIDE_CM, MAX_CARGO_WEIGHT_GRAMS } from "@buscom/domain/order/delivery";
+import { DiscountLimitError } from "@buscom/domain/order/discount";
+import { OrderEditError } from "@buscom/domain/order/editing";
+import { OrderTransitionError } from "@buscom/domain/order/status";
+import { isOrderDocumentKind } from "@buscom/domain/order/order-document";
+import { SupplierDocumentError } from "@buscom/domain/order/supplier-document";
+import type { WaybillFields } from "@buscom/domain/order/waybill-parse";
+import { ProductOptionError } from "@buscom/domain/product/options";
+import { isSupplierActionKey } from "@buscom/domain/supplier/actions";
+import { SupplierStageError } from "@buscom/domain/supplier/stages";
 import { ForbiddenError } from "@/server/errors";
 import { assignManager, takeOrder } from "@/server/orders/assignment";
 import { addOrderComment } from "@/server/orders/comments";

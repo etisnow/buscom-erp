@@ -1,9 +1,9 @@
 "use client";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatRub } from "@/domain/money";
-import { purchaseWithOptions } from "@/domain/product/option-matching";
-import { calculateUnitCost } from "@/domain/supplier/price-economics";
+import { formatRub } from "@buscom/domain/money";
+import { purchaseWithOptions } from "@buscom/domain/product/option-matching";
+import { calculateUnitCost } from "@buscom/domain/supplier/price-economics";
 import type { ProductSupplierOption } from "@/server/products/search";
 
 const NO_SUPPLIER = "__none__";

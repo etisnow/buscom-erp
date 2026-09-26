@@ -1,6 +1,6 @@
 import "server-only";
-import { normalizePhone } from "@/domain/customer/phone";
-import { SLA_ENABLED } from "@/domain/sla";
+import { normalizePhone } from "@buscom/domain/customer/phone";
+import { SLA_ENABLED } from "@buscom/domain/sla";
 import type { Prisma } from "@buscom/db/client";
 import type { OrderStatus } from "@buscom/db/enums";
 import { db } from "@/server/db";

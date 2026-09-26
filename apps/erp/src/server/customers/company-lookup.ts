@@ -1,10 +1,10 @@
 import "server-only";
-import { parseDadataParty, type CompanyInfo } from "@/domain/customer/company-lookup";
+import { parseDadataParty, type CompanyInfo } from "@buscom/domain/customer/company-lookup";
 import { env } from "@/server/env";
 
 /**
  * Данные юрлица или ИП по ИНН из DaData (`findById/party`). Разбор ответа —
- * в `src/domain/customer/company-lookup.ts`, здесь только поход в сеть.
+ * в `packages/domain/src/customer/company-lookup.ts`, здесь только поход в сеть.
  *
  * Любой неуспех — понятный текст для менеджера, а не исключение: реквизиты
  * всегда можно вписать руками, кнопка лишь экономит время.

@@ -1,5 +1,5 @@
 import "server-only";
-import { assertTransition } from "@/domain/order/status";
+import { assertTransition } from "@buscom/domain/order/status";
 import { getSettings } from "@/server/settings/service";
 import type { OrderStatus } from "@buscom/db/enums";
 import { db } from "@/server/db";

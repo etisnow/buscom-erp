@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { MailboxFolderNav, MailNav } from "@/components/emails/mail-nav";
-import { buildFolderTree, flattenFolderTree, SPECIAL_FOLDER_LABELS } from "@/domain/email/folders";
-import { hasRole, MAILBOX_ROLES } from "@/domain/user/role";
+import { buildFolderTree, flattenFolderTree, SPECIAL_FOLDER_LABELS } from "@buscom/domain/email/folders";
+import { hasRole, MAILBOX_ROLES } from "@buscom/domain/user/role";
 import { mailboxFolders } from "@/server/emails/mailbox-browser";
 import { mailboxCounts } from "@/server/emails/service";
 import { resolveMailbox } from "@/server/integrations/mailbox";

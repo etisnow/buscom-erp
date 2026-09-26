@@ -1,10 +1,10 @@
 import "server-only";
-import { normalizePhone } from "@/domain/customer/phone";
-import { hasCustomerRequisites, type CustomerRequisites } from "@/domain/customer/requisites";
-import { normalizeEnabledActions } from "@/domain/supplier/actions";
-import { isEmptyPriceFormula, type PriceFormula } from "@/domain/supplier/price-economics";
-import { normalizeStageNames, SupplierStageError } from "@/domain/supplier/stages";
-import { hasRole, SUPPLIER_DELETE_ROLES, SUPPLIER_EDIT_ROLES } from "@/domain/user/role";
+import { normalizePhone } from "@buscom/domain/customer/phone";
+import { hasCustomerRequisites, type CustomerRequisites } from "@buscom/domain/customer/requisites";
+import { normalizeEnabledActions } from "@buscom/domain/supplier/actions";
+import { isEmptyPriceFormula, type PriceFormula } from "@buscom/domain/supplier/price-economics";
+import { normalizeStageNames, SupplierStageError } from "@buscom/domain/supplier/stages";
+import { hasRole, SUPPLIER_DELETE_ROLES, SUPPLIER_EDIT_ROLES } from "@buscom/domain/user/role";
 import { Prisma } from "@buscom/db/client";
 import type { CustomerType } from "@buscom/db/enums";
 import { db } from "@/server/db";
@@ -118,7 +118,7 @@ export async function setSupplierStages(supplierId: string, stages: StageDraft[]
 }
 
 /**
- * Действия и артефакты, включённые у поставщика (`src/domain/supplier/actions.ts`) —
+ * Действия и артефакты, включённые у поставщика (`packages/domain/src/supplier/actions.ts`) —
  * какие кнопки и загрузчики файлов видны у него в заказе. Отдельно от
  * основной формы (как цепочка этапов): свой чекбокс, своё сохранение.
  */

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { emailTemplatesSchema } from "@/domain/email/templates";
+import { emailTemplatesSchema } from "@buscom/domain/email/templates";
 import {
   imapConfigured,
   imapSettingsSchema,
@@ -10,10 +10,10 @@ import {
   mergeSmtpSettings,
   smtpConfigured,
   smtpSettingsSchema,
-} from "@/domain/settings";
-import { ADMIN_ROLES } from "@/domain/user/role";
-import type { MailFolder } from "@/domain/email/folders";
-import { defaultHistoryFolders, type HistoryFolder } from "@/domain/email/history";
+} from "@buscom/domain/settings";
+import { ADMIN_ROLES } from "@buscom/domain/user/role";
+import type { MailFolder } from "@buscom/domain/email/folders";
+import { defaultHistoryFolders, type HistoryFolder } from "@buscom/domain/email/history";
 import { resumeHistoryImport, startHistoryImport } from "@/server/emails/history-import";
 import { listMailboxFolders, resolveMailbox, testMailboxConnection } from "@/server/integrations/mailbox";
 import { OrderConflictError } from "@/server/orders/internal";

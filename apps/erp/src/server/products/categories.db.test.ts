@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from "vitest";
-import { CategoryError } from "@/domain/product/categories";
+import { CategoryError } from "@buscom/domain/product/categories";
 import { createCategory, deleteCategory, resolveCategoryPath, updateCategory } from "@/server/products/categories";
 import type { SessionUser } from "@/server/session";
 import { describeDb, resetDb, testDb } from "@/test/db";

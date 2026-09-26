@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { companyStatusWarning, type CompanyInfo } from "@/domain/customer/company-lookup";
+import { companyStatusWarning, type CompanyInfo } from "@buscom/domain/customer/company-lookup";
 import { lookupCompanyAction } from "@/app/(app)/customers/actions";
 
 /**

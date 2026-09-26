@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: ROOT,
   turbopack: { root: ROOT },
   // Общие пакеты монорепозитория — исходники на TypeScript, их собирает Next
-  transpilePackages: ["@buscom/db"],
+  transpilePackages: ["@buscom/db", "@buscom/domain"],
   // pdfmake читает свои шрифты (Roboto с кириллицей) с диска по пути внутри
   // собственного пакета. Из бандла этот путь не восстановить: в standalone-сборке
   // pnpm держит пакет в node_modules/.pnpm/…, верхнеуровневой записи нет, и
@@ -58,7 +58,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       // Файлы уходят в Server Action целиком. Самый крупный — документ заказа
       // (накладная, счёт поставщика): до 15 МБ (MAX_DOCUMENT_BYTES в
-      // src/domain/order/supplier-document.ts), сверху запас на обёртку формы.
+      // packages/domain/src/order/supplier-document.ts), сверху запас на обёртку формы.
       // Было 6 МБ под картинки товара — скан больше 6 МБ отваливался до нашей проверки.
       bodySizeLimit: "16mb",
     },

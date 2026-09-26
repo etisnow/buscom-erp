@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { ADMIN_ROLES } from "@/domain/user/role";
+import { ADMIN_ROLES } from "@buscom/domain/user/role";
 import { ForbiddenError } from "@/server/errors";
 import { changeUserRole, createUser, resetUserPassword, setUserActive } from "@/server/users/service";
 import { requireUser } from "@/server/session";

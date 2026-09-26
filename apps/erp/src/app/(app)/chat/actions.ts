@@ -2,7 +2,7 @@
 
 import { after } from "next/server";
 import { z } from "zod";
-import { ChatError, MAX_ATTACHMENT_NAME } from "@/domain/chat/message";
+import { ChatError, MAX_ATTACHMENT_NAME } from "@buscom/domain/chat/message";
 import { pushChatMessage } from "@/server/chat/push";
 import {
   deleteChatMessage,

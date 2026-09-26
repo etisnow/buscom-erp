@@ -1,8 +1,8 @@
 import "server-only";
-import { csvFileName, EXPORT_LIMIT, toCsv } from "@/domain/csv";
-import { CUSTOMER_TYPE_LABELS } from "@/domain/customer/type";
-import { formatMoscowDate, formatPhoneLocal } from "@/domain/datetime";
-import { formatRubPlain } from "@/domain/money";
+import { csvFileName, EXPORT_LIMIT, toCsv } from "@buscom/domain/csv";
+import { CUSTOMER_TYPE_LABELS } from "@buscom/domain/customer/type";
+import { formatMoscowDate, formatPhoneLocal } from "@buscom/domain/datetime";
+import { formatRubPlain } from "@buscom/domain/money";
 import { customersWhere, type CustomerFilters } from "@/server/customers/list";
 import { db } from "@/server/db";
 

@@ -12,7 +12,7 @@
  */
 import "dotenv/config";
 import { readFileSync } from "node:fs";
-import { parseCsvRows } from "../src/domain/csv";
+import { parseCsvRows } from "@buscom/domain/csv";
 import { importLegacyOrders } from "../src/server/orders/import";
 import { db } from "../src/server/db";
 

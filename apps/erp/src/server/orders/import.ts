@@ -1,5 +1,5 @@
 import "server-only";
-import { LEGACY_ITEM_SKU, parseLegacyOrder, type LegacyOrder } from "@/domain/order/legacy-import";
+import { LEGACY_ITEM_SKU, parseLegacyOrder, type LegacyOrder } from "@buscom/domain/order/legacy-import";
 import { db } from "@/server/db";
 import { resolveSystemSource } from "@/server/orders/source";
 

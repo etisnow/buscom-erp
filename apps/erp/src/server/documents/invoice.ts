@@ -1,10 +1,10 @@
 import "server-only";
 import type { Alignment, TableCell, TDocumentDefinitions } from "pdfmake/interfaces";
-import { formatMoscowDate } from "@/domain/datetime";
-import { formatRub } from "@/domain/money";
-import { kopecksToWords } from "@/domain/money-words";
-import { describeOptions, parseOrderItemOptions } from "@/domain/product/options";
-import type { SellerRequisites } from "@/domain/settings";
+import { formatMoscowDate } from "@buscom/domain/datetime";
+import { formatRub } from "@buscom/domain/money";
+import { kopecksToWords } from "@buscom/domain/money-words";
+import { describeOptions, parseOrderItemOptions } from "@buscom/domain/product/options";
+import type { SellerRequisites } from "@buscom/domain/settings";
 import type { OrderDetails } from "@/server/orders/details";
 
 /** Счёт на оплату для юрлиц (PRD, M1.8). Реквизиты продавца — из настроек. */

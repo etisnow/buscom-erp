@@ -1,7 +1,7 @@
 import "server-only";
-import { assertDiscountWithinLimit } from "@/domain/order/discount";
-import { assertCanEditItems } from "@/domain/order/editing";
-import type { Kopecks } from "@/domain/money";
+import { assertDiscountWithinLimit } from "@buscom/domain/order/discount";
+import { assertCanEditItems } from "@buscom/domain/order/editing";
+import type { Kopecks } from "@buscom/domain/money";
 import { db } from "@/server/db";
 import {
   loadOrder,

@@ -3,13 +3,13 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { SUPPLIER_ACTIONS } from "@/domain/supplier/actions";
+import { SUPPLIER_ACTIONS } from "@buscom/domain/supplier/actions";
 import { setSupplierActionsAction } from "@/app/(app)/suppliers/actions";
 
 /**
  * Раздел «Действия и артефакты»: какие кнопки и загрузчики файлов видны у
  * этого поставщика в заказе. Список функций фиксирован в коде
- * (`src/domain/supplier/actions.ts`), здесь — только чекбоксы для включения.
+ * (`packages/domain/src/supplier/actions.ts`), здесь — только чекбоксы для включения.
  */
 export function SupplierActionsEditor({
   supplierId,

@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from "vitest";
-import { parseDateInput } from "@/domain/datetime";
+import { parseDateInput } from "@buscom/domain/datetime";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import { createOrder } from "@/server/orders/create";

@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatRub } from "@/domain/money";
-import { unitCostFor } from "@/domain/supplier/price-economics";
+import { formatRub } from "@buscom/domain/money";
+import { unitCostFor } from "@buscom/domain/supplier/price-economics";
 import type { ProductRow } from "@/server/products/list";
 
 /** «→ 324,45 ₽» — стоимость для нас, если «Экономика цены» поставщика её меняет. */
@@ -24,7 +24,7 @@ function CostSuffix({ nominal, formula }: { nominal: number; formula: unknown })
     </span>
   );
 }
-import { categoryPath } from "@/domain/product/categories";
+import { categoryPath } from "@buscom/domain/product/categories";
 import type { CategoryRow } from "@/server/products/categories";
 import type { SupplierOption } from "@/server/suppliers/list";
 import { toggleProductAction, type ProductResult } from "@/app/(app)/products/actions";

@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
-import { notificationTopicsSchema } from "@/domain/notification/topics";
-import { pushSubscriptionSchema } from "@/domain/push/payload";
-import { notificationAddress, notificationEmailSchema } from "@/domain/user/settings";
+import { notificationTopicsSchema } from "@buscom/domain/notification/topics";
+import { pushSubscriptionSchema } from "@buscom/domain/push/payload";
+import { notificationAddress, notificationEmailSchema } from "@buscom/domain/user/settings";
 import { mailConfigured, sendLetter, testNotificationLetter } from "@/server/mail";
 import { removePushSubscription, savePushSubscription, sendPush } from "@/server/push/service";
 import { requireUser } from "@/server/session";

@@ -1,7 +1,7 @@
 import { beforeEach, expect, it } from "vitest";
-import { OrderEditError } from "@/domain/order/editing";
-import { OrderTransitionError } from "@/domain/order/status";
-import { SupplierStageError } from "@/domain/supplier/stages";
+import { OrderEditError } from "@buscom/domain/order/editing";
+import { OrderTransitionError } from "@buscom/domain/order/status";
+import { SupplierStageError } from "@buscom/domain/supplier/stages";
 import { createOrder } from "@/server/orders/create";
 import { updateOrderItems } from "@/server/orders/items";
 import { changeOrderStatus } from "@/server/orders/status";

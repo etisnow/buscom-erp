@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { EMAIL_TEMPLATE_KEYS, EMAIL_TEMPLATE_LABELS, type EmailTemplateKey } from "@/domain/email/templates";
+import { EMAIL_TEMPLATE_KEYS, EMAIL_TEMPLATE_LABELS, type EmailTemplateKey } from "@buscom/domain/email/templates";
 import { markEmailsReadAction, sendOrderEmailAction } from "@/app/(app)/mail/actions";
 import { CustomerEmailFeed } from "./customer-email-feed";
 import type { EmailView } from "./email-thread";

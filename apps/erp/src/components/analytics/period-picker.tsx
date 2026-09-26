@@ -2,8 +2,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PERIOD_PRESET_LABELS, PERIOD_PRESETS, lastDayInclusive, type Period } from "@/domain/analytics/period";
-import { toDateInput } from "@/domain/datetime";
+import { PERIOD_PRESET_LABELS, PERIOD_PRESETS, lastDayInclusive, type Period } from "@buscom/domain/analytics/period";
+import { toDateInput } from "@buscom/domain/datetime";
 import { cn } from "@/lib/utils";
 
 /**

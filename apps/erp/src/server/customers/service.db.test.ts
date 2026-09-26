@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from "vitest";
-import { EMPTY_CUSTOMER_REQUISITES, parseCustomerRequisites } from "@/domain/customer/requisites";
+import { EMPTY_CUSTOMER_REQUISITES, parseCustomerRequisites } from "@buscom/domain/customer/requisites";
 import {
   createCustomer,
   CustomerExistsError,

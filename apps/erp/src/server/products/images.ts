@@ -1,5 +1,5 @@
 import "server-only";
-import { assertProductImage, detectImageType } from "@/domain/product/images";
+import { assertProductImage, detectImageType } from "@buscom/domain/product/images";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import type { Tx } from "@/server/orders/internal";

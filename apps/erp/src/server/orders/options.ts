@@ -1,7 +1,7 @@
 import "server-only";
 import type { Prisma } from "@buscom/db/client";
-import { buildOptionSnapshot, parseOrderItemOptions, type OrderItemOption } from "@/domain/product/options";
-import { OrderEditError } from "@/domain/order/editing";
+import { buildOptionSnapshot, parseOrderItemOptions, type OrderItemOption } from "@buscom/domain/product/options";
+import { OrderEditError } from "@buscom/domain/order/editing";
 import type { Tx } from "@/server/orders/internal";
 
 type ItemOptionsInput = {

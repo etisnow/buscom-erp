@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ADMIN_ROLES } from "@/domain/user/role";
+import { ADMIN_ROLES } from "@buscom/domain/user/role";
 import { retryInboxEntry } from "@/server/integrations/inbox";
 import { describePoll, isMailboxConfigured, pollMailbox } from "@/server/integrations/mailbox";
 import { requireUser } from "@/server/session";

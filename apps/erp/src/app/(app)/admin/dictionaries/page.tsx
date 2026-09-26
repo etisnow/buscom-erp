@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { DictionaryEditor } from "@/components/admin/dictionary-editor";
 import { DiscountLimitEditor, RequisitesEditor, SlaEditor } from "@/components/admin/settings-editor";
-import { SLA_ENABLED } from "@/domain/sla";
-import { ADMIN_ROLES } from "@/domain/user/role";
+import { SLA_ENABLED } from "@buscom/domain/sla";
+import { ADMIN_ROLES } from "@buscom/domain/user/role";
 import { getSettings, listDictionary } from "@/server/settings/service";
 import { requirePageUser } from "@/server/session";
 

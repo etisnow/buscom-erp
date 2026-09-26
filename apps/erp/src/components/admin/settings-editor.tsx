@@ -5,9 +5,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ORDER_STATUS_LABELS } from "@/domain/order/status";
-import { WORKING_MINUTES_PER_DAY, formatWorkingMinutes } from "@/domain/sla";
-import type { SellerRequisites } from "@/domain/settings";
+import { ORDER_STATUS_LABELS } from "@buscom/domain/order/status";
+import { WORKING_MINUTES_PER_DAY, formatWorkingMinutes } from "@buscom/domain/sla";
+import type { SellerRequisites } from "@buscom/domain/settings";
 import type { OrderStatus } from "@buscom/db/enums";
 import {
   saveDiscountLimitAction,

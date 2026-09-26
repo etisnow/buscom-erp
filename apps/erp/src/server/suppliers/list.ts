@@ -1,7 +1,7 @@
 import "server-only";
-import { normalizePhone } from "@/domain/customer/phone";
+import { normalizePhone } from "@buscom/domain/customer/phone";
 import type { Prisma } from "@buscom/db/client";
-import { parsePriceFormula, type PriceFormula } from "@/domain/supplier/price-economics";
+import { parsePriceFormula, type PriceFormula } from "@buscom/domain/supplier/price-economics";
 import { db } from "@/server/db";
 
 export type SupplierFilters = {

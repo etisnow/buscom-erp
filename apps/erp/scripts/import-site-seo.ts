@@ -6,7 +6,7 @@
  *   pnpm import:site-seo
  *   pnpm import:site-seo docs/site-snapshot/pages.json
  *
- * Правила — `src/domain/site/seo-import.ts`. Повторный прогон ничего не задвоит.
+ * Правила — `packages/domain/src/site/seo-import.ts`. Повторный прогон ничего не задвоит.
  */
 import "dotenv/config";
 import { readFileSync } from "node:fs";

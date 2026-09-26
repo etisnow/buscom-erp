@@ -9,7 +9,7 @@ import {
   EMPTY_CUSTOMER_REQUISITES,
   hasCustomerRequisites,
   type CustomerRequisites,
-} from "@/domain/customer/requisites";
+} from "@buscom/domain/customer/requisites";
 import type { CustomerType } from "@buscom/db/enums";
 
 export type SupplierFormValue = {

@@ -1,6 +1,6 @@
 import { hashPassword } from "better-auth/crypto";
 import { beforeEach, expect, it } from "vitest";
-import { FAILED_LOGIN_LIMIT, FAILED_LOGIN_WINDOW_MINUTES } from "@/domain/auth/login-throttle";
+import { FAILED_LOGIN_LIMIT, FAILED_LOGIN_WINDOW_MINUTES } from "@buscom/domain/auth/login-throttle";
 import { signInWithPassword } from "@/server/auth-service";
 import { loginThrottleState, recordFailedLogin } from "@/server/auth/login-attempts";
 import { describeDb, resetDb, testDb } from "@/test/db";

@@ -375,7 +375,8 @@
 - **На второй машине после `git pull`:** перенести `.env` из корня в `apps/erp/.env`, `misc/` — в `apps/erp/misc/`, затем `pnpm install`
 - [x] Шаг 1 в CI: образы собрались, проверка OCR в образе прошла; упал только `format:check` (STATUS не отформатирован) — починено в шаге 2
 - [x] **Шаг 2 — `packages/db`**: схема, миграции, `prisma.config.ts` и сгенерированный клиент; импорты ERP `@/generated/prisma/*` → `@buscom/db/client`, `@buscom/db/enums`. Сид остался в ERP (`apps/erp/scripts/seed.ts`, `pnpm erp db:seed`) — он заводит администратора через better-auth. Команды Prisma — из корня: `pnpm db:migrate`, `db:deploy`, `db:generate`, `db:studio`. `.env` Prisma берёт из окружения, иначе из `apps/erp/.env`
-- [ ] Шаг 3 — `packages/domain`; шаг 4 — каркас `apps/site`, второй образ и сервис в compose
+- [x] **Шаг 3 — `packages/domain`**: `src/domain` целиком, импорты `@buscom/domain/<путь>`, внутри пакета — относительные; свои `tsconfig` и `vitest.config` (586 тестов; в ERP осталось 25 + 190 по живой БД). Фикстуры писем и страниц — в `.prettierignore` по новым путям
+- [ ] Шаг 4 — каркас `apps/site`, второй образ и сервис в compose
 
 Что выяснил аудитом живого сайта (24.09):
 

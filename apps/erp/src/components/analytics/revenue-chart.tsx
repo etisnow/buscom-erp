@@ -1,5 +1,5 @@
-import type { SeriesPoint } from "@/domain/analytics/summary";
-import { formatRub } from "@/domain/money";
+import type { SeriesPoint } from "@buscom/domain/analytics/summary";
+import { formatRub } from "@buscom/domain/money";
 
 function ordersWord(count: number): string {
   const tens = count % 100;

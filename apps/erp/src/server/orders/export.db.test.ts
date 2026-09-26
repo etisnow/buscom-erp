@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from "vitest";
-import { SLA_ENABLED } from "@/domain/sla";
+import { SLA_ENABLED } from "@buscom/domain/sla";
 import { createOrder } from "@/server/orders/create";
 import { exportOrdersCsv } from "@/server/orders/export";
 import { addPayment } from "@/server/orders/payments";
@@ -46,7 +46,7 @@ describeDb("выгрузка заказов в CSV (живая БД)", () => {
     const { csv, truncated } = await exportOrdersCsv({ view: "all" }, manager);
     const rows = lines(csv);
 
-    // Колонка «Просрочен» — только при включённом SLA (src/domain/sla.ts).
+    // Колонка «Просрочен» — только при включённом SLA (packages/domain/src/sla.ts).
     expect(rows[0]).toBe(
       "№;№ на сайте;Создан;Статус;Клиент;Телефон;Сумма, ₽;Оплачено, ₽;Оплата;Менеджер;Источник" +
         (SLA_ENABLED ? ";Просрочен" : ""),

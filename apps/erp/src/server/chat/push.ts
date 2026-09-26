@@ -1,5 +1,5 @@
 import "server-only";
-import { chatPushPayload } from "@/domain/push/payload";
+import { chatPushPayload } from "@buscom/domain/push/payload";
 import type { ChatMessageView } from "@/server/chat/service";
 import { db } from "@/server/db";
 import { sendPush } from "@/server/push/service";

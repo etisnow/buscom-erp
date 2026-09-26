@@ -9,8 +9,8 @@ import {
   htmlToText,
   isClientLetter,
   letterParts,
-} from "@/domain/email/history";
-import { normalizeEmailAddress, referencedMessageIds } from "@/domain/email/letters";
+} from "@buscom/domain/email/history";
+import { normalizeEmailAddress, referencedMessageIds } from "@buscom/domain/email/letters";
 import { db } from "@/server/db";
 import { relinkHistoryThreads, storeHistoryEmail, type HistoryLetter } from "@/server/emails/service";
 import { createClient, listMailboxFolders, resolveMailbox } from "@/server/integrations/mailbox";

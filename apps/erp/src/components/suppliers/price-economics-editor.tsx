@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatRub, rublesToKopecks } from "@/domain/money";
+import { formatRub, rublesToKopecks } from "@buscom/domain/money";
 import {
   calculateUnitCost,
   orderCostsTotal,
@@ -15,7 +15,7 @@ import {
   PRICE_STEPS_MAX,
   type PriceFormula,
   type PriceStep,
-} from "@/domain/supplier/price-economics";
+} from "@buscom/domain/supplier/price-economics";
 import { cn } from "@/lib/utils";
 import { setSupplierPriceFormulaAction } from "@/app/(app)/suppliers/actions";
 

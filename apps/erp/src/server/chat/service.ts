@@ -7,9 +7,9 @@ import {
   ChatError,
   normalizeMessageText,
   replyPreview,
-} from "@/domain/chat/message";
-import { orderNumbersIn } from "@/domain/chat/order-links";
-import { detectDocumentType } from "@/domain/order/supplier-document";
+} from "@buscom/domain/chat/message";
+import { orderNumbersIn } from "@buscom/domain/chat/order-links";
+import { detectDocumentType } from "@buscom/domain/order/supplier-document";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import type { SessionUser } from "@/server/session";

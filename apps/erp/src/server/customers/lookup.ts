@@ -1,5 +1,5 @@
 import "server-only";
-import { normalizePhone } from "@/domain/customer/phone";
+import { normalizePhone } from "@buscom/domain/customer/phone";
 import { db } from "@/server/db";
 import { hasLetters, matchNamesCaseInsensitive } from "@/server/customers/name-match";
 

@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from "vitest";
-import { SupplierDocumentError } from "@/domain/order/supplier-document";
+import { SupplierDocumentError } from "@buscom/domain/order/supplier-document";
 import { ForbiddenError } from "@/server/errors";
 import { createOrder } from "@/server/orders/create";
 import { deleteOrderDocument, readOrderDocument, uploadOrderDocument } from "@/server/orders/order-documents";

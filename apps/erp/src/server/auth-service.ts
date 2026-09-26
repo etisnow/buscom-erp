@@ -1,6 +1,6 @@
 import "server-only";
 import { APIError } from "better-auth/api";
-import { loginBlockedMessage } from "@/domain/auth/login-throttle";
+import { loginBlockedMessage } from "@buscom/domain/auth/login-throttle";
 import { auth } from "@/server/auth";
 import { clearFailedLogins, loginThrottleState, recordFailedLogin } from "@/server/auth/login-attempts";
 import { db } from "@/server/db";

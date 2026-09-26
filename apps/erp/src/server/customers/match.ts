@@ -1,6 +1,6 @@
 import "server-only";
-import { normalizeInn } from "@/domain/customer/company-lookup";
-import { normalizePhone } from "@/domain/customer/phone";
+import { normalizeInn } from "@buscom/domain/customer/company-lookup";
+import { normalizePhone } from "@buscom/domain/customer/phone";
 import type { CustomerType } from "@buscom/db/enums";
 import type { Tx } from "@/server/orders/internal";
 
