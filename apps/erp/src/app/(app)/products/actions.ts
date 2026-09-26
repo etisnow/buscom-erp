@@ -17,7 +17,15 @@ export type ProductResult = { ok: true; message: string } | { ok: false; error: 
 
 const variantSchema = z.record(z.string().max(100), z.string().max(300));
 
+/** Адрес и метатеги на сайте; формат слуга проверяет сервис (src/server/site/seo.ts) */
+export const siteSeoSchema = z.object({
+  slug: z.string().max(200).nullable(),
+  metaTitle: z.string().max(300, { error: "Title не длиннее 300 знаков" }).nullable(),
+  metaDescription: z.string().max(1000, { error: "Description не длиннее 1000 знаков" }).nullable(),
+});
+
 const draftSchema = z.object({
+  site: siteSeoSchema.optional(),
   sku: z.string().min(1, { error: "Укажите артикул" }),
   name: z.string().min(1, { error: "Укажите название" }),
   description: z.string().max(20_000, { error: "Описание слишком длинное" }).nullable().optional(),

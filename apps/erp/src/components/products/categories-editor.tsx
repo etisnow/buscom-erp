@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, FolderPlus, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, FolderPlus, Globe, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { CategorySelect } from "@/components/products/category-select";
+import { CategorySiteDialog } from "@/components/site/category-site-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -36,8 +37,10 @@ export function CategoriesEditor({ categories, editable }: { categories: Categor
   const [name, setName] = useState("");
   const [parentId, setParentId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [siteFor, setSiteFor] = useState<CategoryRow | null>(null);
 
   const rows = flattenCategoryTree(buildCategoryTree(categories));
+  const byId = new Map(categories.map((category) => [category.id, category]));
 
   function handle(action: Promise<CategoryResult>) {
     startTransition(async () => {
@@ -165,6 +168,9 @@ export function CategoriesEditor({ categories, editable }: { categories: Categor
                 ) : (
                   <div className="flex min-h-10 items-center gap-2 text-sm" style={{ paddingLeft: indent }}>
                     <span className={row.depth === 0 ? "font-medium" : undefined}>{row.name}</span>
+                    {byId.get(row.id)?.slug ? (
+                      <span className="text-muted-foreground font-mono text-xs">/{byId.get(row.id)?.slug}</span>
+                    ) : null}
                     <span className="text-muted-foreground text-xs">
                       {row.productsCount > 0 ? `товаров: ${row.productsCount}` : "пусто"}
                     </span>
@@ -187,6 +193,17 @@ export function CategoriesEditor({ categories, editable }: { categories: Categor
                           </>
                         ) : (
                           <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8"
+                              aria-label="Адрес и метатеги на сайте"
+                              title="Адрес и метатеги на сайте"
+                              disabled={pending}
+                              onClick={() => setSiteFor(byId.get(row.id) ?? null)}
+                            >
+                              <Globe className="size-4" />
+                            </Button>
                             {row.depth < CATEGORY_MAX_DEPTH - 1 ? (
                               <Button
                                 variant="ghost"
@@ -234,6 +251,7 @@ export function CategoriesEditor({ categories, editable }: { categories: Categor
           })}
         </ul>
       )}
+      {siteFor ? <CategorySiteDialog key={siteFor.id} category={siteFor} onClose={() => setSiteFor(null)} /> : null}
     </section>
   );
 }

@@ -84,3 +84,18 @@ export function uniqueSlug(base: string, taken: ReadonlySet<string>): string {
     if (!taken.has(candidate)) return candidate;
   }
 }
+
+/**
+ * Слуг из поля формы ERP: пробелы по краям и регистр не в счёт, пусто — товар
+ * или категория на сайте не показывается. Возвращает ошибку текстом для формы.
+ */
+export function parseSlugInput(value: string | null | undefined): { slug: string | null } | { error: string } {
+  const slug = (value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/^\/+|\/+$/g, "");
+  if (!slug) return { slug: null };
+  if (RESERVED_SLUGS.has(slug)) return { error: `Адрес /${slug} занят страницей сайта` };
+  if (!isValidSlug(slug)) return { error: "Адрес на сайте: латинские буквы, цифры и дефис, например sidene-turist" };
+  return { slug };
+}

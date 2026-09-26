@@ -22,6 +22,9 @@ const listSelect = {
   priceKopecks: true,
   compatibility: true,
   isActive: true,
+  slug: true,
+  metaTitle: true,
+  metaDescription: true,
   updatedAt: true,
   suppliers: {
     orderBy: { purchasePriceKopecks: "asc" },

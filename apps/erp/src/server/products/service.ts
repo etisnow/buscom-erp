@@ -7,6 +7,7 @@ import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import type { Tx } from "@/server/orders/internal";
 import type { SessionUser } from "@/server/session";
+import { applySiteSeo, freeSlugFor, type SiteSeoDraft } from "@/server/site/seo";
 
 /** Кто правит каталог: цены и карточку — менеджеры и выше (PRD, роли). */
 const CATALOG_ROLES = ["MANAGER", "HEAD", "ADMIN"] as const;
@@ -46,6 +47,8 @@ export type ProductDraft = {
   suppliers?: ProductSupplierDraft[];
   /** Полный список групп опций; не задан — опции не трогаем */
   options?: OptionGroupDraft[];
+  /** Адрес и метатеги на сайте; не задан — не трогаем (у нового товара адрес — из названия) */
+  site?: SiteSeoDraft;
 };
 
 export async function createProduct(draft: ProductDraft, user: SessionUser): Promise<{ id: string }> {
@@ -73,6 +76,17 @@ export async function createProduct(draft: ProductDraft, user: SessionUser): Pro
     if (draft.suppliers) await replaceProductSuppliers(tx, product.id, draft.suppliers);
     if (draft.options) await replaceProductOptions(tx, product.id, draft.options);
     if (draft.suppliers) await replaceOptionPrices(tx, product.id, draft.suppliers);
+    // Новый товар сразу получает адрес на сайте из названия; не нужен на сайте — адрес стирают
+    const site = draft.site?.slug ? draft.site : { ...draft.site, slug: await freeSlugFor(tx, draft.name) };
+    await applySiteSeo(
+      tx,
+      { kind: "product", id: product.id },
+      {
+        slug: site.slug,
+        metaTitle: site.metaTitle ?? null,
+        metaDescription: site.metaDescription ?? null,
+      },
+    );
     return product;
   });
 }
@@ -101,6 +115,7 @@ export async function updateProduct(id: string, draft: Partial<ProductDraft>, us
     if (draft.options) await replaceProductOptions(tx, id, draft.options);
     // После опций: закупки привязываются к вариантам по названию, новым нужен уже их id
     if (draft.suppliers) await replaceOptionPrices(tx, id, draft.suppliers);
+    if (draft.site) await applySiteSeo(tx, { kind: "product", id }, draft.site);
   });
 }
 

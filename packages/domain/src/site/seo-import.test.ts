@@ -195,3 +195,14 @@ describe("план переноса SEO", () => {
     expect(plan.redirects.find((r) => r.fromPath === "/net")).toMatchObject({ toPath: "/" });
   });
 });
+
+describe("слуг из формы ERP", () => {
+  it("регистр, пробелы и слэши по краям не в счёт; пусто — не на сайте", async () => {
+    const { parseSlugInput } = await import("./slug");
+    expect(parseSlugInput("  /Sidene-Turist/ ")).toEqual({ slug: "sidene-turist" });
+    expect(parseSlugInput("")).toEqual({ slug: null });
+    expect(parseSlugInput(null)).toEqual({ slug: null });
+    expect(parseSlugInput("сиденье")).toMatchObject({ error: expect.stringContaining("латинские") });
+    expect(parseSlugInput("kontakty")).toMatchObject({ error: expect.stringContaining("занят") });
+  });
+});

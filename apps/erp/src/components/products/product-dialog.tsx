@@ -1,5 +1,6 @@
 "use client";
 
+import { SiteSeoFields, toSiteSeoDraft, toSiteSeoValue } from "@/components/site/site-seo-fields";
 import { useState, useTransition } from "react";
 import { ExternalLink, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -108,6 +109,9 @@ export function ProductDialog({
   const [sku, setSku] = useState(product?.sku ?? "");
   const [name, setName] = useState(product?.name ?? "");
   const [description, setDescription] = useState(product?.description ?? "");
+  const [site, setSite] = useState(() =>
+    toSiteSeoValue(product ?? { slug: null, metaTitle: null, metaDescription: null }),
+  );
   const [categoryId, setCategoryId] = useState<string | null>(product?.categoryId ?? null);
   const [price, setPrice] = useState(((product?.priceKopecks ?? 0) / 100).toFixed(2));
   const [compatibility, setCompatibility] = useState<string[]>(product?.compatibility ?? []);
@@ -319,6 +323,10 @@ export function ProductDialog({
       compatibility,
       suppliers: supplierLinks,
       options,
+      // У нового товара без введённого адреса его выберет сервер — из названия
+      ...(product || site.slug.trim() || site.metaTitle.trim() || site.metaDescription.trim()
+        ? { site: toSiteSeoDraft(site) }
+        : {}),
     };
 
     startTransition(async () => {
@@ -438,6 +446,20 @@ export function ProductDialog({
               Переносится с сайта: следующий прогон «Каталог с сайта» перезапишет правки.
             </span>
           </div>
+        </div>
+
+        <div className="flex flex-col gap-2 border-t pt-3">
+          <span className="text-sm font-medium">Сайт bus-com.ru</span>
+          <SiteSeoFields
+            idPrefix="product-site"
+            value={site}
+            onChange={setSite}
+            savedSlug={product?.slug ?? null}
+            titlePlaceholder={`${name || "Название"} — купить в Нижнем Новгороде | Баском`}
+          />
+          {!product && !site.slug.trim() ? (
+            <span className="text-muted-foreground text-xs">Адрес будет выбран из названия при сохранении.</span>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-2 border-t pt-3">

@@ -11,15 +11,28 @@ import { ForbiddenError } from "@/server/errors";
 import type { Tx } from "@/server/orders/internal";
 import { canEditCatalog } from "@/server/products/service";
 import type { SessionUser } from "@/server/session";
+import { applySiteSeo, type SiteSeoDraft } from "@/server/site/seo";
 
 export type CategoryRow = CategoryNode & {
   /** Товаров прямо в этой категории (без подкатегорий) */
   productsCount: number;
+  /** Адрес и метатеги на сайте bus-com.ru */
+  slug: string | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
 };
 
 export async function listCategories(): Promise<CategoryRow[]> {
   const rows = await db.productCategory.findMany({
-    select: { id: true, name: true, parentId: true, _count: { select: { products: true } } },
+    select: {
+      id: true,
+      name: true,
+      parentId: true,
+      slug: true,
+      metaTitle: true,
+      metaDescription: true,
+      _count: { select: { products: true } },
+    },
     orderBy: { name: "asc" },
   });
   return rows.map((row) => ({
@@ -27,6 +40,9 @@ export async function listCategories(): Promise<CategoryRow[]> {
     name: row.name,
     parentId: row.parentId,
     productsCount: row._count.products,
+    slug: row.slug,
+    metaTitle: row.metaTitle,
+    metaDescription: row.metaDescription,
   }));
 }
 
@@ -67,6 +83,12 @@ export async function updateCategory(
     const name = normalizeCategoryName(input.name, input.parentId, nodes, id);
     await tx.productCategory.update({ where: { id }, data: { name, parentId: input.parentId } });
   });
+}
+
+/** Адрес и метатеги категории на сайте; при смене адреса — переадресация со старого. */
+export async function updateCategorySite(id: string, draft: SiteSeoDraft, user: SessionUser): Promise<void> {
+  assertEditor(user);
+  await db.$transaction((tx) => applySiteSeo(tx, { kind: "category", id }, draft));
 }
 
 /**
