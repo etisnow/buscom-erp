@@ -15,7 +15,7 @@ import { db } from "../src/server/db";
 import { importSiteSeo, snapshotRowSchema } from "../src/server/site/seo-import";
 
 const args = process.argv.slice(2);
-const file = args.find((arg) => !arg.startsWith("--")) ?? "docs/site-snapshot/pages.json";
+const file = args.find((arg) => !arg.startsWith("--")) ?? "../../docs/site-snapshot/pages.json";
 const dryRun = args.includes("--dry-run");
 
 async function main(): Promise<void> {

@@ -3,16 +3,16 @@
 # Секреты. Важно: next build копирует найденный .env внутрь .next/standalone,
 # то есть без этой строки боевые ключи уехали бы в образ. Проверено на живой
 # сборке — .env действительно оказывается в standalone-выводе.
-.env
-.env.*
-!.env.example
+**/.env
+**/.env.*
+!**/.env.example
 
 # Ставится внутри образа под его платформу
-node_modules
+**/node_modules
 .pnpm-store
 
 # Результаты сборки с машины разработчика
-.next
+**/.next
 out
 build
 coverage
@@ -20,7 +20,8 @@ coverage
 next-env.d.ts
 
 # Генерируется в образе через postinstall
-src/generated
+**/src/generated
+**/misc
 
 # История и инструменты — образу не нужны
 .git

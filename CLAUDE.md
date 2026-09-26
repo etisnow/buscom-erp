@@ -24,28 +24,37 @@ Next 16 и Prisma 7 новее, чем твои знания: перед код�
 
 ## Команды
 
+Монорепозиторий pnpm: команды из корня идут по всем пакетам, `pnpm erp <скрипт>` — скрипт приложения ERP (`apps/erp/package.json`).
+
 ```bash
-pnpm dev            # dev-сервер на :3000
-pnpm check          # typecheck + lint + test — прогоняй перед тем, как сказать «готово»
-pnpm test           # vitest run; одиночный файл: pnpm test src/domain/order/status.test.ts
-pnpm format         # prettier
-pnpm db:tunnel      # SSH-туннель до общей dev-базы — нужен всё время, пока идёт работа (docs/DEV-DB.md)
-pnpm db:up          # Postgres в Docker (docker-compose.yml) — запасная локальная база
-pnpm db:pull        # скопировать общую базу в локальную — чтобы работать без сети
-pnpm db:migrate     # prisma migrate dev — создаёт миграцию после правки schema.prisma
-pnpm db:generate    # перегенерировать клиент в src/generated/prisma
+pnpm dev                # dev-сервер ERP на :3000
+pnpm check              # format:check + typecheck + lint + test во всех пакетах — прогоняй перед «готово»
+pnpm erp test src/domain/order/status.test.ts   # одиночный файл
+pnpm format             # prettier
+pnpm db:tunnel          # SSH-туннель до общей dev-базы — нужен всё время, пока идёт работа (docs/DEV-DB.md)
+pnpm erp db:up          # Postgres в Docker (docker-compose.yml) — запасная локальная база
+pnpm erp db:pull        # скопировать общую базу в локальную — чтобы работать без сети
+pnpm erp db:migrate     # prisma migrate dev — создаёт миграцию после правки schema.prisma
+pnpm erp db:generate    # перегенерировать клиент в apps/erp/src/generated/prisma
 ```
+
+`.env` ERP лежит в `apps/erp/.env`.
 
 ## Структура и слои
 
 ```
+apps/erp/       ERP (erp.bus-com.ru). Всё, что ниже, — внутри него:
 src/
   app/          страницы, layout, route handlers (api/). Тонкий слой: вызывает server/
   server/       серверные сервисы, доступ к БД, авторизация, проверка прав. Всё с `import "server-only"`
   domain/       чистая бизнес-логика без БД и Next: статусы, деньги, итоги, нормализация. Покрыта тестами
   generated/    сгенерированный Prisma Client — не редактировать, не коммитить
 prisma/         schema.prisma + миграции
-docs/           PRD и прочие документы
+scripts/        импорт, выгрузки, снимок старого сайта (tsx)
+---
+apps/site/      сайт bus-com.ru — в работе (docs/SITE-PLAN.md)
+docs/           PRD и прочие документы (в корне)
+scripts/        серверные скрипты и туннель (в корне)
 ```
 
 Зависимости только сверху вниз: `app → server → domain`. `domain/` не импортирует ни Prisma Client, ни Next (типы enum из `@/generated/prisma/enums` — можно).

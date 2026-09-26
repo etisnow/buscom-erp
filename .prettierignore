@@ -1,6 +1,7 @@
 pnpm-lock.yaml
-src/generated
+**/src/generated
+**/.next
 .claude/skills
 # настоящие письма сайта (обезличенные) — байт в байт, иначе тесты парсера проверяют не тот шаблон
-src/domain/integration/fixtures
-src/domain/product/fixtures
+apps/erp/src/domain/integration/fixtures
+apps/erp/src/domain/product/fixtures

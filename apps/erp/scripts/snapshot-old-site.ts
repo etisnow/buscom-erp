@@ -2,7 +2,7 @@
  * Снимок SEO старого bus-com.ru — эталон для переноса адресов и метатегов
  * (этап 2, `docs/SITE-PLAN.md`).
  *
- *   pnpm snapshot:old-site                        # → docs/site-snapshot/
+ *   pnpm snapshot:old-site                        # → docs/site-snapshot/ в корне репозитория
  *   pnpm snapshot:old-site docs/site-snapshot-2
  *
  * Обходит каждый адрес из `sitemap.xml` и каждый canonical, которого в карте нет
@@ -20,7 +20,7 @@ import type { OldSnapshotRow as SnapshotRow } from "../src/domain/site/seo-impor
 
 const SITE = "https://bus-com.ru";
 const PAUSE_MS = 300;
-const outDir = process.argv.slice(2).find((arg) => !arg.startsWith("--")) ?? "docs/site-snapshot";
+const outDir = process.argv.slice(2).find((arg) => !arg.startsWith("--")) ?? "../../docs/site-snapshot";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

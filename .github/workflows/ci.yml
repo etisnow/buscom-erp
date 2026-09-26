@@ -52,9 +52,23 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
+      # Команды ниже идут по всем пакетам монорепозитория (pnpm -r)
       - run: pnpm typecheck
       - run: pnpm lint
-      - run: pnpm prisma migrate deploy
+      - run: pnpm --filter @buscom/erp exec prisma migrate deploy
       - run: pnpm test
-      - run: pnpm prisma validate
+      - run: pnpm --filter @buscom/erp exec prisma validate
       - run: pnpm build
+
+  # Образы собираются и при выкате (deploy.yml), но только из main — ошибка в
+  # Dockerfile всплыла бы уже на боевом выкате. Здесь та же сборка на каждом
+  # пуше, без публикации: в образе заодно гоняется проверка распознавания накладной.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Собрать образы
+        run: |
+          set -euo pipefail
+          docker build --target runner -t buscom-erp-app:ci .
+          docker build --target migrator -t buscom-erp-migrate:ci .

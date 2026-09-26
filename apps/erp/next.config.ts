@@ -1,9 +1,19 @@
+import path from "node:path";
 import type { NextConfig } from "next";
+
+/**
+ * Корень монорепозитория. Трассировка standalone и Turbopack считают пути от него:
+ * зависимости pnpm лежат в корневом node_modules/.pnpm, а общий код — в packages/.
+ * В standalone-выводе сервер оказывается в apps/erp/server.js (см. Dockerfile).
+ */
+const ROOT = path.join(__dirname, "../..");
 
 const nextConfig: NextConfig = {
   // Сборка в самодостаточный сервер: в образ кладём только .next/standalone
   // с уже отобранными зависимостями, а не весь node_modules (см. docs/DEPLOY.md).
   output: "standalone",
+  outputFileTracingRoot: ROOT,
+  turbopack: { root: ROOT },
   // pdfmake читает свои шрифты (Roboto с кириллицей) с диска по пути внутри
   // собственного пакета. Из бандла этот путь не восстановить: в standalone-сборке
   // pnpm держит пакет в node_modules/.pnpm/…, верхнеуровневой записи нет, и
@@ -20,7 +30,7 @@ const nextConfig: NextConfig = {
   // вариант (simd, relaxedsimd, lstm) воркер выбирает по процессору сервера.
   outputFileTracingIncludes: {
     "/orders/[number]": [
-      "./node_modules/@tesseract.js-data/rus/4.0.0_best_int/**",
+      "../../node_modules/.pnpm/@tesseract.js-data+rus@*/node_modules/@tesseract.js-data/rus/4.0.0_best_int/**",
       // Каждый пакет своим путём: шаблон на весь node_modules цепляет симлинки
       // pnpm, и Turbopack падает на них «Отказано в доступе» (Windows). Тот же
       // список — в Dockerfile: там пакетам ставятся ссылки для воркера.
@@ -37,7 +47,7 @@ const nextConfig: NextConfig = {
         "whatwg-url",
         "tr46",
         "webidl-conversions",
-      ].map((name) => `./node_modules/.pnpm/${name}@*/node_modules/${name}/**`),
+      ].map((name) => `../../node_modules/.pnpm/${name}@*/node_modules/${name}/**`),
     ],
   },
   experimental: {
