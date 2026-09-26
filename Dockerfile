@@ -74,7 +74,10 @@ CMD ["pnpm", "--filter", "@buscom/db", "exec", "prisma", "migrate", "deploy"]
 # ---------------------------------------------------------------------------
 FROM deps AS site-builder
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1
+# Заглушка только на время сборки, как у ERP: модули сайта читают окружение при
+# импорте, а к базе сборка не подключается (все страницы рендерятся на запрос).
+ENV DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build" \
+    NEXT_TELEMETRY_DISABLED=1
 RUN pnpm --filter @buscom/site build
 
 FROM base AS site
