@@ -16,6 +16,15 @@ export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const noindex = !siteEnv().SITE_INDEXING;
 
+  // http → https кодом 301: перенаправление в панели Джино отвечает 302, а поиску
+  // нужен постоянный переезд. Прокси хостинга сообщает исходную схему в X-Forwarded-Proto
+  if (request.headers.get("x-forwarded-proto") === "http") {
+    const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+    if (host && !/^(localhost|127\.0\.0\.1)(:|$)/.test(host)) {
+      return NextResponse.redirect(`https://${host}${pathname}${search}`, 301);
+    }
+  }
+
   const keys = redirectKeys(pathname, search);
   if (keys.length > 0 && pathname !== "/") {
     const table = await redirectTable();

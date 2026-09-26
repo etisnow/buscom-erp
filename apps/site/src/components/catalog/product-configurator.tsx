@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { formatRub } from "@buscom/domain/money";
 import { MAX_QUANTITY } from "@buscom/domain/site/cart";
+import { ecommerce, reachGoal } from "@/components/analytics/metrika";
 import { cartActions } from "@/components/cart/cart-store";
 import { COMPANY } from "@/config/company";
 
@@ -21,11 +22,15 @@ type Group = {
  */
 export function ProductConfigurator({
   productId,
+  sku,
+  name,
   basePriceKopecks,
   groups,
   isActive,
 }: {
   productId: string;
+  sku: string;
+  name: string;
   basePriceKopecks: number;
   groups: Group[];
   isActive: boolean;
@@ -108,6 +113,8 @@ export function ProductConfigurator({
               onClick={() => {
                 cartActions.add({ productId, valueIds: Object.values(selected), quantity });
                 setAdded(true);
+                reachGoal("add_to_cart");
+                ecommerce({ add: { products: [{ id: sku, name, price: price / 100, quantity }] } });
               }}
               className="bg-accent hover:bg-accent-hover rounded-md px-6 py-3 font-semibold text-white"
             >

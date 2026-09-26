@@ -6,6 +6,7 @@ import { formatRub } from "@buscom/domain/money";
 import { describeOptions } from "@buscom/domain/product/options";
 import { CARRIERS, MAX_QUANTITY, type PricedCart } from "@buscom/domain/site/cart";
 import { placeOrderAction, priceCartAction } from "@/app/korzina/actions";
+import { ecommerce, reachGoal } from "@/components/analytics/metrika";
 import { COMPANY } from "@/config/company";
 import { cartActions, useCart } from "./cart-store";
 
@@ -69,7 +70,12 @@ export function CartView() {
             ))}
           </ul>
         )}
-        <CheckoutForm cart={cart} onDone={setDone} disabled={priced.lines.length === 0 || priced.dropped.length > 0} />
+        <CheckoutForm
+          cart={cart}
+          priced={priced}
+          onDone={setDone}
+          disabled={priced.lines.length === 0 || priced.dropped.length > 0}
+        />
       </div>
       <aside className="bg-surface h-fit space-y-2 rounded-lg p-5 lg:sticky lg:top-4">
         <p className="flex justify-between text-lg font-semibold">
@@ -142,10 +148,12 @@ type FieldErrors = Record<string, string>;
 
 function CheckoutForm({
   cart,
+  priced,
   onDone,
   disabled,
 }: {
   cart: ReturnType<typeof useCart>;
+  priced: PricedCart;
   onDone: (orderNumber: number) => void;
   disabled: boolean;
 }) {
@@ -176,6 +184,18 @@ function CheckoutForm({
     startTransition(async () => {
       const result = await placeOrderAction(cart, form);
       if (result.ok) {
+        reachGoal("order_placed");
+        ecommerce({
+          purchase: {
+            actionField: { id: String(result.orderNumber) },
+            products: priced.lines.map((line) => ({
+              id: line.sku,
+              name: line.name,
+              price: line.unitPriceKopecks / 100,
+              quantity: line.quantity,
+            })),
+          },
+        });
         cartActions.clear();
         onDone(result.orderNumber);
         return;

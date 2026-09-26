@@ -79,6 +79,8 @@ function ProductView({ product }: { product: ProductPage }) {
           </div>
           <ProductConfigurator
             productId={product.id}
+            sku={product.sku}
+            name={product.name}
             basePriceKopecks={product.basePriceKopecks}
             groups={product.options}
             isActive={product.isActive}
