@@ -1,6 +1,6 @@
 import "server-only";
-import type { Prisma } from "@/generated/prisma/client";
-import type { OrderEventType, OrderStatus } from "@/generated/prisma/enums";
+import type { Prisma } from "@buscom/db/client";
+import type { OrderEventType, OrderStatus } from "@buscom/db/enums";
 import { paymentStatus } from "@/domain/order/payment-status";
 import { calculateOrderTotals } from "@/domain/order/totals";
 import { addWorkingMinutes, DEFAULT_SLA_MINUTES } from "@/domain/sla";

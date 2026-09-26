@@ -58,7 +58,7 @@ SQL
 
 ```bash
 pnpm db:tunnel                 # в отдельном окне, оставить работать
-pnpm prisma migrate status     # ждём «Database schema is up to date!»
+pnpm --filter @buscom/db exec prisma migrate status     # ждём «Database schema is up to date!»
 ```
 
 ## Каждый день
@@ -144,7 +144,7 @@ SQL
 
 ssh buscom-prod "docker exec buscom-erp-postgres-1 sh -c   'pg_dump -U buscom -d buscom_erp --no-owner --no-acl    | psql -q -v ON_ERROR_STOP=1 -U buscom_dev -d buscom_erp_dev'"
 
-pnpm prisma migrate deploy   # миграции, которых в бою ещё нет
+pnpm db:deploy   # миграции, которых в бою ещё нет
 ```
 
 Базу обязательно пересоздавать с владельцем `buscom_dev` и заливать под ним же. Если залить под `buscom`, таблицы достанутся суперпользователю и роль разработки потеряет доступ к собственной базе.

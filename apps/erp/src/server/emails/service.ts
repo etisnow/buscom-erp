@@ -8,7 +8,7 @@ import {
 } from "@/domain/email/letters";
 import { EMAIL_TEMPLATE_KEYS, type EmailTemplateKey } from "@/domain/email/templates";
 import { requisitesReady } from "@/domain/settings";
-import type { Prisma } from "@/generated/prisma/client";
+import type { Prisma } from "@buscom/db/client";
 import { buildInvoice } from "@/server/documents/invoice";
 import { renderPdf } from "@/server/documents/pdf";
 import { db } from "@/server/db";

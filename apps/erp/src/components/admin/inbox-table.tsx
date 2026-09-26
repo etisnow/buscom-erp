@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatMoscowDateTime } from "@/domain/datetime";
-import type { InboxStatus } from "@/generated/prisma/enums";
+import type { InboxStatus } from "@buscom/db/enums";
 import type { InboxRow } from "@/server/integrations/inbox";
 import { retryInboxAction } from "@/app/(app)/admin/integration/actions";
 

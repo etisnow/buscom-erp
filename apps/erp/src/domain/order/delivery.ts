@@ -3,7 +3,7 @@
  * нужен и в заказе поставщику (`supplier-request.ts`), а расходиться подписям
  * нельзя — менеджер и поставщик должны видеть одно и то же.
  */
-import type { DeliveryMethod } from "@/generated/prisma/enums";
+import type { DeliveryMethod } from "@buscom/db/enums";
 
 export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {
   PICKUP: "Самовывоз",

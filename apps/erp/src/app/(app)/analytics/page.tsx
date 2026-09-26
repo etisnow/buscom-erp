@@ -8,7 +8,7 @@ import { toDateInput } from "@/domain/datetime";
 import { formatRub } from "@/domain/money";
 import { formatPercent } from "@/domain/supplier/price-economics";
 import { ANALYTICS_ROLES } from "@/domain/user/role";
-import type { OrderStatus } from "@/generated/prisma/enums";
+import type { OrderStatus } from "@buscom/db/enums";
 import { getDashboard } from "@/server/analytics/dashboard";
 import { requirePageUser } from "@/server/session";
 import { single } from "@/app/(app)/search-params";

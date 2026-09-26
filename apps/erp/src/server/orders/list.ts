@@ -1,8 +1,8 @@
 import "server-only";
 import { normalizePhone } from "@/domain/customer/phone";
 import { SLA_ENABLED } from "@/domain/sla";
-import type { Prisma } from "@/generated/prisma/client";
-import type { OrderStatus } from "@/generated/prisma/enums";
+import type { Prisma } from "@buscom/db/client";
+import type { OrderStatus } from "@buscom/db/enums";
 import { db } from "@/server/db";
 import type { SessionUser } from "@/server/session";
 

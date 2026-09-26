@@ -18,7 +18,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useCoarsePointer } from "@/hooks/use-mobile";
 import { canDeleteMessage, canEditMessage, MAX_ATTACHMENTS, replyPreview } from "@/domain/chat/message";
-import type { UserRole } from "@/generated/prisma/enums";
+import type { UserRole } from "@buscom/db/enums";
 import { cn } from "@/lib/utils";
 import {
   deleteChatMessageAction,

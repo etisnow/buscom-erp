@@ -6,7 +6,7 @@
  * нескольких поставщиков трек у каждого свой. В «Выполнен» заказ не уходит,
  * пока все треки не дошли до последнего этапа.
  */
-import type { OrderStatus, UserRole } from "@/generated/prisma/enums";
+import type { OrderStatus, UserRole } from "@buscom/db/enums";
 
 /** Больше этапов в цепочке — уже не цепочка, а список дел; ограничиваем, чтобы карточка не расползалась. */
 export const SUPPLIER_STAGES_MAX = 20;

@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: ROOT,
   turbopack: { root: ROOT },
+  // Общие пакеты монорепозитория — исходники на TypeScript, их собирает Next
+  transpilePackages: ["@buscom/db"],
   // pdfmake читает свои шрифты (Roboto с кириллицей) с диска по пути внутри
   // собственного пакета. Из бандла этот путь не восстановить: в standalone-сборке
   // pnpm держит пакет в node_modules/.pnpm/…, верхнеуровневой записи нет, и

@@ -11,8 +11,8 @@ import {
   type SellerRequisites,
   type SmtpSettings,
 } from "@/domain/settings";
-import type { Prisma } from "@/generated/prisma/client";
-import type { DictionaryType, OrderSource, OrderStatus } from "@/generated/prisma/enums";
+import type { Prisma } from "@buscom/db/client";
+import type { DictionaryType, OrderSource, OrderStatus } from "@buscom/db/enums";
 import { db } from "@/server/db";
 
 /**

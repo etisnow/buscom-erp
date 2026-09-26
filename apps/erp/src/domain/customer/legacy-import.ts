@@ -1,6 +1,6 @@
 import { normalizePhone } from "@/domain/customer/phone";
 import { EMPTY_CUSTOMER_REQUISITES, type CustomerRequisites } from "@/domain/customer/requisites";
-import type { CustomerType } from "@/generated/prisma/enums";
+import type { CustomerType } from "@buscom/db/enums";
 
 /**
  * Разбор строки выгрузки клиентов из прежней ERP. Чистая функция: файл читает и в

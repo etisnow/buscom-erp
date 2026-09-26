@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { ORDER_STATUS_LABELS } from "@/domain/order/status";
 import { PAYMENT_STATUS_LABELS, paymentStatus } from "@/domain/order/payment-status";
-import type { OrderStatus } from "@/generated/prisma/enums";
+import type { OrderStatus } from "@buscom/db/enums";
 
 /** Цвета статусов: жёлтый — ждёт менеджера, синий — в работе, зелёный — выполнен, красный — отменён. */
 const STATUS_CLASS: Record<OrderStatus, string> = {

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { ORDER_STATUS_LABELS } from "@/domain/order/status";
 import { WORKING_MINUTES_PER_DAY, formatWorkingMinutes } from "@/domain/sla";
 import type { SellerRequisites } from "@/domain/settings";
-import type { OrderStatus } from "@/generated/prisma/enums";
+import type { OrderStatus } from "@buscom/db/enums";
 import {
   saveDiscountLimitAction,
   saveRequisitesAction,

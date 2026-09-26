@@ -19,7 +19,7 @@ import { formatMoscowDate } from "@/domain/datetime";
 import { formatRub, type Kopecks } from "@/domain/money";
 import { deliveryMethodLabel } from "@/domain/order/delivery";
 import type { OrderItemOption } from "@/domain/product/options";
-import type { DeliveryMethod } from "@/generated/prisma/enums";
+import type { DeliveryMethod } from "@buscom/db/enums";
 
 export type SupplierRequestItem = {
   name: string;

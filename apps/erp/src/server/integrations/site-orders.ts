@@ -1,7 +1,7 @@
 import "server-only";
 import { normalizePhone } from "@/domain/customer/phone";
 import { customerName, declaredItemsTotal, parseSiteOrder, type SiteOrderPayload } from "@/domain/integration/contract";
-import type { Prisma } from "@/generated/prisma/client";
+import type { Prisma } from "@buscom/db/client";
 import { db } from "@/server/db";
 import { findOrCreateCustomer } from "@/server/customers/match";
 import { notifyOrderCreated } from "@/server/notifications/queue";

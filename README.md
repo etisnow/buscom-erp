@@ -15,7 +15,7 @@
 pnpm install
 cp .env.example .env        # заполнить секреты
 pnpm db:up                  # Postgres в Docker; или свой инстанс — поправить DATABASE_URL
-pnpm prisma migrate deploy  # применить миграции
+pnpm db:deploy  # применить миграции
 pnpm dev                    # http://localhost:3000
 ```
 

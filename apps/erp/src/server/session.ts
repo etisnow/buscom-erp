@@ -2,7 +2,7 @@ import "server-only";
 import { headers } from "next/headers";
 import { forbidden, redirect } from "next/navigation";
 import { cache } from "react";
-import type { UserRole } from "@/generated/prisma/enums";
+import type { UserRole } from "@buscom/db/enums";
 import { auth } from "@/server/auth";
 import { ForbiddenError } from "@/server/errors";
 

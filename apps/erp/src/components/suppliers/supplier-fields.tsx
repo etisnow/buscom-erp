@@ -10,7 +10,7 @@ import {
   hasCustomerRequisites,
   type CustomerRequisites,
 } from "@/domain/customer/requisites";
-import type { CustomerType } from "@/generated/prisma/enums";
+import type { CustomerType } from "@buscom/db/enums";
 
 export type SupplierFormValue = {
   type: CustomerType;

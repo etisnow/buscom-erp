@@ -1,5 +1,5 @@
 import { rublesToKopecks, type Kopecks } from "@/domain/money";
-import type { DeliveryMethod } from "@/generated/prisma/enums";
+import type { DeliveryMethod } from "@buscom/db/enums";
 
 /**
  * Разбор строки выгрузки заказов из прежней ERP. Чистая функция: файл читает и в

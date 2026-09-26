@@ -12,7 +12,7 @@ import {
 import type { Kopecks } from "@/domain/money";
 import { ORDER_STATUSES } from "@/domain/order/status";
 import { ANALYTICS_ROLES, hasRole } from "@/domain/user/role";
-import type { OrderStatus } from "@/generated/prisma/enums";
+import type { OrderStatus } from "@buscom/db/enums";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import type { SessionUser } from "@/server/session";

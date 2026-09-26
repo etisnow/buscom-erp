@@ -19,7 +19,7 @@ import {
   type Cargo,
 } from "@/domain/order/delivery";
 import { ORDER_DOCUMENT_LABELS } from "@/domain/order/order-document";
-import type { DeliveryMethod } from "@/generated/prisma/enums";
+import type { DeliveryMethod } from "@buscom/db/enums";
 import {
   deleteOrderDocumentAction,
   recognizeWaybillAction,

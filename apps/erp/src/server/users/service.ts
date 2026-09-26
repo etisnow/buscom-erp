@@ -1,6 +1,6 @@
 import "server-only";
 import { hashPassword } from "better-auth/crypto";
-import type { UserRole } from "@/generated/prisma/enums";
+import type { UserRole } from "@buscom/db/enums";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 

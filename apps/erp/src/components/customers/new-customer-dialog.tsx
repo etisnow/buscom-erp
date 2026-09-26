@@ -18,7 +18,7 @@ import {
   EMPTY_CUSTOMER_REQUISITES,
   type CustomerRequisites,
 } from "@/domain/customer/requisites";
-import type { CustomerType } from "@/generated/prisma/enums";
+import type { CustomerType } from "@buscom/db/enums";
 import { createCustomerAction } from "@/app/(app)/customers/actions";
 
 const EMPTY = { name: "", phone: "", email: "", inn: "", kpp: "", contactPerson: "", passport: "", comment: "" };

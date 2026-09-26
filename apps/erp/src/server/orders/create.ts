@@ -2,7 +2,7 @@ import "server-only";
 import { assertDiscountWithinLimit } from "@/domain/order/discount";
 import { ORDER_SOURCE_LABELS } from "@/domain/order/source";
 import type { Kopecks } from "@/domain/money";
-import type { DeliveryMethod, OrderSource } from "@/generated/prisma/enums";
+import type { DeliveryMethod, OrderSource } from "@buscom/db/enums";
 import { db } from "@/server/db";
 import { findOrCreateCustomer, type CustomerDraft } from "@/server/customers/match";
 import {

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ORDER_STATUS_LABELS } from "@/domain/order/status";
 import { SAVED_FILTERS_COOKIE, SAVED_FILTERS_MAX_AGE } from "@/app/(app)/orders/saved-filters";
-import type { OrderStatus } from "@/generated/prisma/enums";
+import type { OrderStatus } from "@buscom/db/enums";
 
 const STATUSES = Object.keys(ORDER_STATUS_LABELS) as OrderStatus[];
 

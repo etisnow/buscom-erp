@@ -11,6 +11,10 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:tunnel": "tsx scripts/db-tunnel.ts",
+    "db:migrate": "pnpm --filter @buscom/db migrate",
+    "db:deploy": "pnpm --filter @buscom/db deploy",
+    "db:generate": "pnpm --filter @buscom/db generate",
+    "db:studio": "pnpm --filter @buscom/db studio",
     "erp": "pnpm --filter @buscom/erp"
   },
   "devDependencies": {

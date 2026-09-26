@@ -2,7 +2,7 @@
  * Правила общего чата сотрудников: размер сообщения и файлов, кто правит и удаляет,
  * срок хранения файлов.
  */
-import type { UserRole } from "@/generated/prisma/enums";
+import type { UserRole } from "@buscom/db/enums";
 
 export const MAX_MESSAGE_LENGTH = 4000;
 export const MAX_ATTACHMENTS = 10;

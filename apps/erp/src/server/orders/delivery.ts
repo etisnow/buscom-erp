@@ -2,7 +2,7 @@ import "server-only";
 import type { Kopecks } from "@/domain/money";
 import type { Cargo } from "@/domain/order/delivery";
 import { TERMINAL_STATUSES } from "@/domain/order/status";
-import type { DeliveryMethod } from "@/generated/prisma/enums";
+import type { DeliveryMethod } from "@buscom/db/enums";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import {

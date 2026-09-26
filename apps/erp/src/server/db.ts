@@ -1,6 +1,6 @@
 import "server-only";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaClient } from "@buscom/db/client";
 import { env } from "@/server/env";
 
 // Один клиент на процесс: в dev hot reload иначе плодит пулы соединений.

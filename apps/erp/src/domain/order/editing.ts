@@ -5,7 +5,7 @@
  * «Оплачен», после упрощения статусов — по сумме платежей.
  * В выполненном и отменённом заказе состав не меняет никто.
  */
-import type { OrderStatus, UserRole } from "@/generated/prisma/enums";
+import type { OrderStatus, UserRole } from "@buscom/db/enums";
 import { ORDER_STATUS_LABELS, TERMINAL_STATUSES } from "@/domain/order/status";
 
 const MANAGER_ROLES: readonly UserRole[] = ["MANAGER", "HEAD", "ADMIN"];

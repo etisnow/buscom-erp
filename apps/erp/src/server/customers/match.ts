@@ -1,7 +1,7 @@
 import "server-only";
 import { normalizeInn } from "@/domain/customer/company-lookup";
 import { normalizePhone } from "@/domain/customer/phone";
-import type { CustomerType } from "@/generated/prisma/enums";
+import type { CustomerType } from "@buscom/db/enums";
 import type { Tx } from "@/server/orders/internal";
 
 export type CustomerDraft = {

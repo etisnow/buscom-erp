@@ -1,7 +1,7 @@
 import "server-only";
 import { assertTransition } from "@/domain/order/status";
 import { getSettings } from "@/server/settings/service";
-import type { OrderStatus } from "@/generated/prisma/enums";
+import type { OrderStatus } from "@buscom/db/enums";
 import { db } from "@/server/db";
 import {
   loadOrder,

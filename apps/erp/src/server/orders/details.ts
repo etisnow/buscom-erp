@@ -1,5 +1,5 @@
 import "server-only";
-import type { Prisma } from "@/generated/prisma/client";
+import type { Prisma } from "@buscom/db/client";
 import { db } from "@/server/db";
 
 const detailsInclude = {

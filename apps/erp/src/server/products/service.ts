@@ -2,7 +2,7 @@ import "server-only";
 import type { Kopecks } from "@/domain/money";
 import { normalizeCompatibility, unknownModels } from "@/domain/product/compatibility";
 import { normalizeOptionGroups, type OptionGroupDraft } from "@/domain/product/options";
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@buscom/db/client";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import type { Tx } from "@/server/orders/internal";

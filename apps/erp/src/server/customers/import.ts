@@ -1,7 +1,7 @@
 import "server-only";
 import { parseLegacyCustomer, type LegacyCustomer } from "@/domain/customer/legacy-import";
 import { hasCustomerRequisites } from "@/domain/customer/requisites";
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@buscom/db/client";
 import { db } from "@/server/db";
 
 /**

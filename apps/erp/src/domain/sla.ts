@@ -6,7 +6,7 @@
  * поэтому смещение здесь константой, без библиотеки часовых поясов.
  * Производственный календарь (праздники РФ) — после MVP, сейчас праздники считаются рабочими.
  */
-import type { OrderStatus } from "@/generated/prisma/enums";
+import type { OrderStatus } from "@buscom/db/enums";
 
 const MSK_OFFSET_MINUTES = 3 * 60;
 const MINUTES_PER_DAY = 24 * 60;

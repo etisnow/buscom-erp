@@ -1,4 +1,4 @@
-import type { UserRole } from "@/generated/prisma/enums";
+import type { UserRole } from "@buscom/db/enums";
 import type { SessionUser } from "@/server/session";
 import { testDb } from "@/test/db";
 

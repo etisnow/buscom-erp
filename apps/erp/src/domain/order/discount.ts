@@ -7,7 +7,7 @@
  * когда появится таблица настроек, значение будет приходить параметром.
  */
 import { assertKopecks, formatRub, type Kopecks } from "@/domain/money";
-import type { UserRole } from "@/generated/prisma/enums";
+import type { UserRole } from "@buscom/db/enums";
 
 export const DEFAULT_DISCOUNT_LIMIT_PERCENT = 10;
 

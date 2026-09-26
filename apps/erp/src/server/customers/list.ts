@@ -1,7 +1,7 @@
 import "server-only";
 import { normalizePhone } from "@/domain/customer/phone";
-import type { Prisma } from "@/generated/prisma/client";
-import type { CustomerType } from "@/generated/prisma/enums";
+import type { Prisma } from "@buscom/db/client";
+import type { CustomerType } from "@buscom/db/enums";
 import { db } from "@/server/db";
 import { hasLetters, matchNamesCaseInsensitive } from "@/server/customers/name-match";
 

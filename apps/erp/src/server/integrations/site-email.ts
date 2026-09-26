@@ -6,7 +6,7 @@ import {
   siteEmailOrderNumber,
   type SiteEmail,
 } from "@/domain/integration/site-email";
-import type { Prisma } from "@/generated/prisma/client";
+import type { Prisma } from "@buscom/db/client";
 import { db } from "@/server/db";
 import { createOrderFromPayload, type IngestResult } from "@/server/integrations/site-orders";
 

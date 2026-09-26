@@ -27,9 +27,10 @@ FROM base AS deps
 # prisma и esbuild. Без него pnpm 12 падает с ERR_PNPM_IGNORED_BUILDS, а не
 # пропускает их молча. В CI файл был и ошибка не всплывала — только в образе.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/erp/package.json apps/erp/prisma.config.ts ./apps/erp/
-COPY apps/erp/prisma ./apps/erp/prisma
-# postinstall запускает prisma generate — отсюда apps/erp/src/generated/prisma
+COPY apps/erp/package.json ./apps/erp/
+COPY packages/db/package.json packages/db/prisma.config.ts ./packages/db/
+COPY packages/db/prisma ./packages/db/prisma
+# postinstall пакета db запускает prisma generate — отсюда packages/db/src/generated/prisma
 RUN pnpm install --frozen-lockfile
 
 # ---------------------------------------------------------------------------
@@ -59,9 +60,10 @@ RUN pnpm --filter @buscom/erp build
 # ---------------------------------------------------------------------------
 FROM builder AS migrator
 ENV NODE_ENV=production
-# Здесь prisma.config.ts и схема; `run --rm migrate pnpm db:seed` тоже отсюда
+# Схема и миграции — в packages/db. Рабочий каталог — ERP: сид заводит её
+# администратора (`run --rm migrate pnpm db:seed`, docs/DEPLOY.md)
 WORKDIR /app/apps/erp
-CMD ["pnpm", "prisma", "migrate", "deploy"]
+CMD ["pnpm", "--filter", "@buscom/db", "exec", "prisma", "migrate", "deploy"]
 
 # ---------------------------------------------------------------------------
 # Рабочий образ

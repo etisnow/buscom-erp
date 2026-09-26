@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoscowDateTime } from "@/domain/datetime";
 import { ORDER_STATUS_LABELS } from "@/domain/order/status";
-import type { OrderEventType, OrderStatus } from "@/generated/prisma/enums";
+import type { OrderEventType, OrderStatus } from "@buscom/db/enums";
 import { addCommentAction } from "@/app/(app)/orders/[number]/actions";
 
 const EVENT_LABELS: Record<OrderEventType, string> = {

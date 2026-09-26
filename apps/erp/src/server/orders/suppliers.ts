@@ -4,7 +4,7 @@ import { purchaseWithOptions } from "@/domain/product/option-matching";
 import { parseOrderItemOptions } from "@/domain/product/options";
 import { calculateUnitCost, orderCostsTotal, parsePriceFormula } from "@/domain/supplier/price-economics";
 import { assertStageMove, type TrackPosition } from "@/domain/supplier/stages";
-import type { Prisma } from "@/generated/prisma/client";
+import type { Prisma } from "@buscom/db/client";
 import { db } from "@/server/db";
 import { notifySupplierStage } from "@/server/notifications/queue";
 import { loadOrder, OrderConflictError, writeOrderEvent, type Tx } from "@/server/orders/internal";

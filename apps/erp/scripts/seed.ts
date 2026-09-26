@@ -8,7 +8,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { hashPassword } from "better-auth/crypto";
 import { CANCEL_REASONS } from "../src/domain/order/cancel-reasons";
 import { z } from "zod";
-import { PrismaClient } from "../src/generated/prisma/client";
+import { PrismaClient } from "@buscom/db/client";
 
 const seedEnv = z.object({
   DATABASE_URL: z.string().url(),

@@ -1,4 +1,4 @@
-import type { UserRole } from "@/generated/prisma/enums";
+import type { UserRole } from "@buscom/db/enums";
 
 /** Названия ролей для UI (PRD, «Пользователи и роли»). */
 export const ROLE_LABELS: Record<UserRole, string> = {

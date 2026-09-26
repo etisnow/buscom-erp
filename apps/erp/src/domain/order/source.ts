@@ -1,4 +1,4 @@
-import type { OrderSource } from "@/generated/prisma/enums";
+import type { OrderSource } from "@buscom/db/enums";
 
 /**
  * Откуда пришёл заказ. Что видит пользователь — пункт справочника источников

@@ -1,7 +1,7 @@
 import "server-only";
 import type { Kopecks } from "@/domain/money";
 import { paymentStatus } from "@/domain/order/payment-status";
-import type { PaymentMethod } from "@/generated/prisma/enums";
+import type { PaymentMethod } from "@buscom/db/enums";
 import { db } from "@/server/db";
 import {
   loadOrder,

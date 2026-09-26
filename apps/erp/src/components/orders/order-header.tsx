@@ -25,7 +25,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ORDER_STATUS_LABELS, availableTransitions } from "@/domain/order/status";
 import { formatMoscowDateTime } from "@/domain/datetime";
-import type { OrderStatus, UserRole } from "@/generated/prisma/enums";
+import type { OrderStatus, UserRole } from "@buscom/db/enums";
 import {
   assignManagerAction,
   changeSourceAction,

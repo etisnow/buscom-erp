@@ -7,7 +7,7 @@
  * Промежуточные этапы (счёт, оплата поставщику, отправка) ведутся в цепочках
  * поставщиков — это подстатусы «В работе» (src/domain/supplier/stages.ts).
  */
-import type { OrderStatus, UserRole } from "@/generated/prisma/enums";
+import type { OrderStatus, UserRole } from "@buscom/db/enums";
 import { incompleteTracks, type TrackPosition } from "@/domain/supplier/stages";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {

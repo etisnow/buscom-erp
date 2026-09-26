@@ -3,7 +3,7 @@
  * транспортная накладная в блоке «Доставка». Проверка содержимого и права —
  * те же, что у счёта поставщика (`src/domain/order/supplier-document.ts`).
  */
-import type { OrderStatus, UserRole } from "@/generated/prisma/enums";
+import type { OrderStatus, UserRole } from "@buscom/db/enums";
 import { canManageSupplierDocuments } from "@/domain/order/supplier-document";
 
 export const ORDER_DOCUMENT_LABELS = {

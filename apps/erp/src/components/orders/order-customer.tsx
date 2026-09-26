@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CUSTOMER_TYPE_LABELS } from "@/domain/customer/type";
 import { formatMoscowDate, formatPhone } from "@/domain/datetime";
-import type { CustomerType } from "@/generated/prisma/enums";
+import type { CustomerType } from "@buscom/db/enums";
 
 export type OrderCustomerData = {
   id: string;

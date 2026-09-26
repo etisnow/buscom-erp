@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatMoscowDate } from "@/domain/datetime";
 import { formatRub, rublesToKopecks } from "@/domain/money";
 import { PAYMENT_STATUS_LABELS, paymentStatus, remainingToPay } from "@/domain/order/payment-status";
-import type { PaymentMethod } from "@/generated/prisma/enums";
+import type { PaymentMethod } from "@buscom/db/enums";
 import { addPaymentAction } from "@/app/(app)/orders/[number]/actions";
 
 const METHOD_LABELS: Record<PaymentMethod, string> = {

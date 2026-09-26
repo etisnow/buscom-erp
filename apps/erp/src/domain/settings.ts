@@ -7,7 +7,7 @@ import { z } from "zod";
 import { DEFAULT_EMAIL_TEMPLATES, parseEmailTemplates, type EmailTemplates } from "@/domain/email/templates";
 import { DEFAULT_DISCOUNT_LIMIT_PERCENT } from "@/domain/order/discount";
 import { DEFAULT_SLA_MINUTES } from "@/domain/sla";
-import type { OrderStatus } from "@/generated/prisma/enums";
+import type { OrderStatus } from "@buscom/db/enums";
 
 export const SETTING_KEYS = {
   discountLimitPercent: "discountLimitPercent",

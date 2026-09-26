@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { InboxTable } from "@/components/admin/inbox-table";
 import { PollMailboxButton } from "@/components/admin/poll-mailbox-button";
-import type { InboxStatus } from "@/generated/prisma/enums";
+import type { InboxStatus } from "@buscom/db/enums";
 import { listInbox } from "@/server/integrations/inbox";
 import { isMailboxConfigured } from "@/server/integrations/mailbox";
 import { requirePageUser } from "@/server/session";

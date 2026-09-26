@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatMoscowDate } from "@/domain/datetime";
 import { ROLE_LABELS } from "@/domain/user/role";
-import type { UserRole } from "@/generated/prisma/enums";
+import type { UserRole } from "@buscom/db/enums";
 import type { UserRow } from "@/server/users/service";
 import {
   changeRoleAction,

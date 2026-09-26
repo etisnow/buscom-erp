@@ -3,7 +3,7 @@
  * (`OrderSupplierDocument`, ключ `"SUPPLIER_INVOICE"` из `src/domain/supplier/actions.ts`).
  * Разбор — по сигнатуре файла: PDF или фото счёта, Content-Type из формы не доверяем.
  */
-import type { OrderStatus, UserRole } from "@/generated/prisma/enums";
+import type { OrderStatus, UserRole } from "@buscom/db/enums";
 import { TERMINAL_STATUSES } from "@/domain/order/status";
 
 /** Счёт — обычно скан на несколько страниц; больше уже подозрительно. */

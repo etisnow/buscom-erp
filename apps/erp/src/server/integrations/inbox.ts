@@ -1,5 +1,5 @@
 import "server-only";
-import type { InboxStatus } from "@/generated/prisma/enums";
+import type { InboxStatus } from "@buscom/db/enums";
 import { db } from "@/server/db";
 import { retrySiteEmail, SITE_EMAIL_SOURCE } from "@/server/integrations/site-email";
 import { ingestSiteOrder, type IngestResult } from "@/server/integrations/site-orders";

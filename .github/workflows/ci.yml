@@ -55,9 +55,9 @@ jobs:
       # Команды ниже идут по всем пакетам монорепозитория (pnpm -r)
       - run: pnpm typecheck
       - run: pnpm lint
-      - run: pnpm --filter @buscom/erp exec prisma migrate deploy
+      - run: pnpm --filter @buscom/db exec prisma migrate deploy
       - run: pnpm test
-      - run: pnpm --filter @buscom/erp exec prisma validate
+      - run: pnpm --filter @buscom/db exec prisma validate
       - run: pnpm build
 
   # Образы собираются и при выкате (deploy.yml), но только из main — ошибка в

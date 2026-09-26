@@ -19,7 +19,7 @@ import {
   type CustomerRequisites,
 } from "@/domain/customer/requisites";
 import { formatPhone } from "@/domain/datetime";
-import type { CustomerType } from "@/generated/prisma/enums";
+import type { CustomerType } from "@buscom/db/enums";
 import type { CustomerMatch } from "@/server/customers/lookup";
 import {
   addAddressAction,
