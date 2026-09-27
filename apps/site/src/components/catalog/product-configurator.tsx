@@ -5,6 +5,7 @@ import { useState } from "react";
 import { formatRub } from "@buscom/domain/money";
 import { MAX_QUANTITY } from "@buscom/domain/site/cart";
 import { isNoneOptionValue } from "@buscom/domain/site/pricing";
+import { KIT_SEAT_COUNTS } from "@buscom/domain/site/seats";
 import { ecommerce, reachGoal } from "@/components/analytics/metrika";
 import { cartActions } from "@/components/cart/cart-store";
 import { COMPANY } from "@/config/company";
@@ -29,6 +30,7 @@ export function ProductConfigurator({
   basePriceKopecks,
   groups,
   isActive,
+  kit = false,
 }: {
   productId: string;
   sku: string;
@@ -36,14 +38,24 @@ export function ProductConfigurator({
   basePriceKopecks: number;
   groups: Group[];
   isActive: boolean;
+  /** Блок «Комплект на салон» — у пассажирских сидений (isPassengerSeat) */
+  kit?: boolean;
 }) {
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [seats, setSeats] = useState<number>(KIT_SEAT_COUNTS[1]);
   const [selected, setSelected] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       groups.filter((group) => group.required && group.values[0]).map((group) => [group.id, group.values[0].id]),
     ),
   );
+  function addToCart(count: number) {
+    cartActions.add({ productId, valueIds: Object.values(selected), quantity: count });
+    setAdded(true);
+    reachGoal("add_to_cart");
+    ecommerce({ add: { products: [{ id: sku, name, price: price / 100, quantity: count }] } });
+  }
+
   const price =
     basePriceKopecks +
     groups.reduce(
@@ -109,12 +121,7 @@ export function ProductConfigurator({
           <div className="grid gap-2.5 sm:grid-cols-2">
             <button
               type="button"
-              onClick={() => {
-                cartActions.add({ productId, valueIds: Object.values(selected), quantity });
-                setAdded(true);
-                reachGoal("add_to_cart");
-                ecommerce({ add: { products: [{ id: sku, name, price: price / 100, quantity }] } });
-              }}
+              onClick={() => addToCart(quantity)}
               className="bg-accent hover:bg-accent-hover text-ink h-[54px] rounded-[10px] px-6 text-base font-semibold"
             >
               В корзину
@@ -131,6 +138,43 @@ export function ProductConfigurator({
               </Link>
             )}
           </div>
+        )}
+        {kit && isActive && price > 0 && (
+          <section className="bg-brand-soft flex flex-col gap-3.5 rounded-2xl p-5 md:p-6">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-lg font-bold">Комплект на салон</h2>
+              <span className="text-ink-2 text-[13px]">с выбранными опциями</span>
+            </div>
+            <div className="flex gap-1.5" role="group" aria-label="Мест в салоне">
+              {KIT_SEAT_COUNTS.map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  aria-pressed={seats === count}
+                  onClick={() => setSeats(count)}
+                  className={`h-10 flex-1 rounded-[9px] text-sm font-semibold ${
+                    seats === count ? "bg-brand text-white" : "hover:text-brand bg-white"
+                  }`}
+                >
+                  {count} мест
+                </button>
+              ))}
+            </div>
+            <p className="flex items-center justify-between gap-3">
+              <span className="text-[15px]">Итого за {seats} сидений</span>
+              <span className="text-[22px] font-bold whitespace-nowrap">{formatRub(price * seats)}</span>
+            </p>
+            <button
+              type="button"
+              onClick={() => addToCart(seats)}
+              className="border-brand text-brand hover:bg-brand h-11 rounded-[10px] border-[1.5px] bg-white text-sm font-semibold hover:text-white"
+            >
+              Положить {seats} шт. в корзину
+            </button>
+            <p className="text-ink-2 text-[13px]">
+              Для автопарков — оптовая цена, установка в нашем цехе — рассчитаем отдельно: Max {COMPANY.max.display}
+            </p>
+          </section>
         )}
         <p className="text-muted text-[13px] leading-normal">
           Наличие и сроки уточнит менеджер после заказа. Вопросы — {COMPANY.phone.display} или Max {COMPANY.max.display}
