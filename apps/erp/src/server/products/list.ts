@@ -25,6 +25,7 @@ const listSelect = {
   slug: true,
   metaTitle: true,
   metaDescription: true,
+  isHit: true,
   updatedAt: true,
   suppliers: {
     orderBy: { purchasePriceKopecks: "asc" },

@@ -192,6 +192,8 @@ model Product {
   /// Метатеги сайта. Пусто — шаблон из названия (docs/SITE-PRD.md, «Метатеги»)
   metaTitle       String?
   metaDescription String?
+  /// Метка «Хит» на сайте: блок «Хиты продаж» на главной, первые места в категории
+  isHit           Boolean          @default(false)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 

@@ -112,6 +112,7 @@ export function ProductDialog({
   const [site, setSite] = useState(() =>
     toSiteSeoValue(product ?? { slug: null, metaTitle: null, metaDescription: null }),
   );
+  const [isHit, setIsHit] = useState(product?.isHit ?? false);
   const [categoryId, setCategoryId] = useState<string | null>(product?.categoryId ?? null);
   const [price, setPrice] = useState(((product?.priceKopecks ?? 0) / 100).toFixed(2));
   const [compatibility, setCompatibility] = useState<string[]>(product?.compatibility ?? []);
@@ -321,6 +322,7 @@ export function ProductDialog({
       categoryId,
       priceKopecks,
       compatibility,
+      isHit,
       suppliers: supplierLinks,
       options,
       // У нового товара без введённого адреса его выберет сервер — из названия
@@ -460,6 +462,16 @@ export function ProductDialog({
           {!product && !site.slug.trim() ? (
             <span className="text-muted-foreground text-xs">Адрес будет выбран из названия при сохранении.</span>
           ) : null}
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={isHit}
+              onChange={(event) => setIsHit(event.target.checked)}
+              className="accent-primary size-4"
+            />
+            Хит продаж
+            <span className="text-muted-foreground text-xs">— метка на сайте, блок хитов на главной</span>
+          </label>
         </div>
 
         <div className="flex flex-col gap-2 border-t pt-3">

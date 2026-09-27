@@ -57,6 +57,8 @@ const cardSelect = {
   sku: true,
   slug: true,
   priceKopecks: true,
+  isHit: true,
+  compatibility: true,
   images: { orderBy: { sortOrder: "asc" }, take: 1, select: { id: true } },
   options: { select: { required: true, values: { select: { priceDeltaKopecks: true } } } },
 } as const;
@@ -69,6 +71,8 @@ export type ProductCard = {
   priceKopecks: number;
   hasChoice: boolean;
   imageId: string | null;
+  isHit: boolean;
+  compatibility: string[];
 };
 
 function toCard(product: {
@@ -77,6 +81,8 @@ function toCard(product: {
   sku: string;
   slug: string | null;
   priceKopecks: number;
+  isHit: boolean;
+  compatibility: string[];
   images: { id: string }[];
   options: { required: boolean; values: { priceDeltaKopecks: number }[] }[];
 }): ProductCard {
@@ -89,6 +95,8 @@ function toCard(product: {
     priceKopecks: price.priceKopecks,
     hasChoice: price.hasChoice,
     imageId: product.images[0]?.id ?? null,
+    isHit: product.isHit,
+    compatibility: product.compatibility,
   };
 }
 
@@ -99,6 +107,7 @@ export type ProductPage = {
   sku: string;
   slug: string;
   isActive: boolean;
+  isHit: boolean;
   description: string | null;
   metaTitle: string | null;
   metaDescription: string | null;
@@ -191,6 +200,7 @@ export const getPageBySlug = cached(async (slug: string): Promise<ProductPage | 
       sku: product.sku,
       slug,
       isActive: product.isActive,
+      isHit: product.isHit,
       description: product.description,
       metaTitle: product.metaTitle,
       metaDescription: product.metaDescription,
@@ -236,6 +246,17 @@ export const getPageBySlug = cached(async (slug: string): Promise<ProductPage | 
     products: products.map(toCard),
   };
 }, "page-by-slug");
+
+/** «Хиты продаж» на главной: метку ставят в карточке товара в ERP. */
+export const getHits = cached(async (): Promise<ProductCard[]> => {
+  const products = await db.product.findMany({
+    where: { isHit: true, isActive: true, slug: { not: null } },
+    orderBy: { name: "asc" },
+    take: 12,
+    select: cardSelect,
+  });
+  return products.map(toCard);
+}, "hits");
 
 /** Адреса для sitemap.xml: товары в продаже и непустые категории. */
 export const getSitemapEntries = cached(async () => {

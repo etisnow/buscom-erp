@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getCategoryTree } from "@/server/catalog";
+import { ProductCard } from "@/components/catalog/product-card";
+import { getCategoryTree, getHits } from "@/server/catalog";
 
 // Метатеги главной — со старого сайта дословно (docs/site-snapshot/pages.json, «/»)
 export const metadata: Metadata = {
@@ -10,9 +11,9 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-/** Главная: разделы каталога. Подбор по модели, хиты и блок цеха из макета — позже (этапы 4 и 7). */
+/** Главная: разделы каталога и хиты. Подбор по модели и блок цеха из макета — позже (этапы 6 и 7). */
 export default async function HomePage() {
-  const tree = await getCategoryTree();
+  const [tree, hits] = await Promise.all([getCategoryTree(), getHits()]);
   return (
     <div className="space-y-10">
       <section className="space-y-3">
@@ -45,6 +46,16 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+      {hits.length > 0 && (
+        <section>
+          <h2 className="mb-4 text-xl font-semibold">Хиты продаж</h2>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            {hits.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -43,6 +43,8 @@ export type ProductDraft = {
   priceKopecks: Kopecks;
   compatibility?: string[];
   isActive?: boolean;
+  /** Метка «Хит» на сайте */
+  isHit?: boolean;
   /** Полный список поставщиков товара; не задан — привязки не трогаем */
   suppliers?: ProductSupplierDraft[];
   /** Полный список групп опций; не задан — опции не трогаем */
@@ -70,6 +72,7 @@ export async function createProduct(draft: ProductDraft, user: SessionUser): Pro
         priceKopecks: draft.priceKopecks,
         compatibility: await checkCompatibility(tx, draft.compatibility ?? []),
         isActive: draft.isActive ?? true,
+        isHit: draft.isHit ?? false,
       },
       select: { id: true },
     });
@@ -109,6 +112,7 @@ export async function updateProduct(id: string, draft: Partial<ProductDraft>, us
           ? { compatibility: await checkCompatibility(tx, draft.compatibility, id) }
           : {}),
         ...(draft.isActive !== undefined ? { isActive: draft.isActive } : {}),
+        ...(draft.isHit !== undefined ? { isHit: draft.isHit } : {}),
       },
     });
     if (draft.suppliers) await replaceProductSuppliers(tx, id, draft.suppliers);

@@ -34,6 +34,8 @@ const draftSchema = z.object({
   /** Совместимые модели авто вводятся через запятую */
   compatibility: z.array(z.string().min(1)).optional(),
   isActive: z.boolean().optional(),
+  /** Метка «Хит» на сайте */
+  isHit: z.boolean().optional(),
   suppliers: z
     .array(
       z.object({

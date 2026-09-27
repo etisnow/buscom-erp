@@ -2,9 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatRubPlain } from "@buscom/domain/money";
+import {
+  applyCatalogQuery,
+  catalogModels,
+  isCatalogQueryActive,
+  parseCatalogQuery,
+  type CatalogQuery,
+} from "@buscom/domain/site/catalog-query";
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
 import { Description } from "@/components/catalog/description";
-import { ProductCard } from "@/components/catalog/product-card";
+import { CategoryFilters } from "@/components/catalog/category-filters";
+import { HitBadge, ProductCard } from "@/components/catalog/product-card";
 import { ProductConfigurator } from "@/components/catalog/product-configurator";
 import { ProductGallery } from "@/components/catalog/product-gallery";
 import { COMPANY, SITE_ORIGIN } from "@/config/company";
@@ -21,8 +29,10 @@ const titleFor = (name: string) => `${name} — купить в Нижнем Н�
 
 const snippet = (text: string | null) => (text ? text.replace(/\s+/g, " ").trim().slice(0, 160) : undefined);
 
-export async function generateMetadata({ params }: PageProps<"/[slug]">): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: PageProps<"/[slug]">): Promise<Metadata> {
   const { slug } = await params;
+  // Выборка фильтром — не отдельная страница для поиска: canonical на категорию, в индекс не берём
+  const filtered = isCatalogQueryActive(parseCatalogQuery(await searchParams));
   const page = await getPageBySlug(slug);
   if (!page) return {};
   const title = page.metaTitle ?? titleFor(page.name);
@@ -36,15 +46,17 @@ export async function generateMetadata({ params }: PageProps<"/[slug]">): Promis
     title: { absolute: title },
     description,
     alternates: { canonical: `/${page.slug}` },
+    ...(filtered && { robots: { index: false, follow: true } }),
     openGraph: { title, description, url: `/${page.slug}`, images: image ? [image] : undefined },
   };
 }
 
-export default async function SlugPage({ params }: PageProps<"/[slug]">) {
+export default async function SlugPage({ params, searchParams }: PageProps<"/[slug]">) {
   const { slug } = await params;
   const page = await getPageBySlug(slug);
   if (!page) notFound();
-  return page.kind === "product" ? <ProductView product={page} /> : <CategoryView category={page} />;
+  if (page.kind === "product") return <ProductView product={page} />;
+  return <CategoryView category={page} query={parseCatalogQuery(await searchParams)} />;
 }
 
 function ProductView({ product }: { product: ProductPage }) {
@@ -74,6 +86,7 @@ function ProductView({ product }: { product: ProductPage }) {
         <ProductGallery imageIds={product.imageIds} name={product.name} />
         <div className="space-y-5">
           <div>
+            {product.isHit && <HitBadge className="mb-2 inline-block" />}
             <h1 className="text-2xl font-bold md:text-3xl">{product.name}</h1>
             <p className="text-subtle mt-2 font-mono text-sm">Код товара: {product.sku}</p>
           </div>
@@ -122,14 +135,15 @@ function ProductView({ product }: { product: ProductPage }) {
   );
 }
 
-function CategoryView({ category }: { category: CategoryPage }) {
+function CategoryView({ category, query }: { category: CategoryPage; query: CatalogQuery }) {
+  const products = applyCatalogQuery(category.products, query);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: category.name,
     url: `${SITE_ORIGIN}/${category.slug}`,
-    numberOfItems: category.products.length,
-    itemListElement: category.products.map((product, index) => ({
+    numberOfItems: products.length,
+    itemListElement: products.map((product, index) => ({
       "@type": "ListItem",
       position: index + 1,
       url: `${SITE_ORIGIN}/${product.slug}`,
@@ -159,11 +173,26 @@ function CategoryView({ category }: { category: CategoryPage }) {
         </ul>
       )}
 
-      <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-        {category.products.map((product) => (
-          <ProductCard key={product.id} product={product} />
-        ))}
-      </div>
+      {category.products.length > 1 && (
+        <div className="mt-6">
+          <CategoryFilters slug={category.slug} query={query} models={catalogModels(category.products)} />
+        </div>
+      )}
+
+      {products.length > 0 ? (
+        <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+          {products.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      ) : (
+        <p className="text-ink-2 mt-6">
+          По этим условиям товаров нет.{" "}
+          <Link href={`/${category.slug}`} className="text-brand hover:underline">
+            Показать все {category.products.length}
+          </Link>
+        </p>
+      )}
 
       <aside className="bg-brand-soft mt-10 rounded-lg p-5">
         <p className="font-semibold">Нужно много мест на автопарк?</p>
