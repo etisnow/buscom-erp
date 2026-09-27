@@ -27,6 +27,7 @@ import {
   type VariantSelection,
 } from "@buscom/domain/product/vanproject";
 import { toggleModel } from "@buscom/domain/product/compatibility";
+import { compatibilityHints, type CompatibilityHints } from "@buscom/domain/product/compatibility-hints";
 import { calculateUnitCost } from "@buscom/domain/supplier/price-economics";
 import { CategorySelect } from "@/components/products/category-select";
 import { ProductGalleryEditor } from "@/components/products/product-image";
@@ -117,6 +118,8 @@ export function ProductDialog({
   const [categoryId, setCategoryId] = useState<string | null>(product?.categoryId ?? null);
   const [price, setPrice] = useState(((product?.priceKopecks ?? 0) / 100).toFixed(2));
   const [compatibility, setCompatibility] = useState<string[]>(product?.compatibility ?? []);
+  // Подсказка по названию и описанию: null — ещё не спрашивали
+  const [hints, setHints] = useState<CompatibilityHints | null>(null);
   // Модели товара, которых нет среди включённых в справочнике (старый текст или выключенная
   // модель), тоже показываем — иначе их нельзя было бы снять.
   const modelChoices = [...carModels, ...compatibility.filter((model) => !carModels.includes(model))];
@@ -432,6 +435,38 @@ export function ProductDialog({
               <p className="text-muted-foreground text-xs">
                 Справочник моделей пуст — модели заводит администратор в «Справочниках и настройках».
               </p>
+            ) : null}
+            {carModels.length > 0 ? (
+              <div className="flex flex-col gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-fit"
+                  onClick={() => {
+                    const found = compatibilityHints(`${name} ${description}`, carModels);
+                    setCompatibility((current) => [
+                      ...current,
+                      ...found.suggested.filter((model) => !current.includes(model)),
+                    ]);
+                    setHints(found);
+                  }}
+                >
+                  Подсказать по названию и описанию
+                </Button>
+                {hints ? (
+                  <p className="text-muted-foreground text-xs">
+                    {hints.suggested.length > 0
+                      ? `Отмечено: ${hints.suggested.join(", ")}. `
+                      : hints.unclear.length === 0
+                        ? "Моделей из справочника в тексте не нашлось. "
+                        : ""}
+                    {hints.unclear
+                      .map((item) => `Упомянут ${item.family} без поколения — выберите: ${item.candidates.join(", ")}.`)
+                      .join(" ")}
+                  </p>
+                ) : null}
+              </div>
             ) : null}
           </div>
           <div className="flex flex-col gap-1.5 sm:col-span-2">
