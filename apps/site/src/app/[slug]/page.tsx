@@ -74,7 +74,8 @@ function ProductView({ product }: { product: ProductPage }) {
   return (
     <article>
       <Breadcrumbs items={product.breadcrumbs} current={product.name} />
-      <div className="grid gap-8 lg:grid-cols-2">
+      {/* grid-cols-1 — колонка minmax(0, 1fr): лента превью галереи не распирает страницу на телефоне */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <ProductGallery imageIds={product.imageIds} name={product.name} />
         <div className="space-y-5">
           <div>
@@ -173,8 +174,8 @@ function CategoryView({ category, query }: { category: CategoryPage; query: Cata
 
       {products.length > 0 ? (
         <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+          {products.map((product, index) => (
+            <ProductCard key={product.id} product={product} eager={index < 4} priority={index === 0} />
           ))}
         </div>
       ) : (

@@ -60,7 +60,7 @@ export function CartView() {
   if (!priced) return <p className="text-muted">Считаем корзину…</p>;
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_24rem]">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_24rem]">
       <div className="space-y-6">
         <CartLines cart={cart} priced={priced} />
         {priced.dropped.length > 0 && (

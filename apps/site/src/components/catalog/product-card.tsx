@@ -2,7 +2,11 @@ import Link from "next/link";
 import type { ProductCard as Card } from "@/server/catalog";
 import { Price } from "./price";
 
-export function ProductCard({ product }: { product: Card }) {
+/**
+ * `eager` — карточка в первом ряду списка: картинка грузится сразу, а у первой
+ * (`priority`) ещё и с высоким приоритетом — это LCP страницы категории.
+ */
+export function ProductCard({ product, eager, priority }: { product: Card; eager?: boolean; priority?: boolean }) {
   return (
     <Link
       href={`/${product.slug}`}
@@ -15,7 +19,8 @@ export function ProductCard({ product }: { product: Card }) {
           <img
             src={`/img/${product.imageId}?size=thumb`}
             alt={product.name}
-            loading="lazy"
+            loading={eager ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : undefined}
             decoding="async"
             className="h-full w-full object-contain"
           />

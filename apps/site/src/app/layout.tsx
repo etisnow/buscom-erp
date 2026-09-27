@@ -15,6 +15,9 @@ const plexMono = IBM_Plex_Mono({
   variable: "--font-plex-mono",
   subsets: ["latin", "cyrillic"],
   weight: ["400", "500"],
+  // Только коды товаров — не главное на первом экране: не предзагружаем, чтобы не отнимать
+  // канал у основного шрифта и картинок (замер LCP 27.09, docs/STATUS.md)
+  preload: false,
   display: "swap",
 });
 

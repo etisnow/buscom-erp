@@ -53,8 +53,8 @@ export default async function SearchPage({ searchParams }: PageProps<"/poisk">) 
         <>
           <p className="text-muted mt-4 text-sm">Найдено товаров: {found.length}</p>
           <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-            {found.map((product) => (
-              <ProductCard key={product.id} product={product} />
+            {found.map((product, index) => (
+              <ProductCard key={product.id} product={product} eager={index < 4} priority={index === 0} />
             ))}
           </div>
         </>
