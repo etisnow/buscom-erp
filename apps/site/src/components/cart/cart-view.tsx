@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { formatRub } from "@buscom/domain/money";
 import { describeOptions } from "@buscom/domain/product/options";
-import { CARRIERS, MAX_QUANTITY, type PricedCart } from "@buscom/domain/site/cart";
+import { CARRIERS, cartToText, MAX_QUANTITY, type PricedCart } from "@buscom/domain/site/cart";
 import { lookupCompanyAction, placeOrderAction, priceCartAction } from "@/app/korzina/actions";
 import { ecommerce, reachGoal } from "@/components/analytics/metrika";
-import { COMPANY } from "@/config/company";
+import { COMPANY, SITE_ORIGIN } from "@/config/company";
 import { cartActions, useCart } from "./cart-store";
 
 /**
@@ -89,6 +89,7 @@ export function CartView() {
           Доставка оплачивается транспортной компании и в сумму не входит. Онлайн-оплаты нет — счёт или реквизиты
           пришлёт менеджер.
         </p>
+        <SendToMax priced={priced} />
       </aside>
     </div>
   );
@@ -414,6 +415,61 @@ function CompanyFields({ input, field }: { input: string; field: (name: string) 
         />
         {field("companyName")}
       </label>
+    </div>
+  );
+}
+
+/**
+ * «Отправить корзину в Max»: у Max нет ссылки с готовым текстом сообщения, поэтому
+ * состав копируется в буфер, а покупатель вставляет его в чат с менеджером по номеру.
+ * Текст после нажатия виден всегда: буфер бывает недоступен (не https, запрет
+ * браузера) или не отвечает вовсе — тогда его копируют руками.
+ */
+function SendToMax({ priced }: { priced: PricedCart }) {
+  const [state, setState] = useState<"idle" | "copying" | "copied" | "manual">("idle");
+  const text = cartToText(priced, SITE_ORIGIN);
+  if (priced.lines.length === 0) return null;
+
+  async function copy() {
+    reachGoal("max_click");
+    setState("copying");
+    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000));
+    try {
+      await Promise.race([navigator.clipboard.writeText(text), timeout]);
+      setState("copied");
+    } catch {
+      setState("manual");
+    }
+  }
+
+  return (
+    <div className="border-line space-y-2 border-t pt-3">
+      <button
+        type="button"
+        onClick={copy}
+        className="border-brand text-brand hover:bg-brand-soft w-full rounded-md border px-4 py-2 font-medium"
+      >
+        Отправить состав менеджеру в Max
+      </button>
+      {state !== "idle" && (
+        <div className="space-y-1 text-sm" role="status">
+          <p>
+            {state === "copied"
+              ? "Состав скопирован. Откройте Max, найдите нас по номеру "
+              : state === "copying"
+                ? "Копируем… Затем откройте Max и найдите нас по номеру "
+                : "Скопируйте текст и отправьте его в Max на номер "}
+            <b>{COMPANY.max.display}</b>
+            {state === "copied" ? " и вставьте сообщение." : ":"}
+          </p>
+          <textarea
+            readOnly
+            value={text}
+            onFocus={(event) => event.target.select()}
+            className="border-line h-40 w-full rounded-md border bg-white p-2 font-mono text-xs"
+          />
+        </div>
+      )}
     </div>
   );
 }

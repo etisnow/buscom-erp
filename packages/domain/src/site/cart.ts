@@ -1,8 +1,14 @@
 import { z } from "zod";
 import { normalizePhone } from "../customer/phone";
 import type { SiteOrderPayload } from "../integration/contract";
-import type { Kopecks } from "../money";
-import { buildOptionSnapshot, priceWithOptions, type OptionGroup, type OrderItemOption } from "../product/options";
+import { formatRub, type Kopecks } from "../money";
+import {
+  buildOptionSnapshot,
+  describeOptions,
+  priceWithOptions,
+  type OptionGroup,
+  type OrderItemOption,
+} from "../product/options";
 
 /**
  * Корзина и оформление заказа на сайте (docs/SITE-PRD.md, «Заказ с сайта»).
@@ -263,4 +269,18 @@ export function buildQuickOrderPayload(input: QuickOrderInput, cart: PricedCart)
     delivery: { method: null, carrier: null, address: null, priceKopecks: 0 },
     comment: QUICK_ORDER_COMMENT,
   };
+}
+
+/**
+ * Состав корзины текстом — покупатель копирует его и вставляет в чат с менеджером
+ * в Max (экран 04 макета). Код товара — чтобы менеджер нашёл позицию без догадок.
+ */
+export function cartToText(cart: PricedCart, siteOrigin: string): string {
+  const lines = cart.lines.map((line, index) => {
+    const options = line.options.length > 0 ? ` (${describeOptions(line.options)})` : "";
+    const price = line.unitPriceKopecks > 0 ? formatRub(line.totalKopecks) : "цена по запросу";
+    const url = line.slug ? `\n   ${siteOrigin}/${line.slug}` : "";
+    return `${index + 1}. ${line.name}${options}, код ${line.sku} — ${line.quantity} шт., ${price}${url}`;
+  });
+  return ["Здравствуйте! Хочу заказать:", ...lines, `Итого: ${formatRub(cart.totalKopecks)}`].join("\n");
 }

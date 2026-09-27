@@ -4,6 +4,7 @@ import {
   addToCart,
   buildQuickOrderPayload,
   buildSiteOrderPayload,
+  cartToText,
   checkoutSchema,
   priceCart,
   QUICK_ORDER_COMMENT,
@@ -178,5 +179,23 @@ describe("купить в 1 клик", () => {
       totalKopecks: 2_000_000,
       comment: QUICK_ORDER_COMMENT,
     });
+  });
+});
+
+describe("состав корзины текстом для Max", () => {
+  it("позиции с опциями, кодом, количеством, ссылкой и итогом", () => {
+    const cart = priceCart(
+      [
+        { productId: "p-seat", valueIds: ["v-3"], quantity: 2 },
+        { productId: "p-glue", valueIds: [], quantity: 1 },
+      ],
+      catalog,
+    );
+    const text = cartToText(cart, "https://bus-com.ru");
+    expect(text.split("\n")[0]).toBe("Здравствуйте! Хочу заказать:");
+    expect(text).toContain("1. Сиденье Турист (Ремень: Трёхточечный), код SEAT-1 — 2 шт.,");
+    expect(text).toContain("https://bus-com.ru/sidene-turist");
+    expect(text).toMatch(/2. .*цена по запросу/);
+    expect(text.split("\n").at(-1)).toMatch(/^Итого: /);
   });
 });
