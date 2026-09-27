@@ -4,6 +4,7 @@ import { SiteSeoFields, toSiteSeoDraft, toSiteSeoValue } from "@/components/site
 import { useState, useTransition } from "react";
 import { ExternalLink, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { defaultTitle } from "@buscom/domain/site/meta";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -457,7 +458,7 @@ export function ProductDialog({
             value={site}
             onChange={setSite}
             savedSlug={product?.slug ?? null}
-            titlePlaceholder={`${name || "Название"} — купить в Нижнем Новгороде | Баском`}
+            titlePlaceholder={defaultTitle(name || "Название")}
           />
           {!product && !site.slug.trim() ? (
             <span className="text-muted-foreground text-xs">Адрес будет выбран из названия при сохранении.</span>

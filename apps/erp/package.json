@@ -22,7 +22,8 @@
     "fetch:emails": "tsx --tsconfig tsconfig.scripts.json scripts/fetch-emails.ts",
     "import:site-images": "tsx --tsconfig tsconfig.scripts.json scripts/import-site-images.ts",
     "snapshot:old-site": "tsx --tsconfig tsconfig.scripts.json scripts/snapshot-old-site.ts",
-    "import:site-seo": "tsx --tsconfig tsconfig.scripts.json scripts/import-site-seo.ts"
+    "import:site-seo": "tsx --tsconfig tsconfig.scripts.json scripts/import-site-seo.ts",
+    "check:site-urls": "tsx --tsconfig tsconfig.scripts.json scripts/check-site-urls.ts"
   },
   "dependencies": {
     "@buscom/db": "workspace:*",

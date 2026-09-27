@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { defaultTitle } from "@buscom/domain/site/meta";
 import { updateCategorySiteAction } from "@/app/(app)/products/categories/actions";
 import { SiteSeoFields, toSiteSeoDraft, toSiteSeoValue } from "@/components/site/site-seo-fields";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,7 @@ export function CategorySiteDialog({ category, onClose }: { category: CategoryRo
           value={value}
           onChange={setValue}
           savedSlug={category.slug}
-          titlePlaceholder={`${category.name} — купить в Нижнем Новгороде | Баском`}
+          titlePlaceholder={defaultTitle(category.name)}
         />
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>

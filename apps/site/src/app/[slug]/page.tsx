@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatRubPlain } from "@buscom/domain/money";
+import { defaultCategoryDescription, defaultTitle, descriptionSnippet } from "@buscom/domain/site/meta";
 import {
   applyCatalogQuery,
   catalogModels,
@@ -24,23 +25,16 @@ import { getPageBySlug, type CategoryPage, type ProductPage } from "@/server/cat
  * доходят — их уводит 301 proxy.ts.
  */
 
-/** Шаблон для страниц без своих метатегов (SITE-PRD, «Метатеги и разметка»). */
-const titleFor = (name: string) => `${name} — купить в Нижнем Новгороде | ${COMPANY.brand}`;
-
-const snippet = (text: string | null) => (text ? text.replace(/\s+/g, " ").trim().slice(0, 160) : undefined);
-
 export async function generateMetadata({ params, searchParams }: PageProps<"/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   // Выборка фильтром — не отдельная страница для поиска: canonical на категорию, в индекс не берём
   const filtered = isCatalogQueryActive(parseCatalogQuery(await searchParams));
   const page = await getPageBySlug(slug);
   if (!page) return {};
-  const title = page.metaTitle ?? titleFor(page.name);
+  const title = page.metaTitle ?? defaultTitle(page.name);
   const description =
     page.metaDescription ??
-    (page.kind === "product"
-      ? snippet(page.description)
-      : `${page.name} для микроавтобусов — каталог ${COMPANY.brand}`);
+    (page.kind === "product" ? descriptionSnippet(page.description) : defaultCategoryDescription(page.name));
   const image = page.kind === "product" && page.imageIds[0] ? `/img/${page.imageIds[0]}` : undefined;
   return {
     title: { absolute: title },
@@ -67,7 +61,7 @@ function ProductView({ product }: { product: ProductPage }) {
     sku: product.sku,
     url: `${SITE_ORIGIN}/${product.slug}`,
     image: product.imageIds.map((id) => `${SITE_ORIGIN}/img/${id}`),
-    description: snippet(product.description),
+    description: descriptionSnippet(product.description),
     brand: { "@type": "Brand", name: COMPANY.brand },
     ...(product.priceKopecks > 0 && {
       offers: {
