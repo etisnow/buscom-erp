@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/config/metadata";
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
 import { COMPANY } from "@/config/company";
 
 // Метатеги — со старого сайта дословно (docs/site-snapshot/pages.json, «/kontakty»)
-export const metadata: Metadata = {
-  title: { absolute: "Контакты. Баском" },
+export const metadata: Metadata = pageMetadata({
+  title: "Контакты. Баском",
   description: 'Контактная информация о компании "Баском"',
-  alternates: { canonical: "/kontakty" },
-};
+  path: "/kontakty",
+});
 
 /**
  * Экран 07 макета. Тексты — из COMPANY (src/config/company.ts); редактирование

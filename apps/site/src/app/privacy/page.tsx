@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/config/metadata";
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
 import { COMPANY } from "@/config/company";
 
-export const metadata: Metadata = {
-  title: "Политика обработки персональных данных",
+export const metadata: Metadata = pageMetadata({
+  title: "Политика обработки персональных данных | Баском",
   description: `Как ${COMPANY.legalName} обрабатывает и защищает персональные данные покупателей сайта bus-com.ru`,
-  alternates: { canonical: "/privacy" },
-};
+  path: "/privacy",
+});
 
 /**
  * ЧЕРНОВИК — до запуска его проверяет владелец или юрист (docs/STATUS.md).

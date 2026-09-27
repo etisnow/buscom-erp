@@ -17,6 +17,7 @@ import { HitBadge, ProductCard } from "@/components/catalog/product-card";
 import { ProductConfigurator } from "@/components/catalog/product-configurator";
 import { ProductGallery } from "@/components/catalog/product-gallery";
 import { COMPANY, SITE_ORIGIN } from "@/config/company";
+import { pageMetadata } from "@/config/metadata";
 import { getPageBySlug, type CategoryPage, type ProductPage } from "@/server/catalog";
 
 /**
@@ -37,11 +38,8 @@ export async function generateMetadata({ params, searchParams }: PageProps<"/[sl
     (page.kind === "product" ? descriptionSnippet(page.description) : defaultCategoryDescription(page.name));
   const image = page.kind === "product" && page.imageIds[0] ? `/img/${page.imageIds[0]}` : undefined;
   return {
-    title: { absolute: title },
-    description,
-    alternates: { canonical: `/${page.slug}` },
+    ...pageMetadata({ title, description, path: `/${page.slug}`, image }),
     ...(filtered && { robots: { index: false, follow: true } }),
-    openGraph: { title, description, url: `/${page.slug}`, images: image ? [image] : undefined },
   };
 }
 

@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { pageMetadata } from "@/config/metadata";
 import { ProductCard } from "@/components/catalog/product-card";
 import { getCategoryTree, getHits } from "@/server/catalog";
 
 // Метатеги главной — со старого сайта дословно (docs/site-snapshot/pages.json, «/»)
-export const metadata: Metadata = {
-  title: { absolute: "Баском. Комплектующие для микроавтобусов" },
-  alternates: { canonical: "/" },
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Баском. Комплектующие для микроавтобусов",
+  description: "Продажа комплектующих для микроавтобусов (сиденья, люки, полки, поручни, подножки и т.д.)",
+  path: "/",
+});
 
 export const dynamic = "force-dynamic";
 

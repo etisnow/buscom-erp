@@ -13,7 +13,7 @@ export default function robots(): MetadataRoute.Robots {
   const { SITE_URL, SITE_INDEXING } = siteEnv();
   if (!SITE_INDEXING) return { rules: [{ userAgent: "*", disallow: "/" }] };
   return {
-    rules: [{ userAgent: "*", allow: "/", disallow: ["/korzina", "/oformlenie", "/api/", "/*?*sort="] }],
+    rules: [{ userAgent: "*", allow: "/", disallow: ["/korzina", "/oformlenie", "/poisk", "/api/", "/*?*sort="] }],
     sitemap: `${SITE_URL}/sitemap.xml`,
     host: SITE_URL,
   };
