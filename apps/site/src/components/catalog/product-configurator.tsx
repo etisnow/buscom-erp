@@ -7,6 +7,7 @@ import { MAX_QUANTITY } from "@buscom/domain/site/cart";
 import { ecommerce, reachGoal } from "@/components/analytics/metrika";
 import { cartActions } from "@/components/cart/cart-store";
 import { COMPANY } from "@/config/company";
+import { QuickOrder } from "./quick-order";
 
 type Group = {
   id: string;
@@ -125,6 +126,12 @@ export function ProductConfigurator({
                 Добавлено · перейти в корзину
               </Link>
             )}
+            <QuickOrder
+              line={{ productId, valueIds: Object.values(selected), quantity }}
+              sku={sku}
+              name={name}
+              priceKopecks={price}
+            />
           </div>
         )}
         <p className="text-muted mt-3 text-sm">

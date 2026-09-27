@@ -212,3 +212,55 @@ export function buildSiteOrderPayload(input: CheckoutInput, cart: PricedCart): S
     comment: input.comment ?? null,
   };
 }
+
+/**
+ * «Купить в 1 клик» из карточки товара (docs/SITE-PRD.md, «03 · Карточка товара»):
+ * только имя и телефон, одна позиция. Доставку и оплату менеджер уточняет звонком —
+ * контракт v1 допускает заказ без способа доставки.
+ */
+export const quickOrderSchema = z
+  .object({
+    requestId: z.uuid(),
+    name: trimmed(120).min(2, { error: "Укажите имя" }),
+    phone: z.string().max(40),
+    consent: z.boolean(),
+    website: z.string().max(0, { error: "Ошибка формы — обновите страницу" }).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (!normalizePhone(value.phone)) {
+      ctx.addIssue({ code: "custom", path: ["phone"], message: "Укажите телефон в формате +7 XXX XXX-XX-XX" });
+    }
+    if (!value.consent) {
+      ctx.addIssue({ code: "custom", path: ["consent"], message: "Нужно согласие на обработку персональных данных" });
+    }
+  })
+  .transform((value) => ({ ...value, phone: normalizePhone(value.phone) as string }));
+
+export type QuickOrderInput = z.infer<typeof quickOrderSchema>;
+
+/** Комментарий заказа в 1 клик — менеджер видит его в карточке заказа */
+export const QUICK_ORDER_COMMENT = "Купить в 1 клик: перезвонить, уточнить доставку и оплату";
+
+export function buildQuickOrderPayload(input: QuickOrderInput, cart: PricedCart): SiteOrderPayload {
+  const payload = buildSiteOrderPayload(
+    {
+      ...input,
+      customerType: "PERSON",
+      email: undefined,
+      companyName: undefined,
+      inn: undefined,
+      kpp: undefined,
+      // Способ доставки ниже заменяется пустым — его уточнит менеджер
+      deliveryMethod: "PICKUP",
+      carrier: undefined,
+      address: undefined,
+      comment: undefined,
+    },
+    cart,
+  );
+  return {
+    ...payload,
+    delivery: { method: null, carrier: null, address: null, priceKopecks: 0 },
+    comment: QUICK_ORDER_COMMENT,
+  };
+}

@@ -2,15 +2,19 @@ import "server-only";
 import { createHmac } from "node:crypto";
 import { z } from "zod";
 import {
+  buildQuickOrderPayload,
   buildSiteOrderPayload,
+  cartLineSchema,
   cartSchema,
   checkoutSchema,
   priceCart,
+  quickOrderSchema,
   type CatalogProduct,
   type CartLine,
   type PricedCart,
 } from "@buscom/domain/site/cart";
 import { checkInn } from "@buscom/domain/customer/company-lookup";
+import type { SiteOrderPayload } from "@buscom/domain/integration/contract";
 import { SlidingWindowLimiter } from "@buscom/domain/site/rate-limit";
 import { db } from "@/server/db";
 
@@ -75,11 +79,7 @@ export type PlaceOrderResult =
 /** `ip` — адрес покупателя из заголовков прокси; неизвестен — действует только общий лимит. */
 export async function placeOrder(cartInput: unknown, formInput: unknown, ip: string | null): Promise<PlaceOrderResult> {
   const form = checkoutSchema.safeParse(formInput);
-  if (!form.success) {
-    const fieldErrors: Record<string, string> = {};
-    for (const issue of form.error.issues) fieldErrors[issue.path.join(".")] ??= issue.message;
-    return { ok: false, error: "Проверьте поля формы", fieldErrors };
-  }
+  if (!form.success) return formErrors(form.error.issues);
   const parsedCart = cartSchema.safeParse(cartInput);
   if (!parsedCart.success || parsedCart.data.length === 0) {
     return { ok: false, error: "Корзина пуста или устарела — обновите страницу" };
@@ -89,13 +89,41 @@ export async function placeOrder(cartInput: unknown, formInput: unknown, ip: str
     return { ok: false, error: "Часть товаров изменилась — проверьте корзину и отправьте заказ ещё раз", cart };
   }
 
+  return sendOrder(buildSiteOrderPayload(form.data, cart), ip);
+}
+
+/** Товар из карточки «в 1 клик»: одна позиция, имя и телефон. Цена — из базы, как в корзине. */
+export async function placeQuickOrder(
+  lineInput: unknown,
+  formInput: unknown,
+  ip: string | null,
+): Promise<PlaceOrderResult> {
+  const form = quickOrderSchema.safeParse(formInput);
+  if (!form.success) return formErrors(form.error.issues);
+  const line = cartLineSchema.safeParse(lineInput);
+  if (!line.success) return { ok: false, error: "Не удалось прочитать выбор товара — обновите страницу" };
+  const cart = priceCart([line.data], await loadProducts([line.data.productId]));
+  if (cart.dropped.length > 0 || cart.lines.length === 0) {
+    return { ok: false, error: "Товар изменился или снят с продажи — обновите страницу" };
+  }
+  return sendOrder(buildQuickOrderPayload(form.data, cart), ip);
+}
+
+function formErrors(issues: { path: PropertyKey[]; message: string }[]): PlaceOrderResult {
+  const fieldErrors: Record<string, string> = {};
+  for (const issue of issues) fieldErrors[issue.path.join(".")] ??= issue.message;
+  return { ok: false, error: "Проверьте поля формы", fieldErrors };
+}
+
+/** Лимит и отправка заказа в ERP — общие для корзины и «1 клика». */
+async function sendOrder(payload: SiteOrderPayload, ip: string | null): Promise<PlaceOrderResult> {
   if ((ip && !perIp.take(ip)) || !overall.take("all")) {
     console.warn(`[checkout] Лимит заказов: ${ip ?? "IP неизвестен"}`);
     return { ok: false, error: "Слишком много заказов подряд. Подождите несколько минут или позвоните нам" };
   }
 
   try {
-    const response = await postToErp("/api/integrations/site/orders", buildSiteOrderPayload(form.data, cart));
+    const response = await postToErp("/api/integrations/site/orders", payload);
     if (!response) return { ok: false, error: "Не удалось отправить заказ. Позвоните нам — оформим по телефону" };
     // 201 — заказ создан, 200 — эта же форма уже отправлялась (повторное нажатие)
     if (response.status === 201 || response.status === 200) {

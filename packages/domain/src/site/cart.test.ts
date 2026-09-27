@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { siteOrderSchema } from "../integration/contract";
-import { addToCart, buildSiteOrderPayload, checkoutSchema, priceCart, type CatalogProduct } from "./cart";
+import {
+  addToCart,
+  buildQuickOrderPayload,
+  buildSiteOrderPayload,
+  checkoutSchema,
+  priceCart,
+  QUICK_ORDER_COMMENT,
+  quickOrderSchema,
+  type CatalogProduct,
+} from "./cart";
 
 const seat: CatalogProduct = {
   id: "p-seat",
@@ -133,6 +142,41 @@ describe("оформление", () => {
       delivery: { method: "CARRIER", carrier: "СДЭК", address: "Казань, ул. Баумана, 1" },
       payment: { method: "INVOICE" },
       totalKopecks: 1_150_000,
+    });
+  });
+});
+
+describe("купить в 1 клик", () => {
+  const base = {
+    requestId: "0f1e2d3c-4b5a-4968-8776-655443322110",
+    name: "Пётр",
+    phone: "+7 912 345 67 89",
+    consent: true,
+  };
+
+  it("нужны имя, телефон и согласие — ошибки все сразу", () => {
+    const result = quickOrderSchema.safeParse({ ...base, name: " ", phone: "123", consent: false });
+    expect(result.success).toBe(false);
+    const paths = result.error?.issues.map((issue) => issue.path.join("."));
+    expect(paths).toEqual(expect.arrayContaining(["name", "phone", "consent"]));
+  });
+
+  it("бот заполнил поле-ловушку — отказ", () => {
+    expect(quickOrderSchema.safeParse({ ...base, website: "x" }).success).toBe(false);
+  });
+
+  it("заказ проходит контракт: частное лицо, без доставки и оплаты, с пометкой для менеджера", () => {
+    const input = quickOrderSchema.parse(base);
+    const cart = priceCart([{ productId: "p-seat", valueIds: ["v-2"], quantity: 2 }], catalog);
+    expect(siteOrderSchema.parse(buildQuickOrderPayload(input, cart))).toMatchObject({
+      externalId: "web-0f1e2d3c-4b5a-4968-8776-655443322110",
+      numberedByErp: true,
+      customer: { type: "PERSON", name: "Пётр", phone: "+79123456789", email: null, inn: null },
+      items: [{ sku: "SEAT-1", quantity: 2, priceKopecks: 1_000_000 }],
+      delivery: { method: null, carrier: null, address: null },
+      payment: { method: null },
+      totalKopecks: 2_000_000,
+      comment: QUICK_ORDER_COMMENT,
     });
   });
 });
