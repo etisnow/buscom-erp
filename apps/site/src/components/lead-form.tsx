@@ -51,44 +51,40 @@ export function LeadForm({ kind, submitLabel }: { kind: LeadKind; submitLabel: s
     });
   }
 
-  const input = "border-line w-full rounded-md border bg-white px-3 py-2";
+  const input =
+    "border-line-strong placeholder:text-subtle focus:border-brand h-12 w-full rounded-[9px] border bg-white px-3.5 text-[15px] outline-none";
   const field = (key: string) => (errors[key] ? <p className="mt-1 text-sm text-red-700">{errors[key]}</p> : null);
 
+  // Поля без подписей, с подсказкой внутри — как в макете; для программ чтения экрана — aria-label
   return (
-    <form action={submit} noValidate className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block">
-          <span className="text-sm">Имя *</span>
-          <input name="name" autoComplete="name" className={input} />
-          {field("name")}
-        </label>
-        <label className="block">
-          <span className="text-sm">Телефон *</span>
-          <input name="phone" type="tel" autoComplete="tel" placeholder="+7" className={input} />
-          {field("phone")}
-        </label>
+    <form action={submit} noValidate className="flex flex-col gap-3">
+      <div>
+        <input name="name" autoComplete="name" placeholder="Имя" aria-label="Имя" className={input} />
+        {field("name")}
+      </div>
+      <div>
+        <input
+          name="phone"
+          type="tel"
+          autoComplete="tel"
+          placeholder="Телефон, +7…"
+          aria-label="Телефон"
+          className={input}
+        />
+        {field("phone")}
       </div>
       {kind === "salon" && (
-        <>
-          <label className="block">
-            <span className="text-sm">Модель автомобиля</span>
-            <input name="model" placeholder="Например, ГАЗель Next" className={input} />
-          </label>
-          <label className="block">
-            <span className="text-sm">Задача</span>
-            <textarea
-              name="task"
-              rows={3}
-              placeholder="Сколько мест, что поменять: сиденья, обшивка, пол, свет…"
-              className={input}
-            />
-          </label>
-        </>
+        <input
+          name="task"
+          placeholder="Модель авто и что нужно"
+          aria-label="Модель авто и что нужно"
+          className={input}
+        />
       )}
       {/* Поле-ловушка для ботов: скрыто от людей и от программ чтения экрана */}
       <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" />
-      <label className="flex items-start gap-2 text-sm">
-        <input name="consent" type="checkbox" className="mt-1" />
+      <label className="text-muted flex items-start gap-2 text-xs leading-snug">
+        <input name="consent" type="checkbox" className="accent-brand mt-0.5" />
         <span>
           Согласен на обработку персональных данных в соответствии с{" "}
           <Link href="/privacy" target="_blank" className="text-brand underline">
@@ -101,10 +97,11 @@ export function LeadForm({ kind, submitLabel }: { kind: LeadKind; submitLabel: s
       <button
         type="submit"
         disabled={pending}
-        className="bg-brand hover:bg-brand-hover rounded-md px-5 py-2 font-semibold text-white disabled:opacity-50"
+        className="bg-accent hover:bg-accent-hover text-ink h-[50px] rounded-[9px] text-[15px] font-semibold disabled:opacity-50"
       >
         {pending ? "Отправляем…" : submitLabel}
       </button>
+      <p className="text-muted text-xs leading-snug">Перезвоним в рабочее время: {COMPANY.hours}</p>
     </form>
   );
 }

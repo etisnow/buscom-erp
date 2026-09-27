@@ -26,15 +26,15 @@ export default async function SearchPage({ searchParams }: PageProps<"/poisk">) 
 
   return (
     <section>
-      <h1 className="text-2xl font-bold md:text-3xl">{query ? `Поиск: «${query}»` : "Поиск по каталогу"}</h1>
+      <h1 className="page-title">{query ? `Поиск: «${query}»` : "Поиск по каталогу"}</h1>
 
       {categories.length > 0 && (
-        <ul className="mt-6 flex flex-wrap gap-2">
+        <ul className="mt-4 flex flex-wrap gap-2">
           {categories.map((category) => (
             <li key={category.id}>
               <Link
                 href={`/${category.slug}`}
-                className="border-line hover:border-brand hover:text-brand inline-flex items-center gap-2 rounded-md border bg-white px-4 py-2"
+                className="border-line-strong hover:border-brand flex h-[38px] items-center gap-2 rounded-full border bg-white px-4 text-sm"
               >
                 {category.name}
                 <span className="text-subtle text-sm">{category.productCount}</span>
@@ -45,18 +45,18 @@ export default async function SearchPage({ searchParams }: PageProps<"/poisk">) 
       )}
 
       {terms.length === 0 ? (
-        <p className="text-ink-2 mt-4">Введите название товара или его код в строке поиска.</p>
+        <p className="card text-ink-2 mt-4 p-5">Введите название товара или его код в строке поиска.</p>
       ) : found.length > 0 ? (
         <>
           <p className="text-muted mt-4 text-sm">Найдено товаров: {found.length}</p>
-          <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-3 lg:grid-cols-4 xl:grid-cols-5">
             {found.map((product, index) => (
               <ProductCard key={product.id} product={product} eager={index < 4} priority={index === 0} />
             ))}
           </div>
         </>
       ) : (
-        <p className="text-ink-2 mt-4">
+        <p className="card text-ink-2 mt-4 p-5">
           Ничего не нашлось. Проверьте написание или спросите нас: {COMPANY.phone.display}, Max {COMPANY.max.display}.
         </p>
       )}

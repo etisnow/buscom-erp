@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatRubPlain } from "@buscom/domain/money";
+import { pluralize } from "@buscom/domain/money-words";
 import { defaultCategoryDescription, defaultTitle, descriptionSnippet } from "@buscom/domain/site/meta";
 import { modelPath } from "@buscom/domain/site/models";
 import {
@@ -13,7 +14,7 @@ import {
 } from "@buscom/domain/site/catalog-query";
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
 import { PageText } from "@/components/page-text";
-import { CategoryFilters } from "@/components/catalog/category-filters";
+import { CategoryFilters, SortTabs } from "@/components/catalog/category-filters";
 import { HitBadge, ProductCard } from "@/components/catalog/product-card";
 import { ProductConfigurator } from "@/components/catalog/product-configurator";
 import { ProductGallery } from "@/components/catalog/product-gallery";
@@ -75,14 +76,24 @@ function ProductView({ product }: { product: ProductPage }) {
   return (
     <article>
       <Breadcrumbs items={product.breadcrumbs} current={product.name} />
-      {/* grid-cols-1 — колонка minmax(0, 1fr): лента превью галереи не распирает страницу на телефоне */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <ProductGallery imageIds={product.imageIds} name={product.name} />
-        <div className="space-y-5">
-          <div>
-            {product.isHit && <HitBadge className="mb-2 inline-block" />}
-            <h1 className="text-2xl font-bold md:text-3xl">{product.name}</h1>
-            <p className="text-subtle mt-2 font-mono text-sm">Код товара: {product.sku}</p>
+      {/* minmax(0, 1fr) — лента превью галереи не распирает страницу на телефоне */}
+      <div className="grid grid-cols-1 gap-3 md:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)]">
+        <div className="flex flex-col gap-3 md:gap-6">
+          <ProductGallery
+            imageIds={product.imageIds}
+            name={product.name}
+            badges={product.isHit ? <HitBadge /> : undefined}
+          />
+          <div className="max-lg:hidden">
+            <ProductDetails product={product} />
+          </div>
+        </div>
+        <div className="card flex flex-col gap-5 self-start p-5 md:p-7">
+          <div className="flex flex-col gap-2">
+            <p className="text-muted text-[13px]">
+              Код <span className="text-ink-2 ml-1 font-mono">{product.sku}</span>
+            </p>
+            <h1 className="text-2xl leading-tight font-bold tracking-[-.01em] md:text-[30px]">{product.name}</h1>
           </div>
           <ProductConfigurator
             productId={product.id}
@@ -92,34 +103,16 @@ function ProductView({ product }: { product: ProductPage }) {
             groups={product.options}
             isActive={product.isActive}
           />
-          {product.compatibility.length > 0 && (
-            <div>
-              <h2 className="mb-2 font-semibold">Подходит для</h2>
-              <ul className="flex flex-wrap gap-2 text-sm">
-                {product.compatibility.map((model) => (
-                  <li key={model}>
-                    <Link href={modelPath(model)} className="bg-surface hover:text-brand block rounded px-2 py-1">
-                      {model}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+        </div>
+        <div className="lg:hidden">
+          <ProductDetails product={product} />
         </div>
       </div>
 
-      {product.description && (
-        <section className="mt-10 max-w-3xl">
-          <h2 className="mb-3 text-xl font-semibold">Описание</h2>
-          <PageText text={product.description} />
-        </section>
-      )}
-
       {product.related.length > 0 && (
-        <section className="mt-12">
-          <h2 className="mb-4 text-xl font-semibold">Похожие товары</h2>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <section className="mt-10 flex flex-col gap-4 md:mt-14 md:gap-5">
+          <h2 className="text-[22px] font-bold tracking-[-.01em] md:text-[30px]">Похожие товары</h2>
+          <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-3 lg:grid-cols-4">
             {product.related.map((item) => (
               <ProductCard key={item.id} product={item} />
             ))}
@@ -128,6 +121,40 @@ function ProductView({ product }: { product: ProductPage }) {
       )}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     </article>
+  );
+}
+
+/** Описание и совместимость — белой карточкой под галереей (макет, экран 03). Характеристик в данных пока нет. */
+function ProductDetails({ product }: { product: ProductPage }) {
+  if (!product.description && product.compatibility.length === 0) return null;
+  return (
+    <section className="card flex flex-col gap-6 p-5 md:p-8">
+      {product.description && (
+        <div>
+          <h2 className="mb-3 text-[22px] font-bold">Описание</h2>
+          <div className="text-ink-2 text-[15px] leading-[1.65]">
+            <PageText text={product.description} />
+          </div>
+        </div>
+      )}
+      {product.compatibility.length > 0 && (
+        <div>
+          <h3 className="mb-2.5 text-[15px] font-semibold">Подходит для</h3>
+          <ul className="flex flex-wrap gap-2">
+            {product.compatibility.map((model) => (
+              <li key={model}>
+                <Link
+                  href={modelPath(model)}
+                  className="bg-brand-soft text-brand hover:bg-brand flex h-8 items-center rounded-full px-3 text-[13px] font-medium hover:text-white"
+                >
+                  {model}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -146,56 +173,66 @@ function CategoryView({ category, query }: { category: CategoryPage; query: Cata
       name: product.name,
     })),
   };
+  // У подраздела текущий — первым: на телефоне ряд прокручивается, и он не уедет за край
+  const pills =
+    category.children.length > 0
+      ? category.children
+      : [...category.siblings].sort((a, b) => Number(b.slug === category.slug) - Number(a.slug === category.slug));
   return (
     <section>
       <Breadcrumbs items={category.breadcrumbs} current={category.name} />
-      <h1 className="text-2xl font-bold md:text-3xl">
-        {category.name} <span className="text-subtle text-lg font-normal">{category.products.length}</span>
+      <h1 className="text-[26px] leading-tight font-bold tracking-[-.02em] md:text-[34px]">
+        {category.name}{" "}
+        <span className="text-muted align-middle text-sm font-normal tracking-normal md:text-[15px]">
+          {category.products.length} {pluralize(category.products.length, ["товар", "товара", "товаров"])}
+        </span>
       </h1>
 
-      {category.children.length > 0 && (
-        <ul className="mt-6 flex flex-wrap gap-2">
-          {category.children.map((child) => (
-            <li key={child.slug}>
-              <Link
-                href={`/${child.slug}`}
-                className="border-line hover:border-brand hover:text-brand inline-flex items-center gap-2 rounded-md border bg-white px-4 py-2"
-              >
-                {child.name}
-                <span className="text-subtle text-sm">{child.productCount}</span>
-              </Link>
-            </li>
-          ))}
+      {pills.length > 0 && (
+        <ul className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0">
+          {pills.map((item) => {
+            const current = item.slug === category.slug;
+            return (
+              <li key={item.slug} className="shrink-0">
+                <Link
+                  href={`/${item.slug}`}
+                  aria-current={current ? "page" : undefined}
+                  className={`flex h-[38px] items-center rounded-full border px-4 text-sm ${
+                    current ? "bg-brand border-brand text-white" : "border-line-strong hover:border-brand bg-white"
+                  }`}
+                >
+                  {item.name}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
 
-      {category.products.length > 1 && (
-        <div className="mt-6">
-          <CategoryFilters slug={category.slug} query={query} models={catalogModels(category.products)} />
+      <div className="mt-5 grid grid-cols-1 gap-4 md:mt-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-6">
+        <aside>
+          {category.products.length > 1 && (
+            <CategoryFilters slug={category.slug} query={query} models={catalogModels(category.products)} />
+          )}
+        </aside>
+        <div className="flex flex-col gap-4">
+          {category.products.length > 1 && <SortTabs slug={category.slug} query={query} />}
+          {products.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-3 xl:grid-cols-4">
+              {products.map((product, index) => (
+                <ProductCard key={product.id} product={product} eager={index < 4} priority={index === 0} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-ink-2 card p-5">
+              По этим условиям товаров нет.{" "}
+              <Link href={`/${category.slug}`} className="text-brand hover:underline">
+                Показать все {category.products.length}
+              </Link>
+            </p>
+          )}
         </div>
-      )}
-
-      {products.length > 0 ? (
-        <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {products.map((product, index) => (
-            <ProductCard key={product.id} product={product} eager={index < 4} priority={index === 0} />
-          ))}
-        </div>
-      ) : (
-        <p className="text-ink-2 mt-6">
-          По этим условиям товаров нет.{" "}
-          <Link href={`/${category.slug}`} className="text-brand hover:underline">
-            Показать все {category.products.length}
-          </Link>
-        </p>
-      )}
-
-      <aside className="bg-brand-soft mt-10 rounded-lg p-5">
-        <p className="font-semibold">Нужно много мест на автопарк?</p>
-        <p className="text-ink-2 mt-1">
-          Посчитаем комплект и сроки — позвоните {COMPANY.phone.display} или напишите в Max {COMPANY.max.display}.
-        </p>
-      </aside>
+      </div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     </section>
   );

@@ -8,21 +8,57 @@
   --color-brand: #008244;
   --color-brand-hover: #006b38;
   --color-brand-soft: #e5f3eb;
+  --color-brand-pale: #bfe0c7;
   --color-accent: #f39200;
   --color-accent-hover: #e08600;
+  --color-accent-soft: #fdf1e0;
   --color-ink: #15191e;
   --color-ink-2: #46505c;
   --color-muted: #5a6370;
   --color-subtle: #88909a;
   --color-surface: #f5f6f5;
   --color-surface-2: #eceeec;
-  --color-line: #e3e5e2;
+  --color-field: #f3f5f3;
+  --color-line: #e3e6e3;
+  --color-line-strong: #d5d9d5;
 
   --font-sans: var(--font-golos), system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 }
 
+/* Ширина страницы по макету: 1440 с полями 48 на десктопе, 16 на телефоне */
+@utility wrap {
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding-inline: 1rem;
+  @media (width >= 48rem) {
+    padding-inline: 1.5rem;
+  }
+  @media (width >= 64rem) {
+    padding-inline: 3rem;
+  }
+}
+
+/* Белая карточка на сером фоне — основной блок всех экранов макета */
+@utility card {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
+}
+
 html {
   color: var(--color-ink);
-  background: #fff;
+  background: var(--color-surface);
+}
+
+/* Заголовок страницы: 40 на десктопе, 26 на телефоне (макет, экраны 04–07) */
+@utility page-title {
+  font-size: 26px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  @media (width >= 48rem) {
+    font-size: 40px;
+  }
 }

@@ -34,7 +34,7 @@ import { postToErp } from "@/server/erp";
 const perIp = new SlidingWindowLimiter(5, 10 * 60 * 1000);
 const overall = new SlidingWindowLimiter(60, 60 * 60 * 1000);
 
-async function loadProducts(ids: string[]): Promise<Map<string, CatalogProduct>> {
+async function loadProducts(ids: string[]): Promise<Map<string, CatalogProduct & { imageId: string | null }>> {
   const products = await db.product.findMany({
     where: { id: { in: [...new Set(ids)] } },
     select: {
@@ -44,6 +44,7 @@ async function loadProducts(ids: string[]): Promise<Map<string, CatalogProduct>>
       slug: true,
       isActive: true,
       priceKopecks: true,
+      images: { orderBy: { sortOrder: "asc" }, take: 1, select: { id: true } },
       options: {
         orderBy: { sortOrder: "asc" },
         select: {
@@ -55,13 +56,25 @@ async function loadProducts(ids: string[]): Promise<Map<string, CatalogProduct>>
       },
     },
   });
-  return new Map(products.map(({ options, ...product }) => [product.id, { ...product, groups: options }]));
+  return new Map(
+    products.map(({ options, images, ...product }) => [
+      product.id,
+      { ...product, groups: options, imageId: images[0]?.id ?? null },
+    ]),
+  );
 }
 
-export async function priceCartFromInput(input: unknown): Promise<PricedCart> {
+/** Пересчёт для показа корзины: к ценам — снимок товара для строки. */
+export type DisplayCart = PricedCart & { imageIds: Record<string, string | null> };
+
+export async function priceCartFromInput(input: unknown): Promise<DisplayCart> {
   const cart = cartSchema.safeParse(input);
-  if (!cart.success) return { lines: [], totalKopecks: 0, dropped: [] };
-  return priceCart(cart.data, await loadProducts(cart.data.map((line) => line.productId)));
+  if (!cart.success) return { lines: [], totalKopecks: 0, dropped: [], imageIds: {} };
+  const products = await loadProducts(cart.data.map((line) => line.productId));
+  return {
+    ...priceCart(cart.data, products),
+    imageIds: Object.fromEntries([...products.values()].map((product) => [product.id, product.imageId])),
+  };
 }
 
 export type PlaceOrderResult =

@@ -20,55 +20,64 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ContactsPage() {
   const page = await getSitePage("kontakty");
   const rows = [
-    [
-      "Отдел продаж",
-      <a key="phone" href={COMPANY.phone.href} className="hover:text-brand font-semibold">
-        {COMPANY.phone.display}
-      </a>,
-    ],
     ["Max", COMPANY.max.display],
-    [
-      "Почта",
-      <a key="mail" href={`mailto:${COMPANY.email}`} className="hover:text-brand">
-        {COMPANY.email}
-      </a>,
-    ],
-    ["Адрес склада", `${COMPANY.warehouse.city}, ${COMPANY.warehouse.street}`],
-    ["Время работы", COMPANY.hours],
+    ["Склад", `${COMPANY.warehouse.city}, ${COMPANY.warehouse.street}`],
+    ["Режим работы", COMPANY.hours],
   ] as const;
   return (
     <section>
       <Breadcrumbs items={[]} current={page.title} />
-      <h1 className="mb-6 text-2xl font-bold md:text-3xl">{page.title}</h1>
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div className="space-y-6">
-          <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3">
+      <h1 className="page-title mb-4 md:mb-6">{page.title}</h1>
+      <div className="grid grid-cols-1 gap-3 md:gap-6 lg:grid-cols-[460px_minmax(0,1fr)]">
+        <div className="flex flex-col gap-3">
+          <div className="card flex flex-col gap-4 p-5 md:p-7">
+            <div>
+              <p className="text-muted text-[13px]">Телефон</p>
+              <a href={COMPANY.phone.href} className="hover:text-brand text-2xl font-bold md:text-[28px]">
+                {COMPANY.phone.display}
+              </a>
+            </div>
             {rows.map(([label, value]) => (
-              <div key={label} className="contents">
-                <dt className="text-muted">{label}</dt>
-                <dd>{value}</dd>
+              <div key={label}>
+                <p className="text-muted text-[13px]">{label}</p>
+                <p className={label === "Max" ? "text-xl font-semibold" : "text-[17px]"}>{value}</p>
               </div>
             ))}
-          </dl>
-          <div className="bg-surface text-ink-2 rounded-lg p-4 text-sm">
+            <div>
+              <p className="text-muted text-[13px]">Почта</p>
+              <a href={`mailto:${COMPANY.email}`} className="hover:text-brand text-[17px]">
+                {COMPANY.email}
+              </a>
+            </div>
+            <a
+              href={COMPANY.phone.href}
+              className="bg-brand hover:bg-brand-hover mt-1 flex h-12 items-center justify-center rounded-[10px] font-semibold text-white"
+            >
+              Позвонить
+            </a>
+          </div>
+          <div className="card flex flex-col gap-3 p-5 md:p-7">
+            <h2 className="text-lg font-bold">Обратный звонок</h2>
+            <LeadForm kind="callback" submitLabel="Перезвоните мне" />
+          </div>
+          <div className="card text-ink-2 p-5 text-sm md:p-7">
             <p className="text-ink font-semibold">{COMPANY.legalName}</p>
             <p>ИНН {COMPANY.inn}</p>
             <p>ОГРН {COMPANY.ogrn}</p>
           </div>
-          {page.body && <PageText text={page.body} />}
-          <section className="border-line rounded-lg border p-5">
-            <h2 className="mb-1 text-lg font-semibold">Заказать обратный звонок</h2>
-            <p className="text-muted mb-4 text-sm">Оставьте телефон — перезвоним в рабочее время.</p>
-            <LeadForm kind="callback" submitLabel="Перезвоните мне" />
-          </section>
         </div>
         <iframe
           title="Склад на карте"
           src="https://yandex.ru/map-widget/v1/?um=constructor%3AoVm42xd82asj5D_3UFrv1p6fQ5IN2-Ew&source=constructor"
           loading="lazy"
-          className="border-line h-96 w-full rounded-lg border"
+          className="border-line h-80 w-full rounded-2xl border md:h-[480px] lg:h-full lg:min-h-[640px]"
         />
       </div>
+      {page.body && (
+        <div className="card mt-3 p-5 text-[15px] leading-relaxed md:mt-6 md:p-7">
+          <PageText text={page.body} />
+        </div>
+      )}
     </section>
   );
 }

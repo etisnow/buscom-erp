@@ -1,8 +1,11 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { CartLink } from "@/components/cart/cart-link";
+import { CatalogMenu } from "@/components/catalog-menu";
+import { Logo } from "@/components/logo";
 import { SearchBox, SearchForm } from "@/components/search-box";
 import { COMPANY } from "@/config/company";
+import { getCategoryTree } from "@/server/catalog";
 
 /** Разделы меню MVP. Переоборудование и акции — после запуска (решение владельца 26.09.2026). */
 const NAV = [
@@ -10,15 +13,21 @@ const NAV = [
   { href: "/kontakty", label: "Контакты" },
 ] as const;
 
-export function SiteHeader() {
+/**
+ * Шапка по макету: служебная строка, строка с логотипом, каталогом, поиском,
+ * телефоном и корзиной, под ней — разделы каталога. На телефоне — логотип,
+ * Max и корзина, поиск строкой ниже; каталог открывается из нижней панели.
+ */
+export async function SiteHeader() {
+  const tree = await getCategoryTree();
   return (
-    <header className="border-line border-b bg-white">
-      <div className="bg-surface text-muted text-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2">
+    <header className="relative z-30 bg-white">
+      <div className="border-surface-2 text-muted hidden border-b text-[13px] md:block">
+        <div className="wrap flex h-9 items-center justify-between gap-4">
           <span>
             {COMPANY.warehouse.city} · {COMPANY.delivery}
           </span>
-          <nav aria-label="Информация" className="hidden gap-6 md:flex">
+          <nav aria-label="Информация" className="flex gap-7">
             {NAV.map((item) => (
               <Link key={item.href} href={item.href} className="hover:text-brand">
                 {item.label}
@@ -27,27 +36,42 @@ export function SiteHeader() {
           </nav>
         </div>
       </div>
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-8 gap-y-3 px-4 py-4">
-        <Link href="/" className="text-brand text-2xl font-bold tracking-tight">
-          {COMPANY.brand}
-        </Link>
-        <p className="text-muted hidden text-sm leading-tight lg:block">
-          Комплектующие
-          <br />
-          для микроавтобусов
-        </p>
-        {/* Suspense — useSearchParams в поле поиска; до гидратации — та же форма пустой */}
-        <Suspense fallback={<SearchForm />}>
-          <SearchBox />
-        </Suspense>
-        <div className="flex flex-col text-right">
-          <a href={COMPANY.phone.href} className="hover:text-brand text-lg font-semibold whitespace-nowrap">
-            {COMPANY.phone.display}
-          </a>
-          <span className="text-muted text-sm">Max: {COMPANY.max.display}</span>
+      <div className="border-line border-b">
+        <div className="wrap flex flex-wrap items-center gap-x-3 gap-y-3 py-3 lg:h-20 lg:flex-nowrap lg:gap-x-5 lg:py-0">
+          <div className="mr-auto lg:mr-3">
+            <Logo />
+          </div>
+          <CatalogMenu tree={tree} />
+          {/* Suspense — useSearchParams в поле поиска; до гидратации — та же форма пустой */}
+          <Suspense fallback={<SearchForm />}>
+            <SearchBox />
+          </Suspense>
+          <div className="hidden flex-col items-end leading-[1.35] lg:flex">
+            <a href={COMPANY.phone.href} className="hover:text-brand font-semibold whitespace-nowrap">
+              {COMPANY.phone.display}
+            </a>
+            <span className="text-brand text-[13px] font-medium whitespace-nowrap">Max: {COMPANY.max.display}</span>
+          </div>
+          <Link
+            href="/kontakty"
+            className="bg-brand-soft text-brand flex size-11 items-center justify-center rounded-[10px] text-xs font-bold lg:hidden"
+          >
+            Max
+          </Link>
+          <CartLink />
         </div>
-        <CartLink />
       </div>
+      <nav aria-label="Разделы каталога" className="border-line hidden border-b md:block">
+        <ul className="wrap flex h-12 items-center gap-8 overflow-x-auto text-[15px] font-medium whitespace-nowrap">
+          {tree.map((category) => (
+            <li key={category.id}>
+              <Link href={`/${category.slug}`} className="hover:text-brand">
+                {category.name}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </header>
   );
 }

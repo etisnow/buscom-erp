@@ -23,3 +23,11 @@ export function startingPrice(
   }
   return { priceKopecks: Math.max(0, price), hasChoice };
 }
+
+/**
+ * Вариант «Нет» без доплаты у необязательной опции: с сайта он пришёл отдельным
+ * значением, а сайт и так даёт отказаться от опции — в выборе это повтор.
+ */
+export function isNoneOptionValue(value: { name: string; priceDeltaKopecks: number }): boolean {
+  return value.priceDeltaKopecks === 0 && value.name.trim().toLowerCase() === "нет";
+}

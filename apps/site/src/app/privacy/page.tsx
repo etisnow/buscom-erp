@@ -18,13 +18,15 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function PrivacyPage() {
   const page = await getSitePage("privacy");
   return (
-    <article className="max-w-3xl">
+    <article>
       <Breadcrumbs items={[]} current={page.title} />
-      <h1 className="mb-6 text-2xl font-bold md:text-3xl">{page.title}</h1>
-      <PageText text={page.body} />
-      <p className="text-ink-2 mt-6 text-sm">
-        Контакты Оператора: {COMPANY.legalName}, {COMPANY.email}, {COMPANY.phone.display}.
-      </p>
+      <h1 className="page-title mb-4 md:mb-6">{page.title}</h1>
+      <div className="card max-w-4xl p-5 text-[15px] leading-relaxed md:p-8">
+        <PageText text={page.body} />
+        <p className="text-ink-2 mt-6 text-sm">
+          Контакты Оператора: {COMPANY.legalName}, {COMPANY.email}, {COMPANY.phone.display}.
+        </p>
+      </div>
     </article>
   );
 }

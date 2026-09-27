@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
-import { MODELS_PATH } from "@buscom/domain/site/models";
+import { pluralize } from "@buscom/domain/money-words";
+import Image from "next/image";
 import Link from "next/link";
 import { pageMetadata } from "@/config/metadata";
-import { ProductCard } from "@/components/catalog/product-card";
+import { NoPhoto, ProductCard } from "@/components/catalog/product-card";
+import { CatalogToggle } from "@/components/catalog-menu";
 import { LeadForm } from "@/components/lead-form";
-import { ModelLinks } from "@/components/model-links";
+import { ModelPicker } from "@/components/model-picker";
 import { PageText } from "@/components/page-text";
-import { getCategoryTree, getHits, getModels } from "@/server/catalog";
+import { COMPANY } from "@/config/company";
+import { getHits, getModels, getPopularCategories } from "@/server/catalog";
 import { getSitePage } from "@/server/pages";
 
 // Заголовок, метатеги и текст о компании правятся в ERP («Страницы сайта», ключ home);
@@ -18,87 +21,184 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export const dynamic = "force-dynamic";
 
-/** На главной — самые ходовые модели, остальные по ссылке «Все модели» */
-const MODELS_ON_HOME = 12;
+/** В подборе на главной — самые ходовые модели, остальные на странице «Все модели» */
+const MODELS_ON_HOME = 8;
 
-/** Главная: разделы каталога, хиты, заявка и текст о компании. Подбор по модели — из совместимости товаров (этап 7). */
+/** Преимущества под первым экраном. «Отгрузку в день заказа» из макета не обещаем — склада в учёте нет. */
+const PERKS = [
+  { title: "Склад в Нижнем Новгороде", text: COMPANY.warehouse.street },
+  { title: "Доставка в РФ и СНГ", text: "Беларусь, Казахстан, Киргизия" },
+  { title: "Собственный цех", text: "Установка и переоборудование" },
+] as const;
+
+const STEPS = ["Присылаете модель и фото салона", "Считаем комплект и работы", "Устанавливаем в цехе"] as const;
+
+/** Главная по макету (экран 01): подбор по модели, цех, разделы, хиты, заявка и текст о компании. */
 export default async function HomePage() {
-  const [tree, hits, page, models] = await Promise.all([
-    getCategoryTree(),
+  const [categories, hits, page, models] = await Promise.all([
+    getPopularCategories(),
     getHits(),
     getSitePage("home"),
     getModels(),
   ]);
   return (
-    <div className="space-y-10">
-      <section className="space-y-3">
-        <h1 className="text-3xl font-bold">{page.title}</h1>
-        <p className="text-ink-2 max-w-2xl">
-          Сиденья, люки, полки, поручни, подножки, детали салона и кузова. Отправляем транспортными компаниями по
-          России, Беларуси, Казахстану и Киргизии.
-        </p>
-      </section>
-      {models.length > 0 && (
-        <section>
-          <div className="mb-4 flex items-baseline justify-between gap-4">
-            <h2 className="text-xl font-semibold">Подбор по модели</h2>
-            {models.length > MODELS_ON_HOME && (
-              <Link href={MODELS_PATH} className="text-brand hover:text-brand-hover text-sm font-medium">
-                Все модели
-              </Link>
-            )}
-          </div>
-          <ModelLinks models={models.slice(0, MODELS_ON_HOME)} />
-        </section>
-      )}
-      <section>
-        <h2 className="mb-4 text-xl font-semibold">Каталог</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {tree.map((category) => (
-            <div key={category.id} className="border-line rounded-lg border bg-white p-5">
-              <Link href={`/${category.slug}`} className="hover:text-brand text-lg font-semibold">
-                {category.name} <span className="text-subtle text-sm font-normal">{category.productCount}</span>
-              </Link>
-              {category.children.length > 0 && (
-                <ul className="mt-3 space-y-1 text-sm">
-                  {category.children.map((child) => (
-                    <li key={child.id}>
-                      <Link href={`/${child.slug}`} className="text-ink-2 hover:text-brand">
-                        {child.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+    <div className="flex flex-col gap-10 md:gap-14">
+      <div className="flex flex-col gap-3 md:gap-5">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_540px] lg:gap-6">
+          <section className="card flex flex-col justify-between gap-5 p-5 md:gap-7 md:p-10">
+            <div className="flex flex-col gap-3.5">
+              <h1 className="text-[26px] leading-[1.1] font-bold tracking-[-.02em] text-balance md:text-[46px]">
+                {page.title}
+              </h1>
+              <p className="text-ink-2 hidden max-w-[580px] text-[17px] leading-normal md:block">
+                Сиденья, полки, шторки, люки, климат и детали кузова для отечественных и зарубежных моделей. Склад в
+                Нижнем Новгороде.
+              </p>
+            </div>
+            <div className="md:bg-surface flex flex-col gap-3.5 overflow-hidden md:rounded-xl md:p-5">
+              <h2 className="font-semibold md:text-base">Подбор по модели автомобиля</h2>
+              {models.length > 0 ? (
+                <ModelPicker models={models.slice(0, MODELS_ON_HOME)} />
+              ) : (
+                <p className="text-ink-2 text-sm leading-normal">
+                  Напишите модель и пришлите фото в Max {COMPANY.max.display} — подберём детали и назовём цену.
+                </p>
               )}
             </div>
-          ))}
+          </section>
+          <WorkshopBanner />
         </div>
-      </section>
+        <ul className="hidden gap-3 md:grid md:grid-cols-3">
+          {PERKS.map((perk) => (
+            <li key={perk.title} className="card flex items-center gap-3.5 rounded-xl px-5 py-[18px]">
+              <span
+                aria-hidden
+                className="bg-brand-soft flex size-10 shrink-0 items-center justify-center rounded-[10px]"
+              >
+                <span className="bg-brand size-3 rounded-[3px]" />
+              </span>
+              <span className="flex flex-col gap-0.5">
+                <span className="text-[15px] font-semibold">{perk.title}</span>
+                <span className="text-muted text-[13px]">{perk.text}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {categories.length > 0 && (
+        <section className="flex flex-col gap-4 md:gap-5">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-[22px] font-bold tracking-[-.01em] md:text-[30px]">Популярные категории</h2>
+            <CatalogToggle className="text-brand hover:text-brand-hover hidden text-[15px] font-medium md:block">
+              Весь каталог →
+            </CatalogToggle>
+          </div>
+          <ul className="grid grid-cols-2 gap-2.5 md:gap-3 lg:grid-cols-4">
+            {categories.map((category) => (
+              <li key={category.id}>
+                <Link
+                  href={`/${category.slug}`}
+                  className="card hover:border-brand flex h-[140px] flex-col justify-between gap-3 rounded-[14px] p-3.5 md:h-[150px] md:flex-row md:p-5"
+                >
+                  <span className="flex flex-col justify-between">
+                    <span className="text-[15px] leading-tight font-semibold md:text-[17px]">{category.name}</span>
+                    <span className="text-muted hidden text-[13px] md:block">
+                      {category.productCount} {pluralize(category.productCount, ["товар", "товара", "товаров"])}
+                    </span>
+                  </span>
+                  <span className="relative size-[70px] shrink-0 self-end md:size-[110px]">
+                    {category.imageId ? (
+                      <Image src={`/img/${category.imageId}`} alt="" fill sizes="110px" className="object-contain" />
+                    ) : (
+                      <NoPhoto />
+                    )}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <CatalogToggle className="card h-12 rounded-xl text-[15px] font-medium md:hidden">Весь каталог</CatalogToggle>
+        </section>
+      )}
+
       {hits.length > 0 && (
-        <section>
-          <h2 className="mb-4 text-xl font-semibold">Хиты продаж</h2>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <section className="flex flex-col gap-4 md:gap-5">
+          <h2 className="text-[22px] font-bold tracking-[-.01em] md:text-[30px]">Хиты продаж</h2>
+          <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-3 lg:grid-cols-6">
             {hits.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
         </section>
       )}
-      <section className="bg-brand-soft grid gap-6 rounded-lg p-6 lg:grid-cols-2">
-        <div>
-          <h2 className="text-xl font-semibold">Обновляете салон целиком?</h2>
-          <p className="text-ink-2 mt-2">
-            Подберём сиденья, обшивку, пол и свет под вашу модель и посчитаем комплект. Оставьте телефон и опишите
-            задачу — перезвоним.
+
+      <section
+        id="zayavka"
+        className="bg-brand grid scroll-mt-4 gap-6 rounded-[18px] p-5 text-white md:p-10 lg:grid-cols-[minmax(0,1fr)_460px] lg:gap-10"
+      >
+        <div className="flex flex-col gap-[18px]">
+          <h2 className="text-[22px] leading-[1.15] font-bold tracking-[-.01em] md:text-[32px]">
+            Обновляете салон целиком?
+          </h2>
+          <p className="max-w-[560px] text-[15px] leading-[1.55] text-[#e1efe4] md:text-base">
+            Подберём сиденья, шторки, полки и климат под вашу модель, посчитаем комплект и установим в нашем цехе. Для
+            автопарков — оптовые цены.
           </p>
+          <ol className="mt-2 hidden gap-3 md:grid md:grid-cols-3">
+            {STEPS.map((step, index) => (
+              <li key={step} className="border-accent flex flex-col gap-1 border-t-2 pt-3">
+                <span className="text-brand-pale font-mono text-xs">{String(index + 1).padStart(2, "0")}</span>
+                <span className="text-[15px] leading-[1.35] font-medium">{step}</span>
+              </li>
+            ))}
+          </ol>
         </div>
-        <LeadForm kind="salon" submitLabel="Отправить заявку" />
+        <div className="text-ink flex flex-col gap-3 rounded-[14px] bg-white p-5 md:p-6">
+          <h3 className="text-lg font-bold">Получить расчёт</h3>
+          <LeadForm kind="salon" submitLabel="Отправить заявку" />
+        </div>
       </section>
+
       {page.body && (
-        <section className="max-w-3xl">
+        <section className="text-ink-2 [&_h2]:text-ink text-[15px] leading-[1.6] lg:columns-2 lg:gap-12 [&_h2]:text-[22px] [&_h2]:font-bold">
           <PageText text={page.body} />
         </section>
       )}
     </div>
+  );
+}
+
+/**
+ * Баннер цеха (макет, экран 01). Страницы переоборудования в MVP нет — кнопка ведёт
+ * к заявке на главной. Фото цеха в макете — со старого сайта; своё пришлёт владелец.
+ */
+function WorkshopBanner() {
+  return (
+    <section className="relative flex min-h-[210px] flex-col justify-end overflow-hidden rounded-2xl bg-[#2a2f2b] bg-[radial-gradient(circle_at_85%_15%,rgba(0,130,68,.55),transparent_55%),repeating-linear-gradient(135deg,rgba(255,255,255,.03)_0_14px,transparent_14px_28px)] p-4 text-white md:min-h-[440px] md:p-7">
+      <div className="flex flex-col gap-2 md:gap-3">
+        <span className="bg-accent text-ink flex h-[26px] items-center self-start rounded-md px-2.5 text-xs font-bold tracking-[.04em]">
+          СОБСТВЕННЫЙ ЦЕХ
+        </span>
+        <h2 className="text-xl leading-[1.15] font-bold md:text-[28px]">Переоборудование микроавтобусов</h2>
+        <p className="hidden text-[15px] leading-[1.45] text-[#e6ebe7] md:block">
+          Установка сидений и вентиляции, перетяжка обшивки салона
+        </p>
+        <div className="mt-1 flex gap-2.5">
+          <Link
+            href="#zayavka"
+            className="text-ink flex h-11 items-center rounded-[9px] bg-white px-[18px] text-sm font-semibold"
+          >
+            Рассчитать стоимость
+          </Link>
+          <a
+            href={COMPANY.phone.href}
+            className="hidden h-11 items-center rounded-[9px] border border-white/50 px-[18px] text-sm font-medium md:flex"
+          >
+            Позвонить
+          </a>
+        </div>
+      </div>
+    </section>
   );
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Golos_Text, IBM_Plex_Mono } from "next/font/google";
 import { Metrika } from "@/components/analytics/metrika";
-import { CatalogNav } from "@/components/catalog-nav";
+import { MobileTabBar } from "@/components/mobile-tab-bar";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { COMPANY, SITE_ORIGIN } from "@/config/company";
@@ -59,9 +59,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="ru" className={`${golos.variable} ${plexMono.variable} antialiased`}>
       <body className="flex min-h-screen flex-col font-sans">
         <SiteHeader />
-        <CatalogNav />
-        <main className="mx-auto w-full max-w-7xl grow px-4 py-8">{children}</main>
+        <main className="wrap grow pt-5 lg:pt-7">{children}</main>
         <SiteFooter />
+        <MobileTabBar />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION) }} />
         {siteEnv().SITE_INDEXING ? <Metrika /> : null}
       </body>

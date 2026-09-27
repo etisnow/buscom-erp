@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function CartPage() {
   return (
     <section>
-      <h1 className="mb-6 text-2xl font-bold md:text-3xl">Корзина</h1>
+      <h1 className="page-title mb-4 md:mb-6">Корзина</h1>
       <CartView />
     </section>
   );

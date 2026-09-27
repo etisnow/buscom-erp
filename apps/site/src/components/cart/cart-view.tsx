@@ -1,12 +1,15 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { formatRub } from "@buscom/domain/money";
+import { pluralize } from "@buscom/domain/money-words";
 import { describeOptions } from "@buscom/domain/product/options";
 import { CARRIERS, cartToText, MAX_QUANTITY, type PricedCart } from "@buscom/domain/site/cart";
 import { lookupCompanyAction, placeOrderAction, priceCartAction } from "@/app/korzina/actions";
 import { ecommerce, reachGoal } from "@/components/analytics/metrika";
+import { NoPhoto } from "@/components/catalog/product-card";
 import { COMPANY, SITE_ORIGIN } from "@/config/company";
 import { cartActions, useCart } from "./cart-store";
 
@@ -16,10 +19,15 @@ import { cartActions, useCart } from "./cart-store";
  * сервер считает их ещё раз. `requestId` — ключ идемпотентности: двойное нажатие
  * или повтор после обрыва связи не создадут второй заказ в ERP.
  */
+type DisplayCart = Awaited<ReturnType<typeof priceCartAction>>;
+type DeliveryMethod = "PICKUP" | "CARRIER";
+
 export function CartView() {
   const cart = useCart();
-  const [priced, setPriced] = useState<PricedCart | null>(null);
+  const [priced, setPriced] = useState<DisplayCart | null>(null);
   const [done, setDone] = useState<number | null>(null);
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("CARRIER");
+  const [status, setStatus] = useState<{ pending: boolean; message: string | null }>({ pending: false, message: null });
 
   useEffect(() => {
     let cancelled = false;
@@ -33,7 +41,7 @@ export function CartView() {
 
   if (done !== null) {
     return (
-      <div className="bg-brand-soft max-w-2xl space-y-3 rounded-lg p-6">
+      <div className="card flex max-w-2xl flex-col gap-3 p-6 md:p-8">
         <p className="text-2xl font-bold">Заказ № {done} принят</p>
         <p className="text-ink-2">
           Менеджер свяжется с вами, подтвердит наличие и сроки и пришлёт счёт или реквизиты для оплаты. Вопросы по
@@ -48,7 +56,7 @@ export function CartView() {
 
   if (cart.length === 0) {
     return (
-      <p className="text-ink-2">
+      <p className="card text-ink-2 p-6">
         Корзина пуста.{" "}
         <Link href="/" className="text-brand hover:text-brand-hover font-medium">
           Перейти в каталог
@@ -59,12 +67,19 @@ export function CartView() {
 
   if (!priced) return <p className="text-muted">Считаем корзину…</p>;
 
+  const disabled = priced.lines.length === 0 || priced.dropped.length > 0;
+  const pieces = priced.lines.reduce((sum, line) => sum + line.quantity, 0);
   return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_24rem]">
-      <div className="space-y-6">
-        <CartLines cart={cart} priced={priced} />
+    <div className="grid grid-cols-1 gap-3 md:gap-5 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start">
+      <div className="flex flex-col gap-3 md:gap-5">
+        <div className="card px-4 md:px-6">
+          <CartLines cart={cart} priced={priced} />
+          <p className="border-line text-ink-2 border-t py-4 text-sm">
+            Нужен комплект на весь автопарк? Напишите в Max {COMPANY.max.display} — посчитаем оптовую цену.
+          </p>
+        </div>
         {priced.dropped.length > 0 && (
-          <ul className="space-y-1 rounded-lg bg-orange-50 p-4 text-sm text-orange-900">
+          <ul className="flex flex-col gap-1 rounded-xl bg-orange-50 p-4 text-sm text-orange-900">
             {priced.dropped.map((item, index) => (
               <li key={index}>{item.reason} — позиция не попадёт в заказ, удалите её из корзины</li>
             ))}
@@ -74,70 +89,107 @@ export function CartView() {
           cart={cart}
           priced={priced}
           onDone={setDone}
-          disabled={priced.lines.length === 0 || priced.dropped.length > 0}
+          disabled={disabled}
+          deliveryMethod={deliveryMethod}
+          onDeliveryMethod={setDeliveryMethod}
+          onStatus={setStatus}
         />
       </div>
-      <aside className="bg-surface h-fit space-y-2 rounded-lg p-5 lg:sticky lg:top-4">
-        <p className="flex justify-between text-lg font-semibold">
-          <span>Итого</span>
-          <span>{formatRub(priced.totalKopecks)}</span>
-        </p>
-        {priced.lines.some((line) => line.unitPriceKopecks === 0) && (
-          <p className="text-muted text-sm">Цену товаров «по запросу» менеджер сообщит после заказа.</p>
-        )}
-        <p className="text-muted text-sm">
-          Доставка оплачивается транспортной компании и в сумму не входит. Онлайн-оплаты нет — счёт или реквизиты
-          пришлёт менеджер.
-        </p>
+      <aside className="flex flex-col gap-3 lg:sticky lg:top-4">
+        <div className="card flex flex-col gap-3 p-5 md:p-6">
+          <p className="text-xl font-bold">Ваш заказ</p>
+          <p className="text-ink-2 flex justify-between gap-4 text-[15px]">
+            <span>
+              Товары, {pieces} {pluralize(pieces, ["штука", "штуки", "штук"])}
+            </span>
+            <span className="text-ink whitespace-nowrap">{formatRub(priced.totalKopecks)}</span>
+          </p>
+          <p className="text-ink-2 border-line flex justify-between gap-4 border-b pb-4 text-[15px]">
+            <span>Доставка</span>
+            <span className="text-ink">{deliveryMethod === "PICKUP" ? "Самовывоз, бесплатно" : "По тарифу ТК"}</span>
+          </p>
+          <p className="flex items-baseline justify-between gap-4 pt-1">
+            <span className="font-semibold">Итого</span>
+            <span className="text-3xl font-bold whitespace-nowrap">{formatRub(priced.totalKopecks)}</span>
+          </p>
+          {priced.lines.some((line) => line.unitPriceKopecks === 0) && (
+            <p className="text-muted text-sm">Цену товаров «по запросу» менеджер сообщит после заказа.</p>
+          )}
+          {status.message && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{status.message}</p>}
+          {/* Кнопка вне формы — атрибут form; на телефоне своя кнопка внизу формы */}
+          <button
+            type="submit"
+            form="checkout"
+            disabled={status.pending || disabled}
+            className="bg-accent hover:bg-accent-hover text-ink hidden h-14 rounded-xl text-base font-semibold disabled:opacity-50 lg:block"
+          >
+            {status.pending ? "Отправляем…" : "Оформить заказ"}
+          </button>
+          <p className="text-muted text-xs leading-normal">
+            Менеджер позвонит, чтобы подтвердить наличие и сроки. Доставка оплачивается транспортной компании и в сумму
+            не входит. Онлайн-оплаты нет — счёт или реквизиты пришлёт менеджер.
+          </p>
+        </div>
         <SendToMax priced={priced} />
       </aside>
     </div>
   );
 }
 
-function CartLines({ cart, priced }: { cart: ReturnType<typeof useCart>; priced: PricedCart }) {
+function CartLines({ cart, priced }: { cart: ReturnType<typeof useCart>; priced: DisplayCart }) {
   const byIndex = new Map(priced.lines.map((line) => [line.lineIndex, line]));
   return (
-    <ul className="divide-line border-line divide-y rounded-lg border bg-white">
+    <ul className="divide-line divide-y">
       {cart.map((line, index) => {
         const item = byIndex.get(index) ?? null;
+        const imageId = priced.imageIds[line.productId] ?? null;
         return (
-          <li key={index} className="flex flex-wrap items-center gap-4 p-4">
-            <div className="min-w-0 grow">
+          <li
+            key={index}
+            className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-3 py-4 md:grid-cols-[96px_minmax(0,1fr)_122px_120px_auto] md:gap-x-5 md:py-5"
+          >
+            <span className="border-line relative row-span-2 size-16 overflow-hidden rounded-[10px] border bg-white md:row-span-1 md:size-24">
+              {imageId ? (
+                <Image src={`/img/${imageId}`} alt="" fill sizes="96px" className="object-contain p-1" />
+              ) : (
+                <NoPhoto />
+              )}
+            </span>
+            <div className="min-w-0">
               {item ? (
                 <>
-                  <Link href={item.slug ? `/${item.slug}` : "#"} className="hover:text-brand font-medium">
+                  <Link
+                    href={item.slug ? `/${item.slug}` : "#"}
+                    className="hover:text-brand font-medium md:text-[17px]"
+                  >
                     {item.name}
                   </Link>
-                  <p className="text-subtle font-mono text-xs">{item.sku}</p>
-                  {item.options.length > 0 && <p className="text-muted text-sm">{describeOptions(item.options)}</p>}
+                  {item.options.length > 0 && (
+                    <p className="text-muted mt-0.5 text-[13px]">{describeOptions(item.options)}</p>
+                  )}
+                  <p className="text-subtle mt-0.5 font-mono text-xs">
+                    Код {item.sku}
+                    {item.unitPriceKopecks > 0 ? ` · ${formatRub(item.unitPriceKopecks)} / шт.` : ""}
+                  </p>
                 </>
               ) : (
                 <span className="text-muted">Недоступная позиция</span>
               )}
             </div>
-            <input
-              type="number"
-              min={1}
-              max={MAX_QUANTITY}
-              value={line.quantity}
-              aria-label="Количество"
-              onChange={(event) =>
-                cartActions.setQuantity(index, Math.min(MAX_QUANTITY, Math.max(1, Number(event.target.value) || 1)))
-              }
-              className="border-line w-20 rounded-md border px-3 py-2"
-            />
-            <span className="w-32 text-right font-semibold">
-              {item ? (item.unitPriceKopecks > 0 ? formatRub(item.totalKopecks) : "по запросу") : "—"}
-            </span>
             <button
               type="button"
               onClick={() => cartActions.remove(index)}
-              className="text-muted hover:text-ink text-sm"
+              className="text-subtle hover:text-ink self-start px-1 text-xl leading-none md:order-last md:self-center"
               aria-label="Удалить из корзины"
             >
-              Удалить
+              ×
             </button>
+            <div className="col-start-2 col-end-4 flex items-center justify-between gap-3 md:contents">
+              <Stepper value={line.quantity} onChange={(quantity) => cartActions.setQuantity(index, quantity)} />
+              <span className="text-right text-lg font-bold whitespace-nowrap md:text-xl">
+                {item ? (item.unitPriceKopecks > 0 ? formatRub(item.totalKopecks) : "по запросу") : "—"}
+              </span>
+            </div>
           </li>
         );
       })}
@@ -145,25 +197,79 @@ function CartLines({ cart, priced }: { cart: ReturnType<typeof useCart>; priced:
   );
 }
 
+function Stepper({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  const set = (next: number) => onChange(Math.min(MAX_QUANTITY, Math.max(1, next || 1)));
+  const step = "text-ink-2 hover:text-brand h-full w-9 shrink-0 disabled:opacity-30";
+  return (
+    <div className="border-line-strong flex h-11 w-[122px] shrink-0 items-center rounded-[10px] border bg-white">
+      <button type="button" onClick={() => set(value - 1)} disabled={value <= 1} aria-label="Меньше" className={step}>
+        −
+      </button>
+      <input
+        type="number"
+        min={1}
+        max={MAX_QUANTITY}
+        value={value}
+        aria-label="Количество"
+        onChange={(event) => set(Number(event.target.value))}
+        className="w-full min-w-0 [appearance:textfield] bg-transparent text-center font-semibold outline-none [&::-webkit-inner-spin-button]:appearance-none"
+      />
+      <button
+        type="button"
+        onClick={() => set(value + 1)}
+        disabled={value >= MAX_QUANTITY}
+        aria-label="Больше"
+        className={step}
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
 type FieldErrors = Record<string, string>;
+
+/** Способы доставки карточками (макет, экран 04). Курьера по городу в MVP нет. */
+const DELIVERY_OPTIONS = [
+  {
+    value: "PICKUP",
+    title: "Самовывоз со склада",
+    text: `${COMPANY.warehouse.city}, ${COMPANY.warehouse.street}`,
+    price: "Бесплатно",
+  },
+  {
+    value: "CARRIER",
+    title: "Транспортная компания",
+    text: "СДЭК, ПЭК, Деловые линии — по России и в СНГ",
+    price: "По тарифу ТК",
+  },
+] as const;
 
 function CheckoutForm({
   cart,
   priced,
   onDone,
   disabled,
+  deliveryMethod,
+  onDeliveryMethod,
+  onStatus,
 }: {
   cart: ReturnType<typeof useCart>;
   priced: PricedCart;
   onDone: (orderNumber: number) => void;
   disabled: boolean;
+  deliveryMethod: DeliveryMethod;
+  onDeliveryMethod: (method: DeliveryMethod) => void;
+  onStatus: (status: { pending: boolean; message: string | null }) => void;
 }) {
   const [requestId] = useState(() => crypto.randomUUID());
   const [customerType, setCustomerType] = useState<"PERSON" | "COMPANY">("PERSON");
-  const [deliveryMethod, setDeliveryMethod] = useState<"PICKUP" | "CARRIER">("CARRIER");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  // Кнопка «Оформить заказ» на десктопе — в колонке «Ваш заказ»: ей нужны ожидание и ошибка
+  useEffect(() => onStatus({ pending, message }), [pending, message, onStatus]);
 
   function submit(formData: FormData) {
     const form = {
@@ -207,17 +313,18 @@ function CheckoutForm({
   }
 
   const field = (name: string) => (errors[name] ? <p className="mt-1 text-sm text-red-700">{errors[name]}</p> : null);
-  const input = "border-line w-full rounded-md border bg-white px-3 py-2";
+  const input =
+    "border-line-strong focus:border-brand h-12 w-full rounded-[10px] border bg-white px-3.5 text-[15px] outline-none";
 
   return (
-    <form action={submit} className="border-line space-y-6 rounded-lg border bg-white p-5" noValidate>
-      <fieldset className="space-y-3">
-        <legend className="mb-2 text-lg font-semibold">1. Покупатель</legend>
-        <div className="flex gap-2">
+    <form id="checkout" action={submit} className="card flex flex-col gap-8 p-5 md:p-7" noValidate>
+      <fieldset className="flex flex-col gap-4">
+        <Step n={1}>Покупатель</Step>
+        <div className="bg-surface flex self-start rounded-xl p-1">
           {(
             [
               ["PERSON", "Частное лицо"],
-              ["COMPANY", "Организация"],
+              ["COMPANY", "Организация / ИП"],
             ] as const
           ).map(([value, label]) => (
             <button
@@ -225,50 +332,60 @@ function CheckoutForm({
               type="button"
               onClick={() => setCustomerType(value)}
               aria-pressed={customerType === value}
-              className={`rounded-md border px-4 py-2 ${customerType === value ? "border-brand bg-brand-soft" : "border-line"}`}
+              className={`h-10 rounded-[9px] px-4 text-sm ${customerType === value ? "bg-white font-semibold shadow-sm" : "text-ink-2"}`}
             >
               {label}
             </button>
           ))}
         </div>
-        <label className="block">
-          <span className="text-sm">Имя *</span>
-          <input name="name" autoComplete="name" className={input} />
-          {field("name")}
-        </label>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="text-sm">Телефон *</span>
+        <div className="grid gap-3 md:grid-cols-3">
+          <label className="flex flex-col gap-1.5">
+            <Label>Имя *</Label>
+            <input name="name" autoComplete="name" className={input} />
+            {field("name")}
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <Label>Телефон *</Label>
             <input name="phone" type="tel" autoComplete="tel" placeholder="+7" className={input} />
             {field("phone")}
           </label>
-          <label className="block">
-            <span className="text-sm">Эл. почта</span>
-            <input name="email" type="email" autoComplete="email" className={input} />
+          <label className="flex flex-col gap-1.5">
+            <Label>E-mail</Label>
+            <input name="email" type="email" autoComplete="email" placeholder="для документов" className={input} />
             {field("email")}
           </label>
         </div>
-        {customerType === "COMPANY" && <CompanyFields input={input} field={field} />}
+        {customerType === "COMPANY" && (
+          <div className="bg-surface rounded-xl p-4 md:p-5">
+            <CompanyFields input={input} field={field} />
+          </div>
+        )}
       </fieldset>
 
-      <fieldset className="space-y-3">
-        <legend className="mb-2 text-lg font-semibold">2. Доставка</legend>
-        <div className="flex flex-wrap gap-2">
-          {(
-            [
-              ["CARRIER", "Транспортной компанией"],
-              ["PICKUP", "Самовывоз"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setDeliveryMethod(value)}
-              aria-pressed={deliveryMethod === value}
-              className={`rounded-md border px-4 py-2 ${deliveryMethod === value ? "border-brand bg-brand-soft" : "border-line"}`}
+      <fieldset className="flex flex-col gap-4">
+        <Step n={2}>Доставка</Step>
+        <div className="grid gap-2.5 md:grid-cols-2">
+          {DELIVERY_OPTIONS.map((option) => (
+            <label
+              key={option.value}
+              className={`flex cursor-pointer gap-3 rounded-xl border p-4 ${
+                deliveryMethod === option.value ? "border-brand bg-brand-soft" : "border-line-strong hover:border-ink-2"
+              }`}
             >
-              {label}
-            </button>
+              <input
+                type="radio"
+                name="deliveryMethod"
+                value={option.value}
+                checked={deliveryMethod === option.value}
+                onChange={() => onDeliveryMethod(option.value)}
+                className="accent-brand mt-1 size-4 shrink-0"
+              />
+              <span className="flex flex-col gap-1">
+                <span className="font-semibold">{option.title}</span>
+                <span className="text-ink-2 text-[13px] leading-snug">{option.text}</span>
+                <span className="text-[13px] font-semibold">{option.price}</span>
+              </span>
+            </label>
           ))}
         </div>
         {deliveryMethod === "PICKUP" ? (
@@ -276,9 +393,9 @@ function CheckoutForm({
             {COMPANY.warehouse.city}, {COMPANY.warehouse.street}. {COMPANY.hours}.
           </p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <label className="block">
-              <span className="text-sm">Транспортная компания *</span>
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            <label className="flex flex-col gap-1.5">
+              <Label>Транспортная компания *</Label>
               <select name="carrier" defaultValue="" className={input}>
                 <option value="" disabled>
                   Выберите
@@ -289,52 +406,89 @@ function CheckoutForm({
               </select>
               {field("carrier")}
             </label>
-            <label className="block sm:col-span-2">
-              <span className="text-sm">Город и адрес или терминал *</span>
-              <input name="address" autoComplete="street-address" className={input} />
+            <label className="flex flex-col gap-1.5">
+              <Label>Город и адрес терминала или доставки *</Label>
+              <input
+                name="address"
+                autoComplete="street-address"
+                placeholder="Например, Казань, ул. Техническая, 20"
+                className={input}
+              />
               {field("address")}
             </label>
           </div>
         )}
       </fieldset>
 
-      <fieldset className="space-y-3">
-        <legend className="mb-2 text-lg font-semibold">3. Оплата и комментарий</legend>
-        <p className="text-ink-2 text-sm">
-          {customerType === "COMPANY"
-            ? "Безналичный расчёт по счёту — счёт пришлёт менеджер после подтверждения наличия."
-            : "Способ оплаты согласует менеджер после подтверждения наличия: наличными при самовывозе или переводом."}
-        </p>
-        <label className="block">
-          <span className="text-sm">Комментарий к заказу</span>
-          <textarea name="comment" rows={3} className={input} />
+      <fieldset className="flex flex-col gap-4">
+        <Step n={3}>Оплата</Step>
+        <div className="border-brand bg-brand-soft flex gap-3 rounded-xl border p-4">
+          <span
+            aria-hidden
+            className="border-brand mt-1 flex size-4 shrink-0 items-center justify-center rounded-full border-2"
+          >
+            <span className="bg-brand size-2 rounded-full" />
+          </span>
+          <span className="flex flex-col gap-1">
+            <span className="font-semibold">
+              {customerType === "COMPANY" ? "Счёт на оплату" : "После подтверждения"}
+            </span>
+            <span className="text-ink-2 text-[13px] leading-snug">
+              {customerType === "COMPANY"
+                ? "Выставим счёт на реквизиты организации после подтверждения наличия."
+                : "Менеджер подтвердит наличие и согласует оплату: наличными при самовывозе или переводом."}
+            </span>
+          </span>
+        </div>
+        <label className="flex flex-col gap-1.5">
+          <Label>Комментарий к заказу</Label>
+          <textarea
+            name="comment"
+            rows={3}
+            placeholder="Модель авто, пожелания по цвету, удобное время звонка"
+            className={`${input} h-auto py-3`}
+          />
         </label>
       </fieldset>
 
       {/* Поле-ловушка для ботов: скрыто от людей и от программ чтения экрана */}
       <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" />
 
-      <label className="flex items-start gap-2 text-sm">
-        <input name="consent" type="checkbox" className="mt-1" />
-        <span>
-          Согласен на обработку персональных данных в соответствии с{" "}
-          <Link href="/privacy" target="_blank" className="text-brand underline">
-            политикой обработки персональных данных
-          </Link>
-        </span>
-      </label>
-      {field("consent")}
-
-      {message && <p className="rounded-md bg-red-50 p-3 text-sm text-red-800">{message}</p>}
-      <button
-        type="submit"
-        disabled={pending || disabled}
-        className="bg-accent hover:bg-accent-hover rounded-md px-6 py-3 font-semibold text-white disabled:opacity-50"
-      >
-        {pending ? "Отправляем…" : "Оформить заказ"}
-      </button>
+      <div className="flex flex-col gap-3">
+        <label className="flex items-start gap-2 text-sm">
+          <input name="consent" type="checkbox" className="accent-brand mt-1" />
+          <span>
+            Согласен на обработку персональных данных в соответствии с{" "}
+            <Link href="/privacy" target="_blank" className="text-brand underline">
+              политикой обработки персональных данных
+            </Link>
+          </span>
+        </label>
+        {field("consent")}
+        {message && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800 lg:hidden">{message}</p>}
+        <button
+          type="submit"
+          disabled={pending || disabled}
+          className="bg-accent hover:bg-accent-hover text-ink h-14 rounded-xl text-base font-semibold disabled:opacity-50 lg:hidden"
+        >
+          {pending ? "Отправляем…" : "Оформить заказ"}
+        </button>
+      </div>
     </form>
   );
+}
+
+function Step({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <legend className="mb-4 flex items-center gap-3 text-xl font-bold">
+      <span className="bg-ink flex size-7 items-center justify-center rounded-full text-sm text-white">{n}</span>
+      {children}
+    </legend>
+  );
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+  return <span className="text-muted text-[13px]">{children}</span>;
 }
 
 /**
@@ -367,8 +521,8 @@ function CompanyFields({ input, field }: { input: string; field: (name: string) 
 
   return (
     <div className="grid gap-3 sm:grid-cols-3">
-      <label className="block sm:col-span-2">
-        <span className="text-sm">ИНН *</span>
+      <label className="flex flex-col gap-1.5 sm:col-span-2">
+        <Label>ИНН *</Label>
         <div className="flex gap-2">
           <input
             name="inn"
@@ -381,7 +535,7 @@ function CompanyFields({ input, field }: { input: string; field: (name: string) 
             type="button"
             onClick={fill}
             disabled={pending || inn.trim() === ""}
-            className="border-brand text-brand hover:bg-brand-soft shrink-0 rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-50"
+            className="border-brand text-brand hover:bg-brand-soft h-12 shrink-0 rounded-[10px] border px-3 text-sm font-medium disabled:opacity-50"
           >
             {pending ? "Ищем…" : "Заполнить по ИНН"}
           </button>
@@ -393,8 +547,8 @@ function CompanyFields({ input, field }: { input: string; field: (name: string) 
           </p>
         )}
       </label>
-      <label className="block">
-        <span className="text-sm">КПП</span>
+      <label className="flex flex-col gap-1.5">
+        <Label>КПП</Label>
         <input
           name="kpp"
           inputMode="numeric"
@@ -404,8 +558,8 @@ function CompanyFields({ input, field }: { input: string; field: (name: string) 
         />
         {field("kpp")}
       </label>
-      <label className="block sm:col-span-3">
-        <span className="text-sm">Организация *</span>
+      <label className="flex flex-col gap-1.5 sm:col-span-3">
+        <Label>Название организации *</Label>
         <input
           name="companyName"
           autoComplete="organization"
@@ -443,13 +597,15 @@ function SendToMax({ priced }: { priced: PricedCart }) {
   }
 
   return (
-    <div className="border-line space-y-2 border-t pt-3">
-      <button
-        type="button"
-        onClick={copy}
-        className="border-brand text-brand hover:bg-brand-soft w-full rounded-md border px-4 py-2 font-medium"
-      >
-        Отправить состав менеджеру в Max
+    <div className="bg-brand-soft flex flex-col gap-3 rounded-2xl p-4 md:p-5">
+      <button type="button" onClick={copy} className="group flex items-center gap-3.5 text-left">
+        <span className="bg-brand flex size-11 shrink-0 items-center justify-center rounded-[10px] text-xs font-bold text-white">
+          Max
+        </span>
+        <span className="flex flex-col">
+          <span className="group-hover:text-brand font-semibold">Удобнее в мессенджере?</span>
+          <span className="text-ink-2 text-[13px]">Отправьте состав корзины менеджеру в Max</span>
+        </span>
       </button>
       {state !== "idle" && (
         <div className="space-y-1 text-sm" role="status">
@@ -466,7 +622,7 @@ function SendToMax({ priced }: { priced: PricedCart }) {
             readOnly
             value={text}
             onFocus={(event) => event.target.select()}
-            className="border-line h-40 w-full rounded-md border bg-white p-2 font-mono text-xs"
+            className="border-line h-40 w-full rounded-lg border bg-white p-2 font-mono text-xs"
           />
         </div>
       )}

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { pageFaq, parsePageText } from "@buscom/domain/site/page-text";
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
-import { PageText } from "@/components/page-text";
+import { PageSections } from "@/components/page-text";
 import { pageMetadata } from "@/config/metadata";
 import { getSitePage } from "@/server/pages";
 
@@ -32,10 +32,10 @@ export default async function DeliveryPage() {
     })),
   };
   return (
-    <article className="max-w-3xl">
+    <article>
       <Breadcrumbs items={[]} current={page.title} />
-      <h1 className="mb-6 text-2xl font-bold md:text-3xl">{page.title}</h1>
-      <PageText text={page.body} />
+      <h1 className="page-title mb-4 md:mb-6">{page.title}</h1>
+      <PageSections text={page.body} />
       {faq.length > 0 && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       )}

@@ -15,19 +15,23 @@ export function SearchBox() {
 
 export function SearchForm({ query = "" }: { query?: string }) {
   return (
-    <form action="/poisk" role="search" className="order-last flex w-full grow md:order-none md:w-auto">
+    <form
+      action="/poisk"
+      role="search"
+      className="border-brand order-last flex h-12 w-full items-center gap-3 rounded-[10px] border-2 bg-white pr-[5px] pl-4 lg:order-none lg:w-auto lg:flex-1"
+    >
       <input
         type="search"
         name="q"
         defaultValue={query}
-        placeholder="Поиск: название или код товара"
+        placeholder="Сиденье, шторки на Sprinter, код товара…"
         aria-label="Поиск по каталогу"
         maxLength={100}
-        className="border-line focus:border-brand min-w-0 grow rounded-l-md border bg-white px-3 py-2 text-sm outline-none"
+        className="placeholder:text-subtle min-w-0 grow bg-transparent text-[15px] outline-none"
       />
       <button
         type="submit"
-        className="bg-brand hover:bg-brand-hover rounded-r-md px-4 py-2 text-sm font-semibold text-white"
+        className="bg-brand hover:bg-brand-hover h-9 shrink-0 rounded-[7px] px-[18px] text-sm font-semibold text-white"
       >
         Найти
       </button>

@@ -20,7 +20,7 @@ export function Breadcrumbs({ items, current }: { items: Crumb[]; current: strin
     })),
   };
   return (
-    <nav aria-label="Хлебные крошки" className="text-muted mb-4 text-sm">
+    <nav aria-label="Хлебные крошки" className="text-muted mb-3 text-[13px] md:mb-4">
       <ol className="flex flex-wrap gap-x-2">
         <li>
           <Link href="/" className="hover:text-brand">

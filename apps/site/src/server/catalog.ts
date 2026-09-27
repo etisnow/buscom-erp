@@ -71,6 +71,8 @@ export type ProductCard = {
   slug: string;
   priceKopecks: number;
   hasChoice: boolean;
+  /** Есть обязательная опция: из списка в корзину не положить — сначала выбор в карточке */
+  needsChoice: boolean;
   imageId: string | null;
   isHit: boolean;
   compatibility: string[];
@@ -95,6 +97,7 @@ function toCard(product: {
     slug: product.slug as string,
     priceKopecks: price.priceKopecks,
     hasChoice: price.hasChoice,
+    needsChoice: product.options.some((option) => option.required && option.values.length > 0),
     imageId: product.images[0]?.id ?? null,
     isHit: product.isHit,
     compatibility: product.compatibility,
@@ -138,6 +141,8 @@ export type CategoryPage = {
   metaDescription: string | null;
   breadcrumbs: { name: string; slug: string }[];
   children: { name: string; slug: string; productCount: number }[];
+  /** Подразделы плашками над списком: у раздела — свои, у подраздела — соседи по разделу (макет, экран 02) */
+  siblings: { name: string; slug: string; productCount: number }[];
   products: ProductCard[];
 };
 
@@ -222,9 +227,10 @@ export const getPageBySlug = cached(async (slug: string): Promise<ProductPage | 
   });
   if (!category) return null;
   const tree = await getCategoryTree();
-  const find = (nodes: MenuCategory[]): MenuCategory | undefined =>
-    nodes.map((node) => (node.id === category.id ? node : find(node.children))).find(Boolean);
-  const node = find(tree);
+  const find = (nodes: MenuCategory[], id: string): MenuCategory | undefined =>
+    nodes.map((node) => (node.id === id ? node : find(node.children, id))).find(Boolean);
+  const node = find(tree, category.id);
+  const parent = category.parentId ? find(tree, category.parentId) : undefined;
   const ids = [category.id, ...(node?.children.map((child) => child.id) ?? [])];
   const products = await db.product.findMany({
     where: { categoryId: { in: ids }, isActive: true, slug: { not: null } },
@@ -244,6 +250,11 @@ export const getPageBySlug = cached(async (slug: string): Promise<ProductPage | 
       slug: child.slug,
       productCount: child.productCount,
     })),
+    siblings: (parent?.children ?? []).map((sibling) => ({
+      name: sibling.name,
+      slug: sibling.slug,
+      productCount: sibling.productCount,
+    })),
     products: products.map(toCard),
   };
 }, "page-by-slug");
@@ -258,6 +269,42 @@ export const getHits = cached(async (): Promise<ProductCard[]> => {
   });
   return products.map(toCard);
 }, "hits");
+
+export type PopularCategory = { id: string; name: string; slug: string; productCount: number; imageId: string | null };
+
+/**
+ * «Популярные категории» на главной: подкатегории, где больше хитов, затем — товаров.
+ * По продажам не ранжируем: роль базы сайта заказов не видит (scripts/site-db-role.sql).
+ * Картинка — первый снимок хита раздела, а нет хита — любого товара со снимком.
+ */
+export const getPopularCategories = cached(async (): Promise<PopularCategory[]> => {
+  const categories = await db.productCategory.findMany({
+    where: { slug: { not: null }, children: { none: {} } },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      products: {
+        where: { isActive: true, slug: { not: null } },
+        orderBy: [{ isHit: "desc" }, { name: "asc" }],
+        select: { isHit: true, images: { orderBy: { sortOrder: "asc" }, take: 1, select: { id: true } } },
+      },
+    },
+  });
+  return categories
+    .filter((category) => category.products.length > 0)
+    .map((category) => ({
+      id: category.id,
+      name: category.name,
+      slug: category.slug as string,
+      productCount: category.products.length,
+      hitCount: category.products.filter((product) => product.isHit).length,
+      imageId: category.products.find((product) => product.images.length > 0)?.images[0].id ?? null,
+    }))
+    .sort((a, b) => b.hitCount - a.hitCount || b.productCount - a.productCount)
+    .slice(0, 8)
+    .map(({ id, name, slug, productCount, imageId }) => ({ id, name, slug, productCount, imageId }));
+}, "popular-categories");
 
 /** Модели авто, для которых есть товары в продаже (этап 7, `/modeli/{slug}`). */
 export const getModels = cached(async (): Promise<SiteModel[]> => {

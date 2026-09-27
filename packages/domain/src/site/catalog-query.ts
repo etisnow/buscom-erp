@@ -115,3 +115,17 @@ export function catalogModels(products: readonly FilterableProduct[]): { model: 
     .map(([model, count]) => ({ model, count }))
     .sort((a, b) => b.count - a.count || a.model.localeCompare(b.model, "ru"));
 }
+
+/**
+ * Адрес категории с фильтрами — для вкладок сортировки и выбора модели ссылками.
+ * Значения по умолчанию в адрес не попадают: без фильтров это canonical категории.
+ */
+export function catalogQueryHref(path: string, query: CatalogQuery): string {
+  const params = new URLSearchParams();
+  if (query.model !== null) params.set("model", query.model);
+  if (query.minRub !== null) params.set("min", String(query.minRub));
+  if (query.maxRub !== null) params.set("max", String(query.maxRub));
+  if (query.sort !== DEFAULT_CATALOG_QUERY.sort) params.set("sort", query.sort);
+  const search = params.toString();
+  return search ? `${path}?${search}` : path;
+}

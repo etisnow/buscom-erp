@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyCatalogQuery,
   catalogModels,
+  catalogQueryHref,
   DEFAULT_CATALOG_QUERY,
   isCatalogQueryActive,
   parseCatalogQuery,
@@ -108,5 +109,24 @@ describe("catalogModels", () => {
       { model: "Ford Transit", count: 3 },
       { model: "ГАЗель Next", count: 2 },
     ]);
+  });
+});
+
+describe("catalogQueryHref", () => {
+  it("без фильтров — адрес категории без параметров", () => {
+    expect(catalogQueryHref("/sidenja", DEFAULT_CATALOG_QUERY)).toBe("/sidenja");
+  });
+
+  it("переносит в адрес всё, кроме значений по умолчанию, и кодирует модель", () => {
+    const query = { sort: "price-asc", minRub: 1000, maxRub: 5000, model: "ГАЗель Next" } as const;
+    expect(catalogQueryHref("/sidenja", query)).toBe(
+      "/sidenja?model=%D0%93%D0%90%D0%97%D0%B5%D0%BB%D1%8C+Next&min=1000&max=5000&sort=price-asc",
+    );
+  });
+
+  it("читается обратно тем же набором фильтров", () => {
+    const query = { sort: "price-desc", minRub: null, maxRub: 20000, model: "Ford Transit" } as const;
+    const params = Object.fromEntries(new URL(catalogQueryHref("/x", query), "https://bus-com.ru").searchParams);
+    expect(parseCatalogQuery(params)).toEqual(query);
   });
 });

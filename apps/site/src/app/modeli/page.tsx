@@ -21,9 +21,11 @@ export default async function ModelsPage() {
   return (
     <section>
       <Breadcrumbs items={[]} current="Подбор по модели" />
-      <h1 className="mb-6 text-2xl font-bold md:text-3xl">Подбор по модели</h1>
+      <h1 className="page-title mb-4 md:mb-6">Подбор по модели</h1>
       {models.length === 0 ? (
-        <p className="text-ink-2">Подбор по модели скоро появится. Пока спросите нас: {COMPANY.phone.display}.</p>
+        <p className="card text-ink-2 p-5">
+          Подбор по модели скоро появится. Пока спросите нас: {COMPANY.phone.display}.
+        </p>
       ) : (
         <ModelLinks models={models} />
       )}

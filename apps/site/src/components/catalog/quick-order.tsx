@@ -32,7 +32,7 @@ export function QuickOrder({
 
   if (orderNumber !== null) {
     return (
-      <div className="bg-brand-soft rounded-md p-4" role="status">
+      <div className="bg-brand-soft col-span-full rounded-[10px] p-4" role="status">
         <p className="font-semibold">Заказ № {orderNumber} принят</p>
         <p className="text-ink-2 mt-1 text-sm">
           Менеджер перезвонит в рабочее время ({COMPANY.hours}), уточнит доставку и оплату.
@@ -43,7 +43,11 @@ export function QuickOrder({
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="text-brand hover:text-brand-hover font-medium">
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="border-brand text-brand hover:bg-brand-soft h-[54px] rounded-[10px] border-[1.5px] px-4 text-[15px] font-semibold"
+      >
         Купить в 1 клик
       </button>
     );
@@ -79,7 +83,11 @@ export function QuickOrder({
   const field = (key: string) => (errors[key] ? <p className="mt-1 text-sm text-red-700">{errors[key]}</p> : null);
 
   return (
-    <form action={submit} noValidate className="border-line w-full space-y-3 rounded-md border bg-white p-4">
+    <form
+      action={submit}
+      noValidate
+      className="border-line col-span-full w-full space-y-3 rounded-[10px] border bg-white p-4"
+    >
       <p className="font-semibold">Купить в 1 клик</p>
       <p className="text-muted text-sm">Оставьте телефон — менеджер перезвонит, уточнит доставку и оплату.</p>
       <div className="grid gap-3 sm:grid-cols-2">

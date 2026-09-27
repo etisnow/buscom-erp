@@ -9,7 +9,7 @@ export function ModelLinks({ models }: { models: SiteModel[] }) {
         <li key={model.slug}>
           <Link
             href={`${MODELS_PATH}/${model.slug}`}
-            className="border-line hover:border-brand hover:text-brand inline-flex items-center gap-2 rounded-md border bg-white px-4 py-2"
+            className="border-line-strong hover:border-brand flex h-[38px] items-center gap-2 rounded-full border bg-white px-4 text-sm"
           >
             {model.name}
             <span className="text-subtle text-sm">{model.productCount}</span>

@@ -44,12 +44,15 @@ export default async function ModelPage({ params }: PageProps<"/modeli/[slug]">)
   return (
     <section>
       <Breadcrumbs items={[{ name: "Подбор по модели", slug: MODELS_PATH.slice(1) }]} current={model.name} />
-      <h1 className="text-2xl font-bold md:text-3xl">
-        Комплектующие для {model.name} <span className="text-subtle text-lg font-normal">{model.productCount}</span>
+      <h1 className="page-title">
+        Комплектующие для {model.name}{" "}
+        <span className="text-muted align-middle text-sm font-normal tracking-normal md:text-[15px]">
+          {model.productCount}
+        </span>
       </h1>
       {model.sections.map((section, sectionIndex) => (
-        <section key={section.name} className="mt-8">
-          <h2 className="mb-4 text-xl font-semibold">
+        <section key={section.name} className="mt-8 md:mt-10">
+          <h2 className="mb-4 text-[22px] font-bold md:text-[26px]">
             {section.slug ? (
               <Link href={`/${section.slug}`} className="hover:text-brand">
                 {section.name}
@@ -58,7 +61,7 @@ export default async function ModelPage({ params }: PageProps<"/modeli/[slug]">)
               section.name
             )}
           </h2>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-3 lg:grid-cols-4 xl:grid-cols-5">
             {section.products.map((product, index) => (
               <ProductCard
                 key={product.id}
@@ -70,7 +73,7 @@ export default async function ModelPage({ params }: PageProps<"/modeli/[slug]">)
           </div>
         </section>
       ))}
-      <aside className="bg-brand-soft mt-10 rounded-lg p-5">
+      <aside className="bg-brand-soft mt-10 rounded-2xl p-5 md:p-7">
         <p className="font-semibold">Не нашли нужное для {model.name}?</p>
         <p className="text-ink-2 mt-1">
           Подберём под вашу машину — позвоните {COMPANY.phone.display} или напишите в Max {COMPANY.max.display}.
