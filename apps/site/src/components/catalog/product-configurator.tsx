@@ -141,7 +141,7 @@ export function ProductConfigurator({
         )}
         {kit && isActive && price > 0 && (
           <section className="bg-brand-soft flex flex-col gap-3.5 rounded-2xl p-5 md:p-6">
-            <div className="flex items-baseline justify-between gap-3">
+            <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
               <h2 className="text-lg font-bold">Комплект на салон</h2>
               <span className="text-ink-2 text-[13px]">с выбранными опциями</span>
             </div>
