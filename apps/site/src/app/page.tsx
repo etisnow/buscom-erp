@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { pageMetadata } from "@/config/metadata";
 import { ProductCard } from "@/components/catalog/product-card";
+import { LeadForm } from "@/components/lead-form";
 import { getCategoryTree, getHits } from "@/server/catalog";
 
 // Метатеги главной — со старого сайта дословно (docs/site-snapshot/pages.json, «/»)
@@ -58,6 +59,16 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+      <section className="bg-brand-soft grid gap-6 rounded-lg p-6 lg:grid-cols-2">
+        <div>
+          <h2 className="text-xl font-semibold">Обновляете салон целиком?</h2>
+          <p className="text-ink-2 mt-2">
+            Подберём сиденья, обшивку, пол и свет под вашу модель и посчитаем комплект. Оставьте телефон и опишите
+            задачу — перезвоним.
+          </p>
+        </div>
+        <LeadForm kind="salon" submitLabel="Отправить заявку" />
+      </section>
     </div>
   );
 }

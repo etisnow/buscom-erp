@@ -1,5 +1,4 @@
 import "server-only";
-import { createHmac } from "node:crypto";
 import { z } from "zod";
 import {
   buildQuickOrderPayload,
@@ -17,6 +16,7 @@ import { checkInn } from "@buscom/domain/customer/company-lookup";
 import type { SiteOrderPayload } from "@buscom/domain/integration/contract";
 import { SlidingWindowLimiter } from "@buscom/domain/site/rate-limit";
 import { db } from "@/server/db";
+import { postToErp } from "@/server/erp";
 
 /**
  * Корзина и заказ на стороне сервера сайта. Цены — из базы на момент запроса,
@@ -25,14 +25,6 @@ import { db } from "@/server/db";
  * со снимком позиций, клиентом по телефону и журналом (docs/DECISIONS.md,
  * запись от 26.09 про корзину сайта).
  */
-
-/** Переменные только для оформления: без них каталог работает, а заказ — нет. */
-const checkoutEnvSchema = z.object({
-  /** ERP изнутри сети compose (`http://app:3000`), на машине разработки — `http://localhost:3000` */
-  ERP_API_URL: z.url(),
-  /** Тот же секрет, что `SITE_WEBHOOK_SECRET` у ERP */
-  SITE_WEBHOOK_SECRET: z.string().min(32),
-});
 
 /**
  * Защита ERP от потока заказов: 5 отправок за 10 минут с одного IP и 60 в час на
@@ -135,26 +127,6 @@ async function sendOrder(payload: SiteOrderPayload, ip: string | null): Promise<
     console.error("[checkout] ERP недоступна", error);
   }
   return { ok: false, error: "Не удалось отправить заказ. Попробуйте ещё раз или позвоните нам" };
-}
-
-/**
- * Подписанный запрос в ERP (контракт v1: HMAC сырого тела в `X-Signature`).
- * `null` — связь с ERP не настроена; сбой сети — исключение.
- */
-async function postToErp(path: string, payload: unknown): Promise<Response | null> {
-  const env = checkoutEnvSchema.safeParse(process.env);
-  if (!env.success) {
-    console.error("[checkout] Не настроена связь с ERP (ERP_API_URL, SITE_WEBHOOK_SECRET)");
-    return null;
-  }
-  const body = JSON.stringify(payload);
-  const signature = "sha256=" + createHmac("sha256", env.data.SITE_WEBHOOK_SECRET).update(body, "utf8").digest("hex");
-  return fetch(new URL(path, env.data.ERP_API_URL), {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Signature": signature },
-    body,
-    signal: AbortSignal.timeout(15_000),
-  });
 }
 
 /**

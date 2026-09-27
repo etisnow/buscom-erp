@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { pageMetadata } from "@/config/metadata";
 import { getSitePage } from "@/server/pages";
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
+import { LeadForm } from "@/components/lead-form";
 import { PageText } from "@/components/page-text";
 import { COMPANY } from "@/config/company";
 
@@ -55,6 +56,11 @@ export default async function ContactsPage() {
             <p>ОГРН {COMPANY.ogrn}</p>
           </div>
           {page.body && <PageText text={page.body} />}
+          <section className="border-line rounded-lg border p-5">
+            <h2 className="mb-1 text-lg font-semibold">Заказать обратный звонок</h2>
+            <p className="text-muted mb-4 text-sm">Оставьте телефон — перезвоним в рабочее время.</p>
+            <LeadForm kind="callback" submitLabel="Перезвоните мне" />
+          </section>
         </div>
         <iframe
           title="Склад на карте"

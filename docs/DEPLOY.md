@@ -332,10 +332,16 @@ PRD требует проверить восстановление **до** за
      psql -U buscom -d buscom_erp -v site_password="'<пароль>'" -f - < scripts/site-db-role.sql
    ```
 
-2. В `.env.production`: `SITE_DATABASE_URL=postgresql://buscom_site:<пароль>@postgres:5432/buscom_erp`, затем `docker compose … up -d site`.
+2. В `.env.production`: `SITE_DATABASE_URL=postgresql://buscom_site:<пароль>@postgres:5432/buscom_erp`. Перезапустить только сайт, тем же образом — без `SITE_IMAGE` compose возьмёт `buscom-site:local` и начнёт сборку на сервере:
+
+   ```bash
+   C="docker compose -f docker-compose.prod.yml --env-file .env.production"
+   SITE_IMAGE=$($C ps --format "{{.Image}}" site) $C up -d --no-build --no-deps site
+   ```
+
 3. Проверить: сайт отвечает, каталог и страница товара открываются; `psql -U buscom_site -d buscom_erp -c 'select count(*) from "Order"'` — «permission denied».
 
-**Сайт начал читать новую таблицу** — добавить её в `scripts/site-db-role.sql` и прогнать скрипт ещё раз, иначе страница упадёт с «permission denied». Откат — убрать `SITE_DATABASE_URL` и `up -d site`.
+**Сайт начал читать новую таблицу** — добавить её в `scripts/site-db-role.sql` и прогнать скрипт ещё раз, иначе страница упадёт с «permission denied». Откат — убрать `SITE_DATABASE_URL` и перезапустить сайт той же командой. **Заведено в бою 27.09.2026**; копия `.env.production` до правки — `.env.production.bak-20260927`.
 
 ## Вебхук сайта
 
