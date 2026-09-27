@@ -89,6 +89,16 @@ RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 COPY --from=site-builder --chown=nextjs:nodejs /app/apps/site/.next/standalone ./
 COPY --from=site-builder --chown=nextjs:nodejs /app/apps/site/.next/static ./apps/site/.next/static
 WORKDIR /app/apps/site
+# Картинки товаров режет оптимизатор Next (next/image), ему нужен sharp под musl.
+# Не попал в standalone или не грузится нативная часть — все картинки сайта
+# отвечали бы ошибкой; ловим при сборке, а не на выкате.
+RUN node -e " \
+  const path = require('node:path'); \
+  const nextDir = path.dirname(require.resolve('next/package.json')); \
+  const sharp = require(require.resolve('sharp', { paths: [nextDir] })); \
+  sharp({ create: { width: 2, height: 2, channels: 3, background: '#fff' } }).webp().toBuffer() \
+    .then((b) => console.log('sharp для next/image работает, webp', b.length, 'байт')) \
+    .catch((e) => { console.error(e); process.exit(1); });"
 USER nextjs
 EXPOSE 3000
 # Главная — статическая страница: отвечает без базы
