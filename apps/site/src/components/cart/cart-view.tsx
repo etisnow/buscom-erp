@@ -5,7 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { formatRub } from "@buscom/domain/money";
 import { describeOptions } from "@buscom/domain/product/options";
 import { CARRIERS, MAX_QUANTITY, type PricedCart } from "@buscom/domain/site/cart";
-import { placeOrderAction, priceCartAction } from "@/app/korzina/actions";
+import { lookupCompanyAction, placeOrderAction, priceCartAction } from "@/app/korzina/actions";
 import { ecommerce, reachGoal } from "@/components/analytics/metrika";
 import { COMPANY } from "@/config/company";
 import { cartActions, useCart } from "./cart-store";
@@ -247,25 +247,7 @@ function CheckoutForm({
             {field("email")}
           </label>
         </div>
-        {customerType === "COMPANY" && (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <label className="block sm:col-span-3">
-              <span className="text-sm">Организация *</span>
-              <input name="companyName" autoComplete="organization" className={input} />
-              {field("companyName")}
-            </label>
-            <label className="block">
-              <span className="text-sm">ИНН *</span>
-              <input name="inn" inputMode="numeric" className={input} />
-              {field("inn")}
-            </label>
-            <label className="block">
-              <span className="text-sm">КПП</span>
-              <input name="kpp" inputMode="numeric" className={input} />
-              {field("kpp")}
-            </label>
-          </div>
-        )}
+        {customerType === "COMPANY" && <CompanyFields input={input} field={field} />}
       </fieldset>
 
       <fieldset className="space-y-3">
@@ -351,5 +333,87 @@ function CheckoutForm({
         {pending ? "Отправляем…" : "Оформить заказ"}
       </button>
     </form>
+  );
+}
+
+/**
+ * Организация, ИНН и КПП. «Заполнить по ИНН» спрашивает реквизиты у ERP (там
+ * DaData); найденное подставляется в поля, и их можно поправить руками.
+ */
+function CompanyFields({ input, field }: { input: string; field: (name: string) => React.ReactNode }) {
+  const [companyName, setCompanyName] = useState("");
+  const [inn, setInn] = useState("");
+  const [kpp, setKpp] = useState("");
+  const [note, setNote] = useState<{ text: string; error: boolean } | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function fill() {
+    startTransition(async () => {
+      const result = await lookupCompanyAction(inn);
+      if (!result.ok) {
+        setNote({ text: result.error, error: true });
+        return;
+      }
+      setCompanyName(result.company.name);
+      setKpp(result.company.kpp);
+      setNote(
+        result.company.active
+          ? { text: "Реквизиты заполнены — проверьте их", error: false }
+          : { text: "Организация не действует по данным ФНС — проверьте ИНН", error: true },
+      );
+    });
+  }
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-3">
+      <label className="block sm:col-span-2">
+        <span className="text-sm">ИНН *</span>
+        <div className="flex gap-2">
+          <input
+            name="inn"
+            inputMode="numeric"
+            value={inn}
+            onChange={(event) => setInn(event.target.value)}
+            className={input}
+          />
+          <button
+            type="button"
+            onClick={fill}
+            disabled={pending || inn.trim() === ""}
+            className="border-brand text-brand hover:bg-brand-soft shrink-0 rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-50"
+          >
+            {pending ? "Ищем…" : "Заполнить по ИНН"}
+          </button>
+        </div>
+        {field("inn")}
+        {note && (
+          <p className={`mt-1 text-sm ${note.error ? "text-red-700" : "text-brand"}`} role="status">
+            {note.text}
+          </p>
+        )}
+      </label>
+      <label className="block">
+        <span className="text-sm">КПП</span>
+        <input
+          name="kpp"
+          inputMode="numeric"
+          value={kpp}
+          onChange={(event) => setKpp(event.target.value)}
+          className={input}
+        />
+        {field("kpp")}
+      </label>
+      <label className="block sm:col-span-3">
+        <span className="text-sm">Организация *</span>
+        <input
+          name="companyName"
+          autoComplete="organization"
+          value={companyName}
+          onChange={(event) => setCompanyName(event.target.value)}
+          className={input}
+        />
+        {field("companyName")}
+      </label>
+    </div>
   );
 }

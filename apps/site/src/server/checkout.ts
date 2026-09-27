@@ -10,6 +10,7 @@ import {
   type CartLine,
   type PricedCart,
 } from "@buscom/domain/site/cart";
+import { checkInn } from "@buscom/domain/customer/company-lookup";
 import { SlidingWindowLimiter } from "@buscom/domain/site/rate-limit";
 import { db } from "@/server/db";
 
@@ -93,21 +94,9 @@ export async function placeOrder(cartInput: unknown, formInput: unknown, ip: str
     return { ok: false, error: "Слишком много заказов подряд. Подождите несколько минут или позвоните нам" };
   }
 
-  const env = checkoutEnvSchema.safeParse(process.env);
-  if (!env.success) {
-    console.error("[checkout] Не настроена связь с ERP (ERP_API_URL, SITE_WEBHOOK_SECRET)");
-    return { ok: false, error: "Не удалось отправить заказ. Позвоните нам — оформим по телефону" };
-  }
-
-  const body = JSON.stringify(buildSiteOrderPayload(form.data, cart));
-  const signature = "sha256=" + createHmac("sha256", env.data.SITE_WEBHOOK_SECRET).update(body, "utf8").digest("hex");
   try {
-    const response = await fetch(new URL("/api/integrations/site/orders", env.data.ERP_API_URL), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Signature": signature },
-      body,
-      signal: AbortSignal.timeout(15_000),
-    });
+    const response = await postToErp("/api/integrations/site/orders", buildSiteOrderPayload(form.data, cart));
+    if (!response) return { ok: false, error: "Не удалось отправить заказ. Позвоните нам — оформим по телефону" };
     // 201 — заказ создан, 200 — эта же форма уже отправлялась (повторное нажатие)
     if (response.status === 201 || response.status === 200) {
       const result = (await response.json()) as { orderNumber: number };
@@ -118,4 +107,61 @@ export async function placeOrder(cartInput: unknown, formInput: unknown, ip: str
     console.error("[checkout] ERP недоступна", error);
   }
   return { ok: false, error: "Не удалось отправить заказ. Попробуйте ещё раз или позвоните нам" };
+}
+
+/**
+ * Подписанный запрос в ERP (контракт v1: HMAC сырого тела в `X-Signature`).
+ * `null` — связь с ERP не настроена; сбой сети — исключение.
+ */
+async function postToErp(path: string, payload: unknown): Promise<Response | null> {
+  const env = checkoutEnvSchema.safeParse(process.env);
+  if (!env.success) {
+    console.error("[checkout] Не настроена связь с ERP (ERP_API_URL, SITE_WEBHOOK_SECRET)");
+    return null;
+  }
+  const body = JSON.stringify(payload);
+  const signature = "sha256=" + createHmac("sha256", env.data.SITE_WEBHOOK_SECRET).update(body, "utf8").digest("hex");
+  return fetch(new URL(path, env.data.ERP_API_URL), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Signature": signature },
+    body,
+    signal: AbortSignal.timeout(15_000),
+  });
+}
+
+/**
+ * Поиск реквизитов по ИНН — публичная кнопка, а у DaData дневная квота: 10 запросов
+ * за 10 минут с IP и 200 в час на сайт. Реквизиты всегда можно вписать руками.
+ */
+const lookupPerIp = new SlidingWindowLimiter(10, 10 * 60 * 1000);
+const lookupOverall = new SlidingWindowLimiter(200, 60 * 60 * 1000);
+
+const companyResponseSchema = z.union([
+  z.object({ ok: z.literal(true), company: z.object({ name: z.string(), kpp: z.string(), active: z.boolean() }) }),
+  z.object({ ok: z.literal(false), error: z.string() }),
+]);
+
+export type CompanyLookup = z.infer<typeof companyResponseSchema>;
+
+export async function lookupCompany(inn: unknown, ip: string | null): Promise<CompanyLookup> {
+  const unavailable = { ok: false as const, error: "Не удалось найти реквизиты — впишите их вручную" };
+  if (typeof inn !== "string" || inn.length > 20) return { ok: false, error: "Впишите ИНН" };
+  // Опечатку ловим здесь: она не тратит лимит и не ходит в ERP
+  const checked = checkInn(inn);
+  if (!checked.ok) return checked;
+  if ((ip && !lookupPerIp.take(ip)) || !lookupOverall.take("all")) {
+    return { ok: false, error: "Слишком много запросов — впишите реквизиты вручную" };
+  }
+  try {
+    const response = await postToErp("/api/integrations/site/company", { inn: checked.inn });
+    if (!response?.ok) {
+      if (response) console.error(`[checkout] Реквизиты по ИНН: ERP ответила ${response.status}`);
+      return unavailable;
+    }
+    const result = companyResponseSchema.safeParse(await response.json());
+    return result.success ? result.data : unavailable;
+  } catch (error) {
+    console.error("[checkout] Реквизиты по ИНН: ERP недоступна", error);
+    return unavailable;
+  }
 }

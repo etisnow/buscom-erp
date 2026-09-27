@@ -13,7 +13,8 @@ import { env } from "@/server/env";
 const ENDPOINT = "https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party";
 const TIMEOUT_MS = 10_000;
 
-export type CompanyLookupResult = { ok: true; company: CompanyInfo } | { ok: false; error: string };
+/** `notFound` — ИНН верный, но в ЕГРЮЛ/ЕГРИП такого нет; остальные неуспехи — сбой связи или настройки */
+export type CompanyLookupResult = { ok: true; company: CompanyInfo } | { ok: false; error: string; notFound?: true };
 
 /** `inn` уже проверен `checkInn`: только цифры, контрольная сумма сошлась. */
 export async function findCompanyByInn(inn: string): Promise<CompanyLookupResult> {
@@ -52,7 +53,7 @@ export async function findCompanyByInn(inn: string): Promise<CompanyLookupResult
 
   const company = parseDadataParty(await response.json().catch(() => null));
   if (!company) {
-    return { ok: false, error: "Организация с таким ИНН не найдена" };
+    return { ok: false, error: "Организация с таким ИНН не найдена", notFound: true };
   }
 
   return { ok: true, company };
