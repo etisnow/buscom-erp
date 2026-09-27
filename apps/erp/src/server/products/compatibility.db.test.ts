@@ -72,4 +72,20 @@ describeDb("совместимость товара из справочника 
     const fresh = await testDb.product.findUniqueOrThrow({ where: { id: product.id } });
     expect(fresh.compatibility).toEqual(["ГАЗель Next"]);
   });
+
+  it("переименование модели оставляет 301 со старой страницы модели на сайте, без цепочек и петель", async () => {
+    const item = await model("Газель Некст", 10);
+    await renameDictionaryItem(item.id, "ГАЗель Next");
+    const redirect = (from: string) => testDb.urlRedirect.findUnique({ where: { fromPath: from } });
+    expect(await redirect("/modeli/gazel-nekst")).toMatchObject({ toPath: "/modeli/gazel-next", statusCode: 301 });
+
+    await renameDictionaryItem(item.id, "ГАЗель Next (2013+)");
+    expect(await redirect("/modeli/gazel-nekst")).toMatchObject({ toPath: "/modeli/gazel-next-2013" });
+    expect(await redirect("/modeli/gazel-next")).toMatchObject({ toPath: "/modeli/gazel-next-2013" });
+
+    // Вернули прежнее название — с его адреса переадресации больше нет
+    await renameDictionaryItem(item.id, "ГАЗель Next");
+    expect(await redirect("/modeli/gazel-next")).toBeNull();
+    expect(await redirect("/modeli/gazel-next-2013")).toMatchObject({ toPath: "/modeli/gazel-next" });
+  });
 });

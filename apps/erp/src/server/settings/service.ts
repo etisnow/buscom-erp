@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import type { EmailTemplates } from "@buscom/domain/email/templates";
 import { CANCEL_REASONS } from "@buscom/domain/order/cancel-reasons";
+import { modelPath } from "@buscom/domain/site/models";
 import {
   DEFAULT_SETTINGS,
   parseSetting,
@@ -171,7 +172,25 @@ export async function renameDictionaryItem(id: string, name: string): Promise<vo
         UPDATE "Product"
         SET "compatibility" = array_replace("compatibility", ${item.name}, ${value}), "updatedAt" = now()
         WHERE ${item.name} = ANY("compatibility")`;
+      await redirectModelPage(tx, modelPath(item.name), modelPath(value));
     }
+  });
+}
+
+/**
+ * Страница модели на сайте переехала вместе с названием (`/modeli/{slug}`, SITE-PRD,
+ * «Адреса»): со старого адреса — 301 на новый. Переадресации, которые вели на старый
+ * адрес, сразу ведут на новый — без цепочек; переадресация с нового адреса (модель
+ * вернули к прежнему названию) убирается, иначе страница увела бы сама с себя.
+ */
+async function redirectModelPage(tx: Prisma.TransactionClient, from: string, to: string): Promise<void> {
+  if (from === to) return;
+  await tx.urlRedirect.deleteMany({ where: { fromPath: to } });
+  await tx.urlRedirect.updateMany({ where: { toPath: from }, data: { toPath: to } });
+  await tx.urlRedirect.upsert({
+    where: { fromPath: from },
+    create: { fromPath: from, toPath: to, statusCode: 301 },
+    update: { toPath: to, productId: null, categoryId: null, statusCode: 301 },
   });
 }
 

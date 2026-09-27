@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { MODELS_PATH } from "@buscom/domain/site/models";
 import Link from "next/link";
 import { pageMetadata } from "@/config/metadata";
 import { ProductCard } from "@/components/catalog/product-card";
 import { LeadForm } from "@/components/lead-form";
+import { ModelLinks } from "@/components/model-links";
 import { PageText } from "@/components/page-text";
-import { getCategoryTree, getHits } from "@/server/catalog";
+import { getCategoryTree, getHits, getModels } from "@/server/catalog";
 import { getSitePage } from "@/server/pages";
 
 // Заголовок, метатеги и текст о компании правятся в ERP («Страницы сайта», ключ home);
@@ -16,9 +18,17 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export const dynamic = "force-dynamic";
 
-/** Главная: разделы каталога, хиты, заявка и текст о компании. Подбор по модели — позже (этап 7). */
+/** На главной — самые ходовые модели, остальные по ссылке «Все модели» */
+const MODELS_ON_HOME = 12;
+
+/** Главная: разделы каталога, хиты, заявка и текст о компании. Подбор по модели — из совместимости товаров (этап 7). */
 export default async function HomePage() {
-  const [tree, hits, page] = await Promise.all([getCategoryTree(), getHits(), getSitePage("home")]);
+  const [tree, hits, page, models] = await Promise.all([
+    getCategoryTree(),
+    getHits(),
+    getSitePage("home"),
+    getModels(),
+  ]);
   return (
     <div className="space-y-10">
       <section className="space-y-3">
@@ -28,6 +38,19 @@ export default async function HomePage() {
           России, Беларуси, Казахстану и Киргизии.
         </p>
       </section>
+      {models.length > 0 && (
+        <section>
+          <div className="mb-4 flex items-baseline justify-between gap-4">
+            <h2 className="text-xl font-semibold">Подбор по модели</h2>
+            {models.length > MODELS_ON_HOME && (
+              <Link href={MODELS_PATH} className="text-brand hover:text-brand-hover text-sm font-medium">
+                Все модели
+              </Link>
+            )}
+          </div>
+          <ModelLinks models={models.slice(0, MODELS_ON_HOME)} />
+        </section>
+      )}
       <section>
         <h2 className="mb-4 text-xl font-semibold">Каталог</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

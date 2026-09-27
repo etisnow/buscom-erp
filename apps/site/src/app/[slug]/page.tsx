@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatRubPlain } from "@buscom/domain/money";
 import { defaultCategoryDescription, defaultTitle, descriptionSnippet } from "@buscom/domain/site/meta";
+import { modelPath } from "@buscom/domain/site/models";
 import {
   applyCatalogQuery,
   catalogModels,
@@ -96,8 +97,10 @@ function ProductView({ product }: { product: ProductPage }) {
               <h2 className="mb-2 font-semibold">Подходит для</h2>
               <ul className="flex flex-wrap gap-2 text-sm">
                 {product.compatibility.map((model) => (
-                  <li key={model} className="bg-surface rounded px-2 py-1">
-                    {model}
+                  <li key={model}>
+                    <Link href={modelPath(model)} className="bg-surface hover:text-brand block rounded px-2 py-1">
+                      {model}
+                    </Link>
                   </li>
                 ))}
               </ul>

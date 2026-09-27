@@ -1,5 +1,6 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
+import { siteModels, type SiteModel } from "@buscom/domain/site/models";
 import { startingPrice } from "@buscom/domain/site/pricing";
 import { db } from "@/server/db";
 
@@ -257,6 +258,56 @@ export const getHits = cached(async (): Promise<ProductCard[]> => {
   });
   return products.map(toCard);
 }, "hits");
+
+/** Модели авто, для которых есть товары в продаже (этап 7, `/modeli/{slug}`). */
+export const getModels = cached(async (): Promise<SiteModel[]> => {
+  const products = await db.product.findMany({
+    where: { isActive: true, slug: { not: null }, compatibility: { isEmpty: false } },
+    select: { compatibility: true },
+  });
+  return siteModels(products);
+}, "models");
+
+export type ModelPage = SiteModel & {
+  /** Товары по разделам каталога — в порядке меню; без раздела — в конце */
+  sections: { name: string; slug: string | null; products: ProductCard[] }[];
+};
+
+/** Страница модели: товары, у которых она в совместимости, по разделам каталога. */
+export const getModelPage = cached(async (slug: string): Promise<ModelPage | null> => {
+  const model = (await getModels()).find((item) => item.slug === slug);
+  if (!model) return null;
+  const [products, tree] = await Promise.all([
+    db.product.findMany({
+      where: { isActive: true, slug: { not: null }, compatibility: { has: model.name } },
+      orderBy: { name: "asc" },
+      select: { ...cardSelect, categoryId: true },
+    }),
+    getCategoryTree(),
+  ]);
+  // Раздел верхнего уровня для каждой категории дерева
+  const sectionOf = new Map<string, MenuCategory>();
+  const walk = (nodes: MenuCategory[], top?: MenuCategory) =>
+    nodes.forEach((node) => {
+      sectionOf.set(node.id, top ?? node);
+      walk(node.children, top ?? node);
+    });
+  walk(tree);
+  const sections = [
+    ...tree.map((section) => ({
+      name: section.name,
+      slug: section.slug as string | null,
+      products: [] as ProductCard[],
+    })),
+    { name: "Другое", slug: null, products: [] as ProductCard[] },
+  ];
+  for (const product of products) {
+    const section = product.categoryId ? sectionOf.get(product.categoryId) : undefined;
+    const target = sections.find((item) => item.slug === (section?.slug ?? null)) ?? sections[sections.length - 1];
+    target.products.push(toCard(product));
+  }
+  return { ...model, sections: sections.filter((section) => section.products.length > 0) };
+}, "model-page");
 
 /** Все товары в продаже — для поиска по сайту (ищем в памяти: @buscom/domain/site/search). */
 export const getSearchIndex = cached(async (): Promise<ProductCard[]> => {
