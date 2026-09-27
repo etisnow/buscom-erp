@@ -258,6 +258,15 @@ export const getHits = cached(async (): Promise<ProductCard[]> => {
   return products.map(toCard);
 }, "hits");
 
+/** Все товары в продаже — для поиска по сайту (ищем в памяти: @buscom/domain/site/search). */
+export const getSearchIndex = cached(async (): Promise<ProductCard[]> => {
+  const products = await db.product.findMany({
+    where: { isActive: true, slug: { not: null } },
+    select: cardSelect,
+  });
+  return products.map(toCard);
+}, "search-index");
+
 /** Адреса для sitemap.xml: товары в продаже и непустые категории. */
 export const getSitemapEntries = cached(async () => {
   const [products, categories] = await Promise.all([

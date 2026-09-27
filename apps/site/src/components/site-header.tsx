@@ -34,8 +34,22 @@ export function SiteHeader() {
           <br />
           для микроавтобусов
         </p>
-        {/* Поиск по каталогу появится вместе с каталогом (этап 4) */}
-        <div className="grow" />
+        <form action="/poisk" role="search" className="order-last flex w-full grow md:order-none md:w-auto">
+          <input
+            type="search"
+            name="q"
+            placeholder="Поиск: название или код товара"
+            aria-label="Поиск по каталогу"
+            maxLength={100}
+            className="border-line focus:border-brand min-w-0 grow rounded-l-md border bg-white px-3 py-2 text-sm outline-none"
+          />
+          <button
+            type="submit"
+            className="bg-brand hover:bg-brand-hover rounded-r-md px-4 py-2 text-sm font-semibold text-white"
+          >
+            Найти
+          </button>
+        </form>
         <div className="flex flex-col text-right">
           <a href={COMPANY.phone.href} className="hover:text-brand text-lg font-semibold whitespace-nowrap">
             {COMPANY.phone.display}
