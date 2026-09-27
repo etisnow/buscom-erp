@@ -1,21 +1,23 @@
 import type { Metadata } from "next";
 import { pageMetadata } from "@/config/metadata";
+import { getSitePage } from "@/server/pages";
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
+import { PageText } from "@/components/page-text";
 import { COMPANY } from "@/config/company";
 
-// Метатеги — со старого сайта дословно (docs/site-snapshot/pages.json, «/kontakty»)
-export const metadata: Metadata = pageMetadata({
-  title: "Контакты. Баском",
-  description: 'Контактная информация о компании "Баском"',
-  path: "/kontakty",
-});
+// Метатеги и текст под контактами правятся в ERP («Страницы сайта»); исходные — со старого сайта
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await getSitePage("kontakty");
+  return pageMetadata({ title: page.metaTitle, description: page.metaDescription || undefined, path: "/kontakty" });
+}
 
 /**
- * Экран 07 макета. Тексты — из COMPANY (src/config/company.ts); редактирование
- * из ERP — этап 6. Карта — виджет Яндекса со старого сайта, грузится лениво:
+ * Экран 07 макета. Контакты — из COMPANY (packages/domain/src/company.ts), их же
+ * берут письма ERP; из ERP правятся заголовок, метатеги и текст под контактами. Карта — виджет Яндекса со старого сайта, грузится лениво:
  * он тяжёлый и не должен мешать первому экрану.
  */
-export default function ContactsPage() {
+export default async function ContactsPage() {
+  const page = await getSitePage("kontakty");
   const rows = [
     [
       "Отдел продаж",
@@ -35,8 +37,8 @@ export default function ContactsPage() {
   ] as const;
   return (
     <section>
-      <Breadcrumbs items={[]} current="Контакты" />
-      <h1 className="mb-6 text-2xl font-bold md:text-3xl">Контакты</h1>
+      <Breadcrumbs items={[]} current={page.title} />
+      <h1 className="mb-6 text-2xl font-bold md:text-3xl">{page.title}</h1>
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-6">
           <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3">
@@ -52,6 +54,7 @@ export default function ContactsPage() {
             <p>ИНН {COMPANY.inn}</p>
             <p>ОГРН {COMPANY.ogrn}</p>
           </div>
+          {page.body && <PageText text={page.body} />}
         </div>
         <iframe
           title="Склад на карте"
@@ -63,3 +66,5 @@ export default function ContactsPage() {
     </section>
   );
 }
+
+export const dynamic = "force-dynamic";

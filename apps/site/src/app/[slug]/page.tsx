@@ -11,7 +11,7 @@ import {
   type CatalogQuery,
 } from "@buscom/domain/site/catalog-query";
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
-import { Description } from "@/components/catalog/description";
+import { PageText } from "@/components/page-text";
 import { CategoryFilters } from "@/components/catalog/category-filters";
 import { HitBadge, ProductCard } from "@/components/catalog/product-card";
 import { ProductConfigurator } from "@/components/catalog/product-configurator";
@@ -108,7 +108,7 @@ function ProductView({ product }: { product: ProductPage }) {
       {product.description && (
         <section className="mt-10 max-w-3xl">
           <h2 className="mb-3 text-xl font-semibold">Описание</h2>
-          <Description text={product.description} />
+          <PageText text={product.description} />
         </section>
       )}
 

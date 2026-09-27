@@ -29,6 +29,7 @@ export const describeDb = dbTestsEnabled() ? describe : describe.skip;
 
 const TABLES = [
   '"UrlRedirect"',
+  '"SitePage"',
   '"PushSubscription"',
   '"ChatAttachment"',
   '"ChatMessage"',

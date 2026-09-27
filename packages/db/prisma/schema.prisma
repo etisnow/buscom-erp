@@ -47,6 +47,7 @@ model User {
   sentEmails    Email[]
   chatMessages  ChatMessage[]
   pushDevices   PushSubscription[]
+  sitePages     SitePage[]
 
   @@map("user")
 }
@@ -227,6 +228,21 @@ model ProductCategory {
   redirects UrlRedirect[]
 
   @@index([parentId])
+}
+
+/// Текст статической страницы сайта, правленный в ERP (docs/SITE-PLAN.md, этап 6).
+/// Набор страниц и исходный текст — packages/domain/src/site/pages.ts; строки нет —
+/// сайт показывает исходный. Формат `body` — packages/domain/src/site/page-text.ts
+model SitePage {
+  slug            String   @id
+  /// Заголовок h1
+  title           String
+  metaTitle       String
+  metaDescription String?
+  body            String
+  updatedAt       DateTime @updatedAt
+  updatedById     String?
+  updatedBy       User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
 }
 
 /// Переадресация старого адреса сайта (docs/SITE-PRD.md, «Адреса»). Цель — товар
