@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { normalizeSearchText, searchProducts, searchTerms } from "@buscom/domain/site/search";
+import { matchesTerms, searchProducts, searchTerms } from "@buscom/domain/site/search";
 import { ProductCard } from "@/components/catalog/product-card";
 import { COMPANY } from "@/config/company";
 import { getCategoryTree, getSearchIndex, type MenuCategory } from "@/server/catalog";
@@ -22,10 +22,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/poisk">) 
   const [products, tree] = await Promise.all([getSearchIndex(), getCategoryTree()]);
   const found = searchProducts(products, query);
   // Категории — если в их названии нашлись все слова: «люки» ведёт сразу в раздел
-  const categories =
-    terms.length > 0
-      ? flatten(tree).filter((category) => terms.every((term) => normalizeSearchText(category.name).includes(term)))
-      : [];
+  const categories = terms.length > 0 ? flatten(tree).filter((category) => matchesTerms(category.name, terms)) : [];
 
   return (
     <section>

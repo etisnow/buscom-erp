@@ -20,11 +20,31 @@ export function normalizeSearchText(text: string): string {
 
 const ENDING = /[аеиоуыэюяйь]+$/u;
 
-/** Основа слова: без гласных на конце, если остаётся хотя бы три буквы. Цифры и латиницу не трогаем. */
+/** Беглая гласная перед последней согласной: «поручен(ь)» и «поручн(и)», «замок» и «замк(и)» */
+const FLEETING = /(?<=..[а-я])[ео](?=[кнлц]$)/u;
+
+/**
+ * Основа слова: без гласных на конце, если остаётся хотя бы три буквы, и без беглой
+ * гласной. Грубо, но одинаково для запроса и названия — только это и нужно. Цифры и
+ * латиницу не трогаем.
+ */
 function stem(word: string): string {
   if (!/^[а-я]+$/u.test(word)) return word;
   const base = word.replace(ENDING, "");
-  return base.length >= 3 ? base : word;
+  if (base.length < 3) return word;
+  return base.replace(FLEETING, "");
+}
+
+/** Текст, в котором ищут: как есть и основами слов — «поручни» найдёт «Поручень». */
+function searchable(text: string): string {
+  const normalized = normalizeSearchText(text);
+  return `${normalized} ${normalized.split(" ").map(stem).join(" ")}`;
+}
+
+/** Нашлись ли все слова запроса в тексте — для товаров и названий разделов. */
+export function matchesTerms(text: string, terms: readonly string[]): boolean {
+  const haystack = searchable(text);
+  return terms.every((term) => haystack.includes(term));
 }
 
 /** Слова запроса для поиска; пустой список — искать нечего. */
@@ -47,9 +67,10 @@ export function searchProducts<T extends Searchable>(products: readonly T[], que
   if (terms.length === 0) return [];
   const exactSku = compact(query);
   const scored = products.flatMap((product) => {
-    const haystack = `${normalizeSearchText(product.name)} ${normalizeSearchText(product.sku)} ${compact(product.sku)}`;
-    if (!terms.every((term) => haystack.includes(term))) return [];
-    const rank = compact(product.sku) === exactSku ? 0 : normalizeSearchText(product.name).startsWith(terms[0]) ? 1 : 2;
+    if (!matchesTerms(`${product.name} ${product.sku} ${compact(product.sku)}`, terms)) return [];
+    const firstWord = normalizeSearchText(product.name).split(" ")[0] ?? "";
+    const startsWith = firstWord.startsWith(terms[0]) || stem(firstWord).startsWith(terms[0]);
+    const rank = compact(product.sku) === exactSku ? 0 : startsWith ? 1 : 2;
     return [{ product, rank }];
   });
   return scored
