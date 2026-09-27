@@ -312,13 +312,30 @@ PRD требует проверить восстановление **до** за
 
 ## Сайт bus-com.ru (контейнер `site`)
 
-С 26.09.2026 в том же compose поднимается сайт (`apps/site`, образ `ghcr.io/…/site`). Пока это каркас без базы. Переменные в `.env.production` — все необязательные:
+С 26.09.2026 в том же compose поднимается сайт (`apps/site`, образ `ghcr.io/…/site`): каталог из общей базы, заказы уходят в ERP по API. Переменные в `.env.production` — все необязательные:
 
 - `SITE_PORT` — порт на хосте, по умолчанию 82. Чтобы открыть сайт снаружи до переключения DNS, в панели Джино на этот порт проксируется временный домен (например, поддомен `new.bus-com.ru`);
 - `SITE_URL` — адрес для robots.txt и sitemap, по умолчанию `https://bus-com.ru`;
 - `SITE_INDEXING` — `false` (по умолчанию): каждый ответ с `X-Robots-Tag: noindex`, robots.txt запрещает всё. `true` ставится в день переключения DNS (docs/SITE-PLAN.md, этап 9) — меняется переменная и `up -d site`, пересборка не нужна.
 
 Выкат проверяет, что сайт отвечает на `SITE_PORT`; не ответил — выкат красный.
+
+### Роль базы для сайта
+
+По умолчанию сайт ходит в базу общей ролью ERP. До запуска ему заводится своя роль `buscom_site` — только чтение семи таблиц каталога (товары, категории, картинки, опции, переадресации, страницы): взломанный сайт не увидит клиентов и заказы. Заказы сайт в базу не пишет — отправляет в ERP по API.
+
+1. Завести роль (повторяемо, пароль — длинный случайный, без кавычек):
+
+   ```bash
+   cd /opt/buscom-erp
+   docker compose -f docker-compose.prod.yml --env-file .env.production exec -T postgres \
+     psql -U buscom -d buscom_erp -v site_password="'<пароль>'" -f - < scripts/site-db-role.sql
+   ```
+
+2. В `.env.production`: `SITE_DATABASE_URL=postgresql://buscom_site:<пароль>@postgres:5432/buscom_erp`, затем `docker compose … up -d site`.
+3. Проверить: сайт отвечает, каталог и страница товара открываются; `psql -U buscom_site -d buscom_erp -c 'select count(*) from "Order"'` — «permission denied».
+
+**Сайт начал читать новую таблицу** — добавить её в `scripts/site-db-role.sql` и прогнать скрипт ещё раз, иначе страница упадёт с «permission denied». Откат — убрать `SITE_DATABASE_URL` и `up -d site`.
 
 ## Вебхук сайта
 
