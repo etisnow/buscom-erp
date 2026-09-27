@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download, FileText, FolderTree } from "lucide-react";
+import { CarFront, Download, FileText, FolderTree } from "lucide-react";
 import { Suspense } from "react";
 import { toSearchParams } from "@/app/(app)/search-params";
 import { ProductsTable } from "@/components/products/products-table";
@@ -40,6 +40,12 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
             <Link href="/products/categories">
               <FolderTree />
               Категории
+            </Link>
+          </Button>
+          <Button asChild size="sm" variant="outline" className="max-md:hidden">
+            <Link href="/products/compatibility">
+              <CarFront />
+              Разбор совместимости
             </Link>
           </Button>
           <Button asChild size="sm" variant="outline">

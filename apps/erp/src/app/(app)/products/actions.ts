@@ -18,7 +18,9 @@ export type ProductResult = { ok: true; message: string } | { ok: false; error: 
 const variantSchema = z.record(z.string().max(100), z.string().max(300));
 
 /** Адрес и метатеги на сайте; формат слуга проверяет сервис (src/server/site/seo.ts) */
-export const siteSeoSchema = z.object({
+// Не экспортируется: из файла "use server" наружу можно отдавать только async-функции,
+// иначе любое действие отсюда падает «A "use server" file can only export async functions»
+const siteSeoSchema = z.object({
   slug: z.string().max(200).nullable(),
   metaTitle: z.string().max(300, { error: "Title не длиннее 300 знаков" }).nullable(),
   metaDescription: z.string().max(1000, { error: "Description не длиннее 1000 знаков" }).nullable(),
@@ -171,4 +173,14 @@ export async function fetchSupplierCombosAction(url: string): Promise<SupplierCo
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
 
   return fetchSupplierCombos(parsed.data.trim());
+}
+
+/** Разбор совместимости: сохраняется только список моделей, остальное в карточке не трогается. */
+export async function setCompatibilityAction(id: string, models: string[]): Promise<ProductResult> {
+  const user = await requireUser();
+  const parsed = z.array(z.string().min(1).max(200)).max(100).safeParse(models);
+  if (!parsed.success) return { ok: false, error: "Некорректный список моделей" };
+  const result = await run(() => updateProduct(id, { compatibility: parsed.data }, user), "Совместимость сохранена");
+  revalidatePath("/products/compatibility");
+  return result;
 }
