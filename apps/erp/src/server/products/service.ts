@@ -1,12 +1,14 @@
 import "server-only";
 import type { Kopecks } from "@buscom/domain/money";
 import { normalizeCompatibility, unknownModels } from "@buscom/domain/product/compatibility";
+import { assertProductImage } from "@buscom/domain/product/images";
 import { normalizeOptionGroups, type OptionGroupDraft } from "@buscom/domain/product/options";
 import { Prisma } from "@buscom/db/client";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import type { Tx } from "@/server/orders/internal";
 import type { SessionUser } from "@/server/session";
+import { createImage } from "@/server/products/images";
 import { applySiteSeo, freeSlugFor, type SiteSeoDraft } from "@/server/site/seo";
 
 /** Кто правит каталог: цены и карточку — менеджеры и выше (PRD, роли). */
@@ -53,7 +55,14 @@ export type ProductDraft = {
   site?: SiteSeoDraft;
 };
 
-export async function createProduct(draft: ProductDraft, user: SessionUser): Promise<{ id: string }> {
+/** Снимки нового товара — из импорта с сайта поставщика; первый станет главным */
+export type NewProductImage = Uint8Array<ArrayBuffer>;
+
+export async function createProduct(
+  draft: ProductDraft,
+  user: SessionUser,
+  images: NewProductImage[] = [],
+): Promise<{ id: string }> {
   if (!CATALOG_ROLES.includes(user.role as (typeof CATALOG_ROLES)[number])) {
     throw new ForbiddenError("Заводить товары может менеджер, руководитель или администратор");
   }
@@ -61,37 +70,44 @@ export async function createProduct(draft: ProductDraft, user: SessionUser): Pro
   const sku = draft.sku.trim();
   const existing = await db.product.findUnique({ where: { sku }, select: { id: true } });
   if (existing) throw new Error(`Товар с артикулом ${sku} уже есть`);
+  // Снимки проверяем до записи: товар заводится целиком или никак
+  for (const image of images) assertProductImage(image);
 
-  return db.$transaction(async (tx) => {
-    const product = await tx.product.create({
-      data: {
-        sku,
-        name: draft.name.trim(),
-        description: draft.description?.trim() || null,
-        categoryId: draft.categoryId || null,
-        priceKopecks: draft.priceKopecks,
-        compatibility: await checkCompatibility(tx, draft.compatibility ?? []),
-        isActive: draft.isActive ?? true,
-        isHit: draft.isHit ?? false,
-      },
-      select: { id: true },
-    });
-    if (draft.suppliers) await replaceProductSuppliers(tx, product.id, draft.suppliers);
-    if (draft.options) await replaceProductOptions(tx, product.id, draft.options);
-    if (draft.suppliers) await replaceOptionPrices(tx, product.id, draft.suppliers);
-    // Новый товар сразу получает адрес на сайте из названия; не нужен на сайте — адрес стирают
-    const site = draft.site?.slug ? draft.site : { ...draft.site, slug: await freeSlugFor(tx, draft.name) };
-    await applySiteSeo(
-      tx,
-      { kind: "product", id: product.id },
-      {
-        slug: site.slug,
-        metaTitle: site.metaTitle ?? null,
-        metaDescription: site.metaDescription ?? null,
-      },
-    );
-    return product;
-  });
+  return db.$transaction(
+    async (tx) => {
+      const product = await tx.product.create({
+        data: {
+          sku,
+          name: draft.name.trim(),
+          description: draft.description?.trim() || null,
+          categoryId: draft.categoryId || null,
+          priceKopecks: draft.priceKopecks,
+          compatibility: await checkCompatibility(tx, draft.compatibility ?? []),
+          isActive: draft.isActive ?? true,
+          isHit: draft.isHit ?? false,
+        },
+        select: { id: true },
+      });
+      if (draft.suppliers) await replaceProductSuppliers(tx, product.id, draft.suppliers);
+      if (draft.options) await replaceProductOptions(tx, product.id, draft.options);
+      if (draft.suppliers) await replaceOptionPrices(tx, product.id, draft.suppliers);
+      // Новый товар сразу получает адрес на сайте из названия; не нужен на сайте — адрес стирают
+      const site = draft.site?.slug ? draft.site : { ...draft.site, slug: await freeSlugFor(tx, draft.name) };
+      await applySiteSeo(
+        tx,
+        { kind: "product", id: product.id },
+        {
+          slug: site.slug,
+          metaTitle: site.metaTitle ?? null,
+          metaDescription: site.metaDescription ?? null,
+        },
+      );
+      for (const data of images) await createImage(tx, product.id, { data });
+      return product;
+      // Снимки — сотни килобайт каждый: по общей базе за туннелем пяти секунд по умолчанию мало
+    },
+    { timeout: images.length > 0 ? 60_000 : undefined },
+  );
 }
 
 export async function updateProduct(id: string, draft: Partial<ProductDraft>, user: SessionUser): Promise<void> {

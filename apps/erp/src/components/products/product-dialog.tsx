@@ -38,6 +38,13 @@ import {
   type OptionGroupForm,
 } from "@/components/products/product-options-editor";
 import type { ProductRow } from "@/server/products/list";
+import type { SupplierImportDraft } from "@/server/products/supplier-import";
+import {
+  chosenBase64,
+  ImportedImagesEditor,
+  toImageDrafts,
+  type ImportedImageDraft,
+} from "@/components/products/imported-images";
 import type { CategoryRow } from "@/server/products/categories";
 import type { SupplierOption } from "@/server/suppliers/list";
 import {
@@ -91,9 +98,13 @@ function withChoice(
   return next;
 }
 
-/** Заведение и правка товара. `product` не задан — создаём новый. */
+/**
+ * Заведение и правка товара. `product` не задан — создаём новый; `draft` — новый
+ * товар из «Импорта с сайта поставщика»: поля и снимки уже заполнены, человек сверяет.
+ */
 export function ProductDialog({
   product,
+  draft,
   suppliers,
   categories,
   carModels,
@@ -101,6 +112,7 @@ export function ProductDialog({
   onOpenChange,
 }: {
   product?: ProductRow;
+  draft?: SupplierImportDraft;
   suppliers: SupplierOption[];
   categories: CategoryRow[];
   /** Включённые модели из справочника «Модели авто», в его порядке */
@@ -108,42 +120,74 @@ export function ProductDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [sku, setSku] = useState(product?.sku ?? "");
-  const [name, setName] = useState(product?.name ?? "");
-  const [description, setDescription] = useState(product?.description ?? "");
+  const [sku, setSku] = useState(product?.sku ?? draft?.sku ?? "");
+  const [name, setName] = useState(product?.name ?? draft?.name ?? "");
+  const [description, setDescription] = useState(product?.description ?? draft?.description ?? "");
+  const [importedImages, setImportedImages] = useState<ImportedImageDraft[]>(() => toImageDrafts(draft?.images ?? []));
   const [site, setSite] = useState(() =>
     toSiteSeoValue(product ?? { slug: null, metaTitle: null, metaDescription: null }),
   );
   const [isHit, setIsHit] = useState(product?.isHit ?? false);
-  const [categoryId, setCategoryId] = useState<string | null>(product?.categoryId ?? null);
-  const [price, setPrice] = useState(((product?.priceKopecks ?? 0) / 100).toFixed(2));
-  const [compatibility, setCompatibility] = useState<string[]>(product?.compatibility ?? []);
+  const [categoryId, setCategoryId] = useState<string | null>(product?.categoryId ?? draft?.categoryId ?? null);
+  // Цену продажи у импорта ставит человек: у поставщика — закупка, наценку решаем мы
+  const [price, setPrice] = useState(draft ? "" : ((product?.priceKopecks ?? 0) / 100).toFixed(2));
+  // У импорта сразу отмечаем модели, которые название и описание называют однозначно
+  const [compatibility, setCompatibility] = useState<string[]>(
+    () =>
+      product?.compatibility ??
+      (draft ? compatibilityHints(`${draft.name} ${draft.description}`, carModels).suggested : []),
+  );
   // Подсказка по названию и описанию: null — ещё не спрашивали
   const [hints, setHints] = useState<CompatibilityHints | null>(null);
   // Модели товара, которых нет среди включённых в справочнике (старый текст или выключенная
   // модель), тоже показываем — иначе их нельзя было бы снять.
   const modelChoices = [...carModels, ...compatibility.filter((model) => !carModels.includes(model))];
-  const [links, setLinks] = useState<SupplierDraft[]>(
-    (product?.suppliers ?? []).map((link) => ({
-      supplierId: link.supplierId,
-      price: (link.purchasePriceKopecks / 100).toFixed(2),
-      url: link.url ?? "",
-      variant: toSelection(link.variant),
-      variantOptions: null,
-      // У сохранённых вариантов опций ключ в форме — их id (toOptionForms)
-      optionPrices: Object.fromEntries(
-        link.optionPrices.map((row) => [
-          row.optionValueId,
+  const [links, setLinks] = useState<SupplierDraft[]>(() =>
+    draft
+      ? [
           {
-            ...EMPTY_OPTION_PRICE,
-            price: (row.purchasePriceKopecks / 100).toFixed(2),
-            variant: row.variant ? toSelection(row.variant) : null,
+            supplierId: draft.supplierId ?? "",
+            price: draft.purchaseKopecks === null ? "" : (draft.purchaseKopecks / 100).toFixed(2),
+            url: draft.url,
+            variant: draft.variant,
+            variantOptions: draft.variantOptions.length > 0 ? draft.variantOptions : null,
+            optionPrices: {},
           },
-        ]),
-      ),
-    })),
+        ]
+      : (product?.suppliers ?? []).map((link) => ({
+          supplierId: link.supplierId,
+          price: (link.purchasePriceKopecks / 100).toFixed(2),
+          url: link.url ?? "",
+          variant: toSelection(link.variant),
+          variantOptions: null,
+          // У сохранённых вариантов опций ключ в форме — их id (toOptionForms)
+          optionPrices: Object.fromEntries(
+            link.optionPrices.map((row) => [
+              row.optionValueId,
+              {
+                ...EMPTY_OPTION_PRICE,
+                price: (row.purchasePriceKopecks / 100).toFixed(2),
+                variant: row.variant ? toSelection(row.variant) : null,
+              },
+            ]),
+          ),
+        })),
   );
-  const [optionGroups, setOptionGroups] = useState<OptionGroupForm[]>(toOptionForms(product?.options ?? []));
+  const [optionGroups, setOptionGroups] = useState<OptionGroupForm[]>(() =>
+    draft
+      ? // У групп из импорта id ещё нет — ключ строки для React по порядку
+        draft.optionGroups.map((group, groupIndex) => ({
+          key: `import-${groupIndex}`,
+          name: group.name,
+          required: group.required,
+          values: group.values.map((value, valueIndex) => ({
+            key: `import-${groupIndex}-${valueIndex}`,
+            name: value.name,
+            delta: (value.priceDeltaKopecks / 100).toFixed(2),
+          })),
+        }))
+      : toOptionForms(product?.options ?? []),
+  );
   const [pending, startTransition] = useTransition();
 
   /** Индекс строки, для которой сейчас тянется цена; null — ничего не тянется. */
@@ -263,6 +307,10 @@ export function ProductDialog({
   }
 
   function submit() {
+    if (draft && price.trim() === "") {
+      toast.error("Укажите цену продажи: из импорта пришла только закупка поставщика");
+      return;
+    }
     let priceKopecks: number;
     try {
       priceKopecks = rublesToKopecks(price === "" ? "0" : price);
@@ -336,7 +384,9 @@ export function ProductDialog({
     };
 
     startTransition(async () => {
-      const result = product ? await updateProductAction(product.id, payload) : await createProductAction(payload);
+      const result = product
+        ? await updateProductAction(product.id, payload)
+        : await createProductAction(payload, importedImages.map(chosenBase64));
       if (result.ok) {
         toast.success(result.message);
         onOpenChange(false);
@@ -351,14 +401,24 @@ export function ProductDialog({
       {/* minmax(0,1fr): иначе колонка сетки растягивается под длинное имя поставщика и контент вылезает за окно */}
       <DialogContent className="max-h-[90vh] grid-cols-[minmax(0,1fr)] overflow-x-hidden overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{product ? "Товар" : "Новый товар"}</DialogTitle>
+          <DialogTitle>{product ? "Товар" : draft ? "Новый товар из импорта" : "Новый товар"}</DialogTitle>
           <DialogDescription>
             Позиции уже оформленных заказов не изменятся: они хранят снимок названия и цены.
           </DialogDescription>
         </DialogHeader>
 
+        {draft && draft.warnings.length > 0 ? (
+          <ul className="flex flex-col gap-1 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+            {draft.warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        ) : null}
+
         {product ? (
           <ProductGalleryEditor productId={product.id} images={product.images} name={product.name} />
+        ) : draft ? (
+          <ImportedImagesEditor images={importedImages} onChange={setImportedImages} />
         ) : (
           <p className="text-muted-foreground text-xs">Картинки можно будет добавить после сохранения товара.</p>
         )}
@@ -398,8 +458,15 @@ export function ProductDialog({
               inputMode="decimal"
               value={price}
               onChange={(event) => setPrice(event.target.value)}
+              placeholder={draft ? "ваша цена" : undefined}
               className="h-8 text-right"
             />
+            {draft?.purchaseKopecks != null ? (
+              <span className="text-muted-foreground text-xs">
+                Закупка у поставщика: {formatRub(draft.purchaseKopecks)}
+                {draft.optionGroups.length > 0 ? "; доплаты опций ниже — тоже закупочные" : ""}
+              </span>
+            ) : null}
           </div>
           <div className="flex flex-col gap-1.5 sm:col-span-2">
             <span className="text-xs font-medium" id="product-compat">

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { Download, Plus, Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CategorySelect } from "@/components/products/category-select";
 import { ProductDialog } from "@/components/products/product-dialog";
+import { SupplierImportDialog } from "@/components/products/supplier-import-dialog";
+import type { SupplierImportDraft } from "@/server/products/supplier-import";
 import type { CategoryRow } from "@/server/products/categories";
 import type { SupplierOption } from "@/server/suppliers/list";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,9 @@ export function ProductsToolbar({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  // Черновик импорта и номер попытки: новая попытка — новая форма, а не прежнее состояние
+  const [imported, setImported] = useState<{ draft: SupplierImportDraft; attempt: number } | null>(null);
 
   function apply(changes: Record<string, string | null>) {
     const next = new URLSearchParams(searchParams);
@@ -77,10 +82,32 @@ export function ProductsToolbar({
 
       {canEditCatalog ? (
         <>
-          <Button size="sm" className="ml-auto" onClick={() => setCreateOpen(true)}>
+          <Button size="sm" variant="outline" className="ml-auto" onClick={() => setImportOpen(true)}>
+            <Download />
+            Импорт с сайта поставщика
+          </Button>
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus />
             Новый товар
           </Button>
+          <SupplierImportDialog
+            open={importOpen}
+            onOpenChange={setImportOpen}
+            onImported={(draft) => setImported((current) => ({ draft, attempt: (current?.attempt ?? 0) + 1 }))}
+          />
+          {imported ? (
+            <ProductDialog
+              key={imported.attempt}
+              draft={imported.draft}
+              open
+              onOpenChange={(open) => {
+                if (!open) setImported(null);
+              }}
+              suppliers={suppliers}
+              categories={categories}
+              carModels={carModels}
+            />
+          ) : null}
           <ProductDialog
             open={createOpen}
             onOpenChange={setCreateOpen}

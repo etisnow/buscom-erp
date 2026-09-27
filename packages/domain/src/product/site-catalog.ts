@@ -315,8 +315,9 @@ export function htmlToText(html: string): string | null {
       .replace(/<(p|div|ul|ol|tr|h\d)\b[^>]*>/gi, "\n")
       .replace(/<[^>]+>/g, ""),
   )
-    // Неразрывные пробелы Word'а в тексте не нужны
+    // Неразрывные пробелы Word'а и переводы строк Windows в тексте не нужны
     .replace(/\u00a0/g, " ")
+    .replace(/\r/g, "")
     .replace(/[ \t]+/g, " ")
     .replace(/ *\n */g, "\n")
     // Пустая строка разделяет абзацы; больше одной подряд не оставляем

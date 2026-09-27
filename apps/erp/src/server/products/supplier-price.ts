@@ -10,6 +10,7 @@ import {
   parseVanprojectForm,
   parseVanprojectPrice,
   VANPROJECT_ACTION_URL,
+  type VanprojectForm,
   type VariantOption,
   type VariantSelection,
 } from "@buscom/domain/product/vanproject";
@@ -25,10 +26,10 @@ import {
  */
 
 /** Страница товара весит сотни килобайт; больше — читать незачем. */
-const MAX_BYTES = 3_000_000;
+export const MAX_BYTES = 3_000_000;
 const TIMEOUT_MS = 20_000;
 
-const BROWSER_HEADERS = {
+export const BROWSER_HEADERS = {
   // Без обычных заголовков браузера Авито отдаёт заглушку вместо объявления
   "user-agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
@@ -64,7 +65,7 @@ export type SupplierPriceResult =
 
 type Fetched = { ok: true; response: Response } | { ok: false; error: string };
 
-async function request(url: string, init: RequestInit, sourceName: string): Promise<Fetched> {
+export async function request(url: string, init: RequestInit, sourceName: string): Promise<Fetched> {
   try {
     const response = await fetch(url, {
       redirect: "follow",
@@ -81,7 +82,7 @@ async function request(url: string, init: RequestInit, sourceName: string): Prom
   }
 }
 
-function statusError(response: Response, sourceName: string): string | null {
+export function statusError(response: Response, sourceName: string): string | null {
   if (response.status === 403 || response.status === 429) {
     return `${sourceName} не пустил запрос из системы — скопируйте цену со страницы руками`;
   }
@@ -211,6 +212,15 @@ export async function fetchSupplierCombos(url: string): Promise<SupplierCombosRe
     return { ok: false, error: "На странице у товара нет вариантов — цены опций брать неоткуда" };
   }
 
+  return priceCombos(form, url, source.name);
+}
+
+/** Цены всех сочетаний вариантов уже разобранной формы товара — и для импорта товара по ссылке. */
+export async function priceCombos(
+  form: VanprojectForm,
+  url: string,
+  sourceName: string,
+): Promise<SupplierCombosResult> {
   const selections = enumerateCombos(form.options);
   if (selections.length > MAX_COMBOS) {
     return { ok: false, error: `На странице ${selections.length} вариантов — слишком много, чтобы обойти все` };
@@ -226,14 +236,14 @@ export async function fetchSupplierCombos(url: string): Promise<SupplierCombosRe
     while (next < combos.length) {
       const combo = combos[next++]!;
       const variants: SupplierVariants = { options: form.options, selection: combo.selection };
-      const result = await fetchVariantPrice(form.productId, combo.selection, url, source.name, variants);
+      const result = await fetchVariantPrice(form.productId, combo.selection, url, sourceName, variants);
       combo.priceKopecks = result.ok ? result.priceKopecks : null;
     }
   };
   await Promise.all(Array.from({ length: Math.min(COMBO_CONCURRENCY, combos.length) }, worker));
 
   if (combos.every((combo) => combo.priceKopecks === null)) {
-    return { ok: false, error: `${source.name} не дал цен ни для одного варианта — впишите их руками` };
+    return { ok: false, error: `${sourceName} не дал цен ни для одного варианта — впишите их руками` };
   }
   return { ok: true, combos };
 }

@@ -11,6 +11,7 @@ import {
 } from "@/server/products/supplier-price";
 import { addImages, deleteImage, makeImageMain } from "@/server/products/images";
 import { createProduct, updateProduct } from "@/server/products/service";
+import { importFromSupplier, type SupplierImportResult } from "@/server/products/supplier-import";
 import { requireUser } from "@/server/session";
 
 export type ProductResult = { ok: true; message: string } | { ok: false; error: string };
@@ -90,12 +91,37 @@ async function run(action: () => Promise<unknown>, message: string): Promise<Pro
   }
 }
 
-export async function createProductAction(input: z.input<typeof draftSchema>): Promise<ProductResult> {
+/** Снимки нового товара из импорта — base64; тип и размер проверяет сервис */
+const newImagesSchema = z.array(z.string().min(1).max(8_000_000)).max(12, { error: "Не больше 12 снимков" });
+
+export async function createProductAction(
+  input: z.input<typeof draftSchema>,
+  images: string[] = [],
+): Promise<ProductResult> {
   const user = await requireUser();
   const parsed = draftSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+  const parsedImages = newImagesSchema.safeParse(images);
+  if (!parsedImages.success) return { ok: false, error: z.prettifyError(parsedImages.error) };
 
-  return run(() => createProduct(parsed.data, user), "Товар добавлен");
+  const files = parsedImages.data.map((base64) => new Uint8Array(Buffer.from(base64, "base64")));
+  return run(() => createProduct(parsed.data, user, files), "Товар добавлен");
+}
+
+/**
+ * «Импорт с сайта поставщика»: страница товара → черновик для формы нового товара.
+ * Ничего не сохраняет — товар заводит человек кнопкой в форме.
+ */
+export async function importFromSupplierAction(url: string): Promise<SupplierImportResult> {
+  const user = await requireUser();
+  const parsed = z.url({ error: "Вставьте ссылку на товар — она начинается с https://" }).safeParse(url.trim());
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+  try {
+    return await importFromSupplier(parsed.data, user);
+  } catch (error) {
+    if (error instanceof ForbiddenError) return { ok: false, error: error.message };
+    throw error;
+  }
 }
 
 export async function updateProductAction(id: string, input: z.input<typeof draftSchema>): Promise<ProductResult> {

@@ -1,6 +1,7 @@
 import { beforeEach, expect, it } from "vitest";
 import { ProductImageError } from "@buscom/domain/product/images";
 import { addImages, deleteImage, makeImageMain, readImage } from "@/server/products/images";
+import { createProduct } from "@/server/products/service";
 import type { SessionUser } from "@/server/session";
 import { describeDb, resetDb, testDb } from "@/test/db";
 import { makeProduct, makeUser } from "@/test/fixtures";
@@ -81,5 +82,24 @@ describeDb("галерея товара в карточке (живая БД)", 
     expect(thumb).toMatchObject({ contentType: "image/jpeg" });
     expect([...(thumb?.data ?? [])]).toEqual([...JPEG(1)]);
     expect(await readImage("нет-такой", "full")).toBeNull();
+  });
+
+  it("новый товар из импорта заводится сразу со снимками, первый — главный", async () => {
+    const { id } = await createProduct({ sku: "VP-42", name: "Отопитель", priceKopecks: 900_000 }, manager, [
+      PNG,
+      JPEG(1),
+    ]);
+    const images = await testDb.productImage.findMany({ where: { productId: id }, orderBy: { sortOrder: "asc" } });
+    expect(images.map((image) => [image.sortOrder, image.contentType])).toEqual([
+      [0, "image/png"],
+      [1, "image/jpeg"],
+    ]);
+  });
+
+  it("снимок не картинка — товар не заводится вовсе", async () => {
+    await expect(
+      createProduct({ sku: "VP-43", name: "Отопитель", priceKopecks: 900_000 }, manager, [JPEG(1), NOT_IMAGE]),
+    ).rejects.toThrow(ProductImageError);
+    expect(await testDb.product.findUnique({ where: { sku: "VP-43" } })).toBeNull();
   });
 });
