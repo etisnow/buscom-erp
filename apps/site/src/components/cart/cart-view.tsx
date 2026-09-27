@@ -20,13 +20,11 @@ import { cartActions, useCart } from "./cart-store";
  * или повтор после обрыва связи не создадут второй заказ в ERP.
  */
 type DisplayCart = Awaited<ReturnType<typeof priceCartAction>>;
-type DeliveryMethod = "PICKUP" | "CARRIER";
 
 export function CartView() {
   const cart = useCart();
   const [priced, setPriced] = useState<DisplayCart | null>(null);
   const [done, setDone] = useState<number | null>(null);
-  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("CARRIER");
   const [status, setStatus] = useState<{ pending: boolean; message: string | null }>({ pending: false, message: null });
 
   useEffect(() => {
@@ -85,15 +83,7 @@ export function CartView() {
             ))}
           </ul>
         )}
-        <CheckoutForm
-          cart={cart}
-          priced={priced}
-          onDone={setDone}
-          disabled={disabled}
-          deliveryMethod={deliveryMethod}
-          onDeliveryMethod={setDeliveryMethod}
-          onStatus={setStatus}
-        />
+        <CheckoutForm cart={cart} priced={priced} onDone={setDone} disabled={disabled} onStatus={setStatus} />
       </div>
       <aside className="flex flex-col gap-3 lg:sticky lg:top-4">
         <div className="card flex flex-col gap-3 p-5 md:p-6">
@@ -106,7 +96,7 @@ export function CartView() {
           </p>
           <p className="text-ink-2 border-line flex justify-between gap-4 border-b pb-4 text-[15px]">
             <span>Доставка</span>
-            <span className="text-ink">{deliveryMethod === "PICKUP" ? "Самовывоз, бесплатно" : "По тарифу ТК"}</span>
+            <span className="text-ink">По тарифу ТК</span>
           </p>
           <p className="flex items-baseline justify-between gap-4 pt-1">
             <span className="font-semibold">Итого</span>
@@ -229,37 +219,17 @@ function Stepper({ value, onChange }: { value: number; onChange: (value: number)
 
 type FieldErrors = Record<string, string>;
 
-/** Способы доставки карточками (макет, экран 04). Курьера по городу в MVP нет. */
-const DELIVERY_OPTIONS = [
-  {
-    value: "PICKUP",
-    title: "Самовывоз со склада",
-    text: `${COMPANY.warehouse.city}, ${COMPANY.warehouse.street}`,
-    price: "Бесплатно",
-  },
-  {
-    value: "CARRIER",
-    title: "Транспортная компания",
-    text: "СДЭК, ПЭК, Деловые линии — по России и в СНГ",
-    price: "По тарифу ТК",
-  },
-] as const;
-
 function CheckoutForm({
   cart,
   priced,
   onDone,
   disabled,
-  deliveryMethod,
-  onDeliveryMethod,
   onStatus,
 }: {
   cart: ReturnType<typeof useCart>;
   priced: PricedCart;
   onDone: (orderNumber: number) => void;
   disabled: boolean;
-  deliveryMethod: DeliveryMethod;
-  onDeliveryMethod: (method: DeliveryMethod) => void;
   onStatus: (status: { pending: boolean; message: string | null }) => void;
 }) {
   const [requestId] = useState(() => crypto.randomUUID());
@@ -275,7 +245,8 @@ function CheckoutForm({
     const form = {
       requestId,
       customerType,
-      deliveryMethod,
+      // Самовывоз с сайта пока убран (решение владельца 28.09.2026) — только транспортная компания
+      deliveryMethod: "CARRIER",
       name: formData.get("name"),
       phone: formData.get("phone"),
       email: formData.get("email"),
@@ -364,60 +335,34 @@ function CheckoutForm({
 
       <fieldset className="flex flex-col gap-4">
         <Step n={2}>Доставка</Step>
-        <div className="grid gap-2.5 md:grid-cols-2">
-          {DELIVERY_OPTIONS.map((option) => (
-            <label
-              key={option.value}
-              className={`flex cursor-pointer gap-3 rounded-xl border p-4 ${
-                deliveryMethod === option.value ? "border-brand bg-brand-soft" : "border-line-strong hover:border-ink-2"
-              }`}
-            >
-              <input
-                type="radio"
-                name="deliveryMethod"
-                value={option.value}
-                checked={deliveryMethod === option.value}
-                onChange={() => onDeliveryMethod(option.value)}
-                className="accent-brand mt-1 size-4 shrink-0"
-              />
-              <span className="flex flex-col gap-1">
-                <span className="font-semibold">{option.title}</span>
-                <span className="text-ink-2 text-[13px] leading-snug">{option.text}</span>
-                <span className="text-[13px] font-semibold">{option.price}</span>
-              </span>
-            </label>
-          ))}
+        <p className="text-ink-2 text-sm">
+          Отправляем транспортной компанией по России, в Беларусь, Казахстан и Киргизию. Доставку оплачиваете
+          транспортной компании по её тарифу — в сумму заказа она не входит.
+        </p>
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+          <label className="flex flex-col gap-1.5">
+            <Label>Транспортная компания *</Label>
+            <select name="carrier" defaultValue="" className={input}>
+              <option value="" disabled>
+                Выберите
+              </option>
+              {CARRIERS.map((carrier) => (
+                <option key={carrier}>{carrier}</option>
+              ))}
+            </select>
+            {field("carrier")}
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <Label>Город и адрес терминала или доставки *</Label>
+            <input
+              name="address"
+              autoComplete="street-address"
+              placeholder="Например, Казань, ул. Техническая, 20"
+              className={input}
+            />
+            {field("address")}
+          </label>
         </div>
-        {deliveryMethod === "PICKUP" ? (
-          <p className="text-ink-2 text-sm">
-            {COMPANY.warehouse.city}, {COMPANY.warehouse.street}. {COMPANY.hours}.
-          </p>
-        ) : (
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-            <label className="flex flex-col gap-1.5">
-              <Label>Транспортная компания *</Label>
-              <select name="carrier" defaultValue="" className={input}>
-                <option value="" disabled>
-                  Выберите
-                </option>
-                {CARRIERS.map((carrier) => (
-                  <option key={carrier}>{carrier}</option>
-                ))}
-              </select>
-              {field("carrier")}
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <Label>Город и адрес терминала или доставки *</Label>
-              <input
-                name="address"
-                autoComplete="street-address"
-                placeholder="Например, Казань, ул. Техническая, 20"
-                className={input}
-              />
-              {field("address")}
-            </label>
-          </div>
-        )}
       </fieldset>
 
       <fieldset className="flex flex-col gap-4">
@@ -436,7 +381,7 @@ function CheckoutForm({
             <span className="text-ink-2 text-[13px] leading-snug">
               {customerType === "COMPANY"
                 ? "Выставим счёт на реквизиты организации после подтверждения наличия."
-                : "Менеджер подтвердит наличие и согласует оплату: наличными при самовывозе или переводом."}
+                : "Менеджер подтвердит наличие и пришлёт реквизиты для оплаты переводом."}
             </span>
           </span>
         </div>

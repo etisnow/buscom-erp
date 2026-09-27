@@ -11,12 +11,14 @@ describe("исходные тексты страниц", () => {
     }
   });
 
-  it("«Оплата и доставка»: два раздела со списками и шесть вопросов с ответами", () => {
+  it("«Оплата и доставка»: два раздела и пять вопросов с ответами, без самовывоза", () => {
     const blocks = parsePageText(SITE_PAGE_DEFAULTS["oplata-dostavka"].body);
     expect(
       blocks.filter((block) => block.kind === "heading").map((block) => block.kind === "heading" && block.text),
     ).toEqual(["Способы доставки", "Способы оплаты", "Частые вопросы"]);
-    expect(pageFaq(blocks)).toHaveLength(6);
+    expect(pageFaq(blocks)).toHaveLength(5);
+    // Самовывоз с сайта пока убран (решение владельца 28.09.2026)
+    expect(SITE_PAGE_DEFAULTS["oplata-dostavka"].body).not.toMatch(/самовывоз/i);
   });
 
   it("политика: восемь разделов, только заголовки и списки", () => {
