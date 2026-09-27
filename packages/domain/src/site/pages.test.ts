@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { pageFaq, parsePageText } from "./page-text";
-import { resolveSitePage, SITE_PAGE_DEFAULTS, SITE_PAGE_SLUGS } from "./pages";
+import { resolveSitePage, SITE_PAGE_DEFAULTS, SITE_PAGE_SLUGS, sitePagePath } from "./pages";
 
 describe("исходные тексты страниц", () => {
   it("у каждой страницы есть заголовок и метатеги", () => {
@@ -38,5 +38,19 @@ describe("resolveSitePage", () => {
       ...saved,
       metaDescription: "",
     });
+  });
+});
+
+describe("главная", () => {
+  it("адрес главной — корень, у остальных — ключ", () => {
+    expect(sitePagePath("home")).toBe("/");
+    expect(sitePagePath("privacy")).toBe("/privacy");
+  });
+
+  it("текст о компании: два раздела, абзацы, без ссылки на убранный раздел переоборудования", () => {
+    const blocks = parsePageText(SITE_PAGE_DEFAULTS.home.body);
+    expect(blocks.filter((block) => block.kind === "heading")).toHaveLength(2);
+    expect(blocks.filter((block) => block.kind === "paragraph")).toHaveLength(6);
+    expect(SITE_PAGE_DEFAULTS.home.body).not.toContain("соответствующий раздел");
   });
 });

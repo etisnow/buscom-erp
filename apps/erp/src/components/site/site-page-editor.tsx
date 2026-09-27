@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { SITE_ORIGIN } from "@buscom/domain/company";
-import type { SitePageSlug } from "@buscom/domain/site/pages";
+import { sitePagePath, type SitePageSlug } from "@buscom/domain/site/pages";
 import { resetSitePageAction, saveSitePageAction } from "@/app/(app)/products/site-pages/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,8 +90,9 @@ export function SitePageEditor({
         </CardDescription>
         <CardAction>
           <Button asChild size="sm" variant="ghost">
-            <a href={`${SITE_ORIGIN}/${page.slug}`} target="_blank" rel="noreferrer">
-              <ExternalLink />/{page.slug}
+            <a href={`${SITE_ORIGIN}${sitePagePath(page.slug)}`} target="_blank" rel="noreferrer">
+              <ExternalLink />
+              {sitePagePath(page.slug)}
             </a>
           </Button>
         </CardAction>

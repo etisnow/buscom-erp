@@ -3,24 +3,26 @@ import Link from "next/link";
 import { pageMetadata } from "@/config/metadata";
 import { ProductCard } from "@/components/catalog/product-card";
 import { LeadForm } from "@/components/lead-form";
+import { PageText } from "@/components/page-text";
 import { getCategoryTree, getHits } from "@/server/catalog";
+import { getSitePage } from "@/server/pages";
 
-// Метатеги главной — со старого сайта дословно (docs/site-snapshot/pages.json, «/»)
-export const metadata: Metadata = pageMetadata({
-  title: "Баском. Комплектующие для микроавтобусов",
-  description: "Продажа комплектующих для микроавтобусов (сиденья, люки, полки, поручни, подножки и т.д.)",
-  path: "/",
-});
+// Заголовок, метатеги и текст о компании правятся в ERP («Страницы сайта», ключ home);
+// исходные — со старого сайта (packages/domain/src/site/pages.ts)
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await getSitePage("home");
+  return pageMetadata({ title: page.metaTitle, description: page.metaDescription || undefined, path: "/" });
+}
 
 export const dynamic = "force-dynamic";
 
-/** Главная: разделы каталога и хиты. Подбор по модели и блок цеха из макета — позже (этапы 6 и 7). */
+/** Главная: разделы каталога, хиты, заявка и текст о компании. Подбор по модели — позже (этап 7). */
 export default async function HomePage() {
-  const [tree, hits] = await Promise.all([getCategoryTree(), getHits()]);
+  const [tree, hits, page] = await Promise.all([getCategoryTree(), getHits(), getSitePage("home")]);
   return (
     <div className="space-y-10">
       <section className="space-y-3">
-        <h1 className="text-3xl font-bold">Комплектующие для микроавтобусов</h1>
+        <h1 className="text-3xl font-bold">{page.title}</h1>
         <p className="text-ink-2 max-w-2xl">
           Сиденья, люки, полки, поручни, подножки, детали салона и кузова. Отправляем транспортными компаниями по
           России, Беларуси, Казахстану и Киргизии.
@@ -69,6 +71,11 @@ export default async function HomePage() {
         </div>
         <LeadForm kind="salon" submitLabel="Отправить заявку" />
       </section>
+      {page.body && (
+        <section className="max-w-3xl">
+          <PageText text={page.body} />
+        </section>
+      )}
     </div>
   );
 }

@@ -22,9 +22,9 @@ describeDb("страницы сайта (живая БД)", () => {
 
   it("без правок — исходные тексты всех страниц", async () => {
     const pages = await listSitePages();
-    expect(pages.map((page) => page.slug)).toEqual(["oplata-dostavka", "kontakty", "privacy"]);
+    expect(pages.map((page) => page.slug)).toEqual(["home", "oplata-dostavka", "kontakty", "privacy"]);
     expect(pages.every((page) => !page.edited)).toBe(true);
-    expect(pages[0].body).toBe(SITE_PAGE_DEFAULTS["oplata-dostavka"].body);
+    expect(pages[1].body).toBe(SITE_PAGE_DEFAULTS["oplata-dostavka"].body);
   });
 
   it("сохранение пишет строку с автором, текст подчищен; повтор — обновляет", async () => {
@@ -37,7 +37,7 @@ describeDb("страницы сайта (живая БД)", () => {
     });
 
     await saveSitePage("oplata-dostavka", { ...draft, body: "Новый" }, manager);
-    const [page] = await listSitePages();
+    const page = (await listSitePages()).find((row) => row.slug === "oplata-dostavka");
     expect(page).toMatchObject({ edited: true, body: "Новый", updatedByName: expect.any(String) });
     expect(await testDb.sitePage.count()).toBe(1);
   });
