@@ -157,18 +157,28 @@ export function mergeImapSettings(current: ImapSettings, incoming: ImapSettings)
 export const carrierSettingsSchema = z.object({
   /** Ключ приложения «Деловых Линий» (appkey, кабинет dev.dellin.ru) */
   dellinAppKey: z.string().trim().max(200).default(""),
+  /**
+   * Ключ «JavaScript API и HTTP Геокодер» Яндекс Карт — для карты терминалов в
+   * оформлении на сайте. Не секрет: карта грузится в браузере покупателя с этим
+   * ключом, защита — ограничение по адресу сайта в кабинете Яндекса
+   */
+  yandexMapsApiKey: z.string().trim().max(200).default(""),
 });
 
 export type CarrierSettings = z.infer<typeof carrierSettingsSchema>;
 
-export const DEFAULT_CARRIER_SETTINGS: CarrierSettings = { dellinAppKey: "" };
+export const DEFAULT_CARRIER_SETTINGS: CarrierSettings = { dellinAppKey: "", yandexMapsApiKey: "" };
 
 /**
- * Ключ в браузер не отдаётся, как пароль почты: пустое поле из формы —
- * «оставить сохранённый». Убрать ключ можно отдельной кнопкой.
+ * Сохранение из формы ключа ДЛ. Ключ в браузер не отдаётся, как пароль почты:
+ * пустое поле — «оставить сохранённый»; убрать ключ можно отдельной кнопкой.
+ * Ключ карт у этой формы свой — его она не трогает.
  */
-export function mergeCarrierSettings(current: CarrierSettings, incoming: CarrierSettings): CarrierSettings {
-  return { dellinAppKey: incoming.dellinAppKey === "" ? current.dellinAppKey : incoming.dellinAppKey };
+export function mergeCarrierSettings(
+  current: CarrierSettings,
+  incoming: Pick<CarrierSettings, "dellinAppKey">,
+): CarrierSettings {
+  return { ...current, dellinAppKey: incoming.dellinAppKey === "" ? current.dellinAppKey : incoming.dellinAppKey };
 }
 
 export type AppSettings = {

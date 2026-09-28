@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CarrierKeysEditor } from "@/components/admin/carrier-keys";
+import { CarrierKeysEditor, MapsKeyEditor } from "@/components/admin/carrier-keys";
 import { formatMoscowDateTime } from "@buscom/domain/datetime";
 import { ADMIN_ROLES } from "@buscom/domain/user/role";
 import { getTerminalStats } from "@/server/carriers/terminals";
@@ -26,6 +26,7 @@ export default async function AdminCarriersPage() {
           syncedAt: dellin.syncedAt ? formatMoscowDateTime(dellin.syncedAt) : null,
         }}
       />
+      <MapsKeyEditor yandexMapsApiKey={settings.carriers.yandexMapsApiKey} />
     </main>
   );
 }

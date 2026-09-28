@@ -29,11 +29,11 @@ describeDb("справочник терминалов ДЛ (живая БД)", (
   beforeEach(async () => {
     await resetDb();
     file = FIXTURE;
-    await saveCarrierSettings({ dellinAppKey: "ключ" }, "test");
+    await saveCarrierSettings({ dellinAppKey: "ключ", yandexMapsApiKey: "" }, "test");
   });
 
   it("без ключа ничего не загружает", async () => {
-    await saveCarrierSettings({ dellinAppKey: "" }, "test");
+    await saveCarrierSettings({ dellinAppKey: "", yandexMapsApiKey: "" }, "test");
     expect(await syncDellinTerminals()).toBeNull();
     expect(await db.carrierTerminal.count()).toBe(0);
   });

@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { clientIp } from "@buscom/domain/site/rate-limit";
 import { lookupCompany, placeOrder, placeQuickOrder, priceCartFromInput } from "@/server/checkout";
+import { getMapsApiKey } from "@/server/site-config";
 import { listTerminals } from "@/server/terminals";
 
 /** Пересчёт корзины по базе — для показа. Вход проверяется схемой в src/server/checkout.ts. */
@@ -16,9 +17,13 @@ export async function placeOrderAction(cart: unknown, form: unknown) {
   return placeOrder(cart, form, clientIp(list.get("x-forwarded-for"), list.get("x-real-ip")));
 }
 
-/** Пункты выдачи ТК для выбора в оформлении; у ТК без справочника — пустой список. */
+/**
+ * Пункты выдачи ТК для выбора в оформлении и ключ карты; у ТК без справочника —
+ * пустой список, и карта тогда не нужна.
+ */
 export async function terminalsAction(carrier: unknown) {
-  return typeof carrier === "string" && carrier.length <= 100 ? listTerminals(carrier) : [];
+  const terminals = typeof carrier === "string" && carrier.length <= 100 ? await listTerminals(carrier) : [];
+  return { terminals, mapsApiKey: terminals.length > 0 ? await getMapsApiKey() : null };
 }
 
 /** Название и КПП организации по ИНН — через ERP (ключ DaData только там). */

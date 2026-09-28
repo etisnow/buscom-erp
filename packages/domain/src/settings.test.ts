@@ -197,15 +197,22 @@ describe("IMAP", () => {
 });
 
 describe("ключи API транспортных компаний", () => {
-  it("пустое поле из формы оставляет сохранённый ключ, новый — заменяет, пробелы обрезаются", () => {
-    const saved = { dellinAppKey: "ключ-1" };
+  const saved = { dellinAppKey: "ключ-1", yandexMapsApiKey: "карты-1" };
+
+  it("пустое поле ключа ДЛ оставляет сохранённый, новый — заменяет; ключ карт форма ДЛ не трогает", () => {
     expect(mergeCarrierSettings(saved, { dellinAppKey: "" })).toEqual(saved);
-    expect(mergeCarrierSettings(saved, { dellinAppKey: "ключ-2" })).toEqual({ dellinAppKey: "ключ-2" });
-    expect(parseSetting("carriers", { dellinAppKey: "  ключ-3 " })).toEqual({ dellinAppKey: "ключ-3" });
+    expect(mergeCarrierSettings(saved, { dellinAppKey: "ключ-2" })).toEqual({ ...saved, dellinAppKey: "ключ-2" });
   });
 
-  it("негодное значение из БД — умолчания, по умолчанию ключа нет", () => {
+  it("пробелы обрезаются, старое значение без ключа карт читается", () => {
+    expect(parseSetting("carriers", { dellinAppKey: "  ключ-3 " })).toEqual({
+      dellinAppKey: "ключ-3",
+      yandexMapsApiKey: "",
+    });
+  });
+
+  it("негодное значение из БД — умолчания, по умолчанию ключей нет", () => {
     expect(parseSetting("carriers", "мусор")).toEqual(DEFAULT_CARRIER_SETTINGS);
-    expect(DEFAULT_SETTINGS.carriers.dellinAppKey).toBe("");
+    expect(DEFAULT_SETTINGS.carriers).toEqual({ dellinAppKey: "", yandexMapsApiKey: "" });
   });
 });

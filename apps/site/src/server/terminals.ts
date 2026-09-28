@@ -11,7 +11,16 @@ import { db } from "@/server/db";
  */
 
 /** Пункт в списке выбора: только то, что видит покупатель */
-export type TerminalOption = { id: string; city: string; name: string; address: string; schedule: string | null };
+export type TerminalOption = {
+  id: string;
+  city: string;
+  name: string;
+  address: string;
+  schedule: string | null;
+  /** Координаты для карты; у пункта без координат точки на карте нет */
+  latitude: number | null;
+  longitude: number | null;
+};
 
 /** Справочник меняется раз в сутки — часа кеша достаточно */
 const TERMINALS_TTL = 3600;
@@ -21,7 +30,15 @@ const listCached = unstable_cache(
     const terminals = await db.carrierTerminal.findMany({
       where: { carrier, isActive: true, givesOutCargo: true },
       orderBy: [{ cityName: "asc" }, { name: "asc" }],
-      select: { externalId: true, cityName: true, name: true, address: true, schedule: true },
+      select: {
+        externalId: true,
+        cityName: true,
+        name: true,
+        address: true,
+        schedule: true,
+        latitude: true,
+        longitude: true,
+      },
     });
     return terminals.map((terminal) => ({
       id: terminal.externalId,
@@ -29,9 +46,11 @@ const listCached = unstable_cache(
       name: terminal.name,
       address: terminal.address,
       schedule: terminal.schedule,
+      latitude: terminal.latitude,
+      longitude: terminal.longitude,
     }));
   },
-  ["carrier-terminals"],
+  ["carrier-terminals-v2"],
   { revalidate: TERMINALS_TTL, tags: ["terminals"] },
 );
 

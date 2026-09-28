@@ -38,6 +38,23 @@ export async function clearDellinKeyAction(): Promise<SettingsResult> {
   return { ok: true, message: "Ключ «Деловых Линий» удалён" };
 }
 
+/** Ключ Яндекс Карт — не секрет, в форме виден как есть; пустое поле — карты на сайте нет. */
+export async function saveMapsKeyAction(yandexMapsApiKey: string): Promise<SettingsResult> {
+  const user = await requireUser(ADMIN_ROLES);
+  const parsed = carrierSettingsSchema.shape.yandexMapsApiKey.safeParse(yandexMapsApiKey);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+
+  const current = await readSettings();
+  await saveCarrierSettings({ ...current.carriers, yandexMapsApiKey: parsed.data }, user.id);
+  revalidatePath("/admin/carriers");
+  return {
+    ok: true,
+    message: parsed.data
+      ? "Ключ карт сохранён — сайт подхватит его в течение 10 минут"
+      : "Ключ карт убран — на сайте терминалы выбираются без карты",
+  };
+}
+
 /** Обновить справочник терминалов ДЛ сейчас, не дожидаясь суточного прохода. */
 export async function syncDellinTerminalsAction(): Promise<SettingsResult> {
   await requireUser(ADMIN_ROLES);

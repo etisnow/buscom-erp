@@ -10,6 +10,7 @@ import {
   checkDellinKeyAction,
   clearDellinKeyAction,
   saveCarrierSettingsAction,
+  saveMapsKeyAction,
   syncDellinTerminalsAction,
 } from "@/app/(app)/admin/carriers/actions";
 
@@ -118,6 +119,56 @@ export function CarrierKeysEditor({
         <span className="text-muted-foreground text-xs">
           В бою справочник обновляется сам раз в сутки; обновление занимает до минуты
         </span>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Ключ Яндекс Карт для карты терминалов в оформлении на сайте. Не секрет — карта
+ * грузится в браузере покупателя с этим ключом, — поэтому в форме виден как есть.
+ */
+export function MapsKeyEditor({ yandexMapsApiKey }: { yandexMapsApiKey: string }) {
+  const [value, setValue] = useState(yandexMapsApiKey);
+  const [pending, startTransition] = useTransition();
+
+  function save() {
+    startTransition(async () => {
+      const result = await saveMapsKeyAction(value);
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.error);
+    });
+  }
+
+  return (
+    <section className="flex flex-col gap-3 rounded-lg border p-4">
+      <div>
+        <h2 className="font-heading font-medium">Карта терминалов на сайте</h2>
+        <p className="text-muted-foreground text-sm">
+          Ключ «JavaScript API и HTTP Геокодер» из кабинета{" "}
+          <a href="https://developer.tech.yandex.ru/" target="_blank" rel="noreferrer" className="underline">
+            developer.tech.yandex.ru
+          </a>
+          . В кабинете ограничьте ключ адресами сайта (bus-com.ru, new.bus-com.ru): ключ виден в браузере покупателя, и
+          без ограничения его может взять кто угодно. Пустое поле — терминалы выбираются без карты.
+        </p>
+      </div>
+      <div className="flex max-w-md flex-col gap-1.5">
+        <Label className="text-xs" htmlFor="yandex-maps-key">
+          Ключ Яндекс Карт
+        </Label>
+        <Input
+          id="yandex-maps-key"
+          autoComplete="off"
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          className="h-8"
+        />
+      </div>
+      <div>
+        <Button size="sm" variant="outline" disabled={pending || value === yandexMapsApiKey} onClick={save}>
+          Сохранить ключ карт
+        </Button>
       </div>
     </section>
   );

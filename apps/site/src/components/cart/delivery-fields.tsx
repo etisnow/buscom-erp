@@ -4,8 +4,9 @@ import { useId, useMemo, useRef, useState, useTransition } from "react";
 import { cityKey, suggestCities } from "@buscom/domain/carrier/terminals";
 import { CARRIERS } from "@buscom/domain/site/cart";
 import { terminalsAction } from "@/app/korzina/actions";
+import { TerminalMap } from "./terminal-map";
 
-type Terminal = Awaited<ReturnType<typeof terminalsAction>>[number];
+type Terminal = Awaited<ReturnType<typeof terminalsAction>>["terminals"][number];
 
 /**
  * Доставка в оформлении (docs/SITE-PLAN.md, этап 5а). У ТК со справочником пунктов
@@ -26,6 +27,8 @@ export function DeliveryFields({
   /** ТК, для которой ждём список: ответ по прежней, если её успели сменить, отбрасывается */
   const requested = useRef("");
   const [terminals, setTerminals] = useState<Terminal[]>([]);
+  /** Ключ Яндекс Карт из ERP; нет — терминал выбирается без карты */
+  const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
   const [loading, startLoading] = useTransition();
   const [manual, setManual] = useState(false);
   const [city, setCity] = useState("");
@@ -42,8 +45,10 @@ export function DeliveryFields({
     setManual(false);
     requested.current = value;
     startLoading(async () => {
-      const list = await terminalsAction(value);
-      if (requested.current === value) setTerminals(list);
+      const result = await terminalsAction(value);
+      if (requested.current !== value) return;
+      setTerminals(result.terminals);
+      setMapsApiKey(result.mapsApiKey);
     });
   }
 
@@ -52,6 +57,14 @@ export function DeliveryFields({
     // Единственный терминал в городе выбираем сразу — покупателю нечего решать
     const matching = terminals.filter((terminal) => cityKey(terminal.city) === cityKey(value));
     setTerminalId(matching.length === 1 ? matching[0]!.id : "");
+  }
+
+  /** Точка на карте: сразу и город, и терминал */
+  function chooseOnMap(id: string) {
+    const terminal = terminals.find((item) => item.id === id);
+    if (!terminal) return;
+    setCity(terminal.city);
+    setTerminalId(terminal.id);
   }
 
   return (
@@ -97,6 +110,15 @@ export function DeliveryFields({
             <p className="text-ink-2 text-sm">
               В этом городе нет терминала «{carrier}». Выберите город из подсказок или впишите адрес вручную.
             </p>
+          )}
+          {mapsApiKey && (
+            <TerminalMap
+              apiKey={mapsApiKey}
+              terminals={terminals}
+              city={city}
+              selectedId={terminalId}
+              onSelect={chooseOnMap}
+            />
           )}
           {inCity.length > 0 && (
             <div role="radiogroup" aria-label="Терминал" className="grid gap-2 md:grid-cols-2">
