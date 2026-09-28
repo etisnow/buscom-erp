@@ -25,6 +25,13 @@ export type TerminalOption = {
 /** Справочник меняется раз в сутки — часа кеша достаточно */
 const TERMINALS_TTL = 3600;
 
+/**
+ * Пустой справочник не кешируется: ключ перевозчика только что вписали и пункты
+ * вот-вот загрузятся — сайт не должен час помнить, что их нет. `unstable_cache`
+ * не сохраняет результат, если функция бросила, поэтому пустоту сообщаем исключением.
+ */
+class NoTerminalsYet extends Error {}
+
 const listCached = unstable_cache(
   async (carrier: TerminalCarrier): Promise<TerminalOption[]> => {
     const terminals = await db.carrierTerminal.findMany({
@@ -41,6 +48,7 @@ const listCached = unstable_cache(
         longitude: true,
       },
     });
+    if (terminals.length === 0) throw new NoTerminalsYet();
     return terminals.map((terminal) => ({
       id: terminal.externalId,
       city: terminal.cityName,
@@ -51,7 +59,7 @@ const listCached = unstable_cache(
       longitude: terminal.longitude,
     }));
   },
-  ["carrier-terminals-v2"],
+  ["carrier-terminals-v3"],
   { revalidate: TERMINALS_TTL, tags: ["terminals"] },
 );
 
@@ -65,6 +73,7 @@ export async function listTerminals(carrierName: string): Promise<TerminalOption
   try {
     return await listCached(carrier);
   } catch (error) {
+    if (error instanceof NoTerminalsYet) return [];
     // Например, роли базы сайта не выдали права на таблицу (scripts/site-db-role.sql)
     console.error("[terminals] Справочник терминалов недоступен", error);
     return [];
