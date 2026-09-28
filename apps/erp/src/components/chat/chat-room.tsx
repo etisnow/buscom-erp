@@ -60,17 +60,20 @@ export function ChatRoom({
   initialHasMore,
   initialCursor,
   user,
+  initialDraft = "",
 }: {
   initialMessages: ChatMessageView[];
   initialHasMore: boolean;
   /** Время сервера на момент загрузки страницы — с него начинается опрос */
   initialCursor: string;
   user: { id: string; role: UserRole };
+  /** Заготовка сообщения — например, ссылка на заказ из его карточки */
+  initialDraft?: string;
 }) {
   const [messages, setMessages] = useState(initialMessages);
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loadingOlder, setLoadingOlder] = useState(false);
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialDraft);
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const [toDelete, setToDelete] = useState<string | null>(null);
@@ -105,6 +108,16 @@ export function ChatRoom({
       el.scrollTop = el.scrollHeight;
     }
   }, [messages]);
+
+  // Заготовку сразу в работу: фокус и курсор в конец. Параметр из адреса убираем,
+  // чтобы обновление страницы не вернуло черновик после отправки.
+  useEffect(() => {
+    if (!initialDraft) return;
+    const el = textarea.current;
+    el?.focus();
+    el?.setSelectionRange(initialDraft.length, initialDraft.length);
+    window.history.replaceState(window.history.state, "", window.location.pathname);
+  }, [initialDraft]);
 
   /** Отметить прочитанным всё, что видно, — только когда вкладка на экране. */
   const markRead = useCallback((list: ChatMessageView[]) => {

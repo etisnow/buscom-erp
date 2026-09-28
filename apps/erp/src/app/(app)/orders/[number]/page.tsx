@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, FileText } from "lucide-react";
+import { ArrowLeft, FileText, MessageSquare } from "lucide-react";
 import { MobileCollapsible } from "@/components/layout/mobile-collapsible";
 import { Button } from "@/components/ui/button";
 import { OrderCustomer } from "@/components/orders/order-customer";
@@ -129,13 +129,23 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
           <ArrowLeft className="size-4" />К списку заказов
         </Link>
 
-        {/* Печатная форма открывается в новой вкладке — оттуда её сохраняют или печатают. */}
-        <Button asChild variant="outline" size="sm">
-          <a href={`/api/orders/${order.number}/documents/invoice`} target="_blank" rel="noopener">
-            <FileText />
-            Счёт PDF
-          </a>
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Чат откроется с черновиком «Заказ №…» — номер в сообщении станет ссылкой на карточку. */}
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/chat?order=${order.number}`}>
+              <MessageSquare />
+              Написать в чат
+            </Link>
+          </Button>
+
+          {/* Печатная форма открывается в новой вкладке — оттуда её сохраняют или печатают. */}
+          <Button asChild variant="outline" size="sm">
+            <a href={`/api/orders/${order.number}/documents/invoice`} target="_blank" rel="noopener">
+              <FileText />
+              Счёт PDF
+            </a>
+          </Button>
+        </div>
       </div>
 
       <OrderHeader

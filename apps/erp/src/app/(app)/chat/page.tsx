@@ -11,8 +11,11 @@ export const metadata: Metadata = {
  * Общий чат сотрудников: один канал на всех. Лента обновляется опросом
  * (src/components/chat/chat-room.tsx), номера заказов в тексте — ссылки на карточки.
  */
-export default async function ChatPage() {
+export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
   const user = await requirePageUser();
+  // «Написать в чат» из карточки заказа: /chat?order=3021 → черновик со ссылкой на заказ
+  const { order } = await searchParams;
+  const orderNumber = typeof order === "string" && /^\d{1,9}$/.test(order) ? order : null;
   // Курсор опроса берём до выборки: что изменится между ними, придёт с первым опросом.
   const cursor = new Date().toISOString();
   const { messages, hasMore } = await listChatMessages();
@@ -26,6 +29,7 @@ export default async function ChatPage() {
         initialHasMore={hasMore}
         initialCursor={cursor}
         user={{ id: user.id, role: user.role }}
+        initialDraft={orderNumber ? `Заказ №${orderNumber}: ` : ""}
       />
     </main>
   );
