@@ -28,8 +28,9 @@ Next 16 и Prisma 7 новее, чем твои знания: перед код�
 
 ```bash
 pnpm dev                # dev-сервер ERP на :3000
+pnpm dev:site           # dev-сервер сайта на :3001 (нужны apps/site/.env и запущенная ERP — заказы идут в неё)
 pnpm check              # format:check + typecheck + lint + test во всех пакетах — прогоняй перед «готово»
-pnpm --filter @buscom/domain test src/order/status.test.ts   # одиночный файл (так же `pnpm erp test …`)
+pnpm --filter @buscom/domain test src/order/status.test.ts   # одиночный файл (так же `pnpm erp test …`, `pnpm site …`)
 pnpm format             # prettier
 pnpm db:tunnel          # SSH-туннель до общей dev-базы — нужен всё время, пока идёт работа (docs/DEV-DB.md)
 pnpm erp db:up          # Postgres в Docker (docker-compose.yml) — запасная локальная база
