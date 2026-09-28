@@ -7,6 +7,7 @@ import {
   CategoryError,
   flattenCategoryTree,
   normalizeCategoryName,
+  reorderSiblings,
   withDescendants,
 } from "./categories";
 
@@ -51,6 +52,30 @@ describe("дерево категорий", () => {
     ];
     expect(() => buildCategoryTree(loop)).not.toThrow();
     expect(() => categoryPath("a", loop)).not.toThrow();
+  });
+});
+
+describe("порядок категорий", () => {
+  it("заданный порядок главнее алфавита, при равном — по алфавиту", () => {
+    const tree = buildCategoryTree([
+      { id: "a", name: "Аптечки", parentId: null, sortOrder: 2 },
+      { id: "b", name: "Багажники", parentId: null, sortOrder: 1 },
+      { id: "c", name: "Люки", parentId: null, sortOrder: 1 },
+    ]);
+    expect(tree.map((item) => item.id)).toEqual(["b", "c", "a"]);
+  });
+
+  it("перетаскивание перед и после соседа", () => {
+    const siblings = [
+      { id: "a", name: "А", parentId: null, sortOrder: 0 },
+      { id: "b", name: "Б", parentId: null, sortOrder: 1 },
+      { id: "c", name: "В", parentId: null, sortOrder: 2 },
+    ];
+    expect(reorderSiblings(siblings, "c", "a", "before")).toEqual(["c", "a", "b"]);
+    expect(reorderSiblings(siblings, "a", "c", "after")).toEqual(["b", "c", "a"]);
+    expect(reorderSiblings(siblings, "a", "b", "before")).toBeNull();
+    expect(reorderSiblings(siblings, "a", "a", "after")).toBeNull();
+    expect(reorderSiblings(siblings, "a", "chuzhoy", "after")).toBeNull();
   });
 });
 

@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { CategoryError } from "@buscom/domain/product/categories";
 import { ForbiddenError } from "@/server/errors";
-import { createCategory, deleteCategory, updateCategory, updateCategorySite } from "@/server/products/categories";
+import {
+  createCategory,
+  deleteCategory,
+  reorderCategories,
+  updateCategory,
+  updateCategorySite,
+} from "@/server/products/categories";
 import { SiteSeoError } from "@/server/site/seo";
 import { requireUser } from "@/server/session";
 
@@ -41,6 +47,21 @@ export async function updateCategoryAction(id: string, input: z.input<typeof cat
   const parsed = categorySchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   return run(() => updateCategory(id, parsed.data, user), "Категория сохранена");
+}
+
+const reorderSchema = z.object({
+  parentId: z.string().min(1).nullable(),
+  ids: z.array(z.string().min(1)).min(1).max(500),
+});
+
+export async function reorderCategoriesAction(input: z.input<typeof reorderSchema>): Promise<CategoryResult> {
+  const user = await requireUser();
+  const parsed = reorderSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+  return run(
+    () => reorderCategories(parsed.data.parentId, parsed.data.ids, user),
+    "Порядок сохранён — на сайте в течение 5 минут",
+  );
 }
 
 const siteSchema = z.object({

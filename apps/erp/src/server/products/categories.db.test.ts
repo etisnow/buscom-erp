@@ -1,6 +1,13 @@
 import { beforeEach, expect, it } from "vitest";
 import { CategoryError } from "@buscom/domain/product/categories";
-import { createCategory, deleteCategory, resolveCategoryPath, updateCategory } from "@/server/products/categories";
+import {
+  createCategory,
+  deleteCategory,
+  listCategories,
+  reorderCategories,
+  resolveCategoryPath,
+  updateCategory,
+} from "@/server/products/categories";
 import type { SessionUser } from "@/server/session";
 import { describeDb, resetDb, testDb } from "@/test/db";
 import { makeProduct, makeUser } from "@/test/fixtures";
@@ -62,5 +69,20 @@ describeDb("справочник категорий (живая БД)", () => {
     const leaf = await testDb.productCategory.findUniqueOrThrow({ where: { id: id as string } });
     const root = await testDb.productCategory.findUniqueOrThrow({ where: { id: leaf.parentId as string } });
     expect(root.parentId).toBeNull();
+  });
+
+  it("порядок внутри раздела: новая — в конец, перестановка целиком, устаревший список отклоняется", async () => {
+    const a = await createCategory({ name: "Сиденья", parentId: null }, manager);
+    const b = await createCategory({ name: "Аптечки", parentId: null }, manager);
+    const c = await createCategory({ name: "Климат", parentId: null }, manager);
+    const names = async () => (await listCategories()).map((row) => row.name);
+    expect(await names()).toEqual(["Сиденья", "Аптечки", "Климат"]);
+
+    await reorderCategories(null, [c.id, a.id, b.id], manager);
+    expect(await names()).toEqual(["Климат", "Сиденья", "Аптечки"]);
+
+    await expect(reorderCategories(null, [c.id, a.id], manager)).rejects.toThrow(/обновите страницу/);
+    const sub = await createCategory({ name: "Люки", parentId: c.id }, manager);
+    await expect(reorderCategories(null, [c.id, a.id, sub.id], manager)).rejects.toThrow(CategoryError);
   });
 });

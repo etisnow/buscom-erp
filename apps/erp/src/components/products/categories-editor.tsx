@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, FolderPlus, Globe, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, FolderPlus, Globe, GripVertical, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { CategorySelect } from "@/components/products/category-select";
 import { CategorySiteDialog } from "@/components/site/category-site-dialog";
@@ -11,12 +11,15 @@ import {
   buildCategoryTree,
   CATEGORY_MAX_DEPTH,
   flattenCategoryTree,
+  reorderSiblings,
   withDescendants,
 } from "@buscom/domain/product/categories";
+import { cn } from "@/lib/utils";
 import type { CategoryRow } from "@/server/products/categories";
 import {
   createCategoryAction,
   deleteCategoryAction,
+  reorderCategoriesAction,
   updateCategoryAction,
   type CategoryResult,
 } from "@/app/(app)/products/categories/actions";
@@ -27,9 +30,13 @@ type Mode =
   | { kind: "edit"; id: string }
   | { kind: "delete"; id: string };
 
+type DropTarget = { id: string; place: "before" | "after" };
+
 /**
  * Дерево категорий с правкой на месте: подкатегория добавляется прямо под
  * раздел, переименование и перенос в другой раздел — одной формой в строке.
+ * Порядок внутри раздела — перетаскиванием строки (подкатегории едут вместе
+ * с разделом); тот же порядок в меню сайта.
  * Проверки (цикл, глубина, повтор названия, непустая категория) делает сервер.
  */
 export function CategoriesEditor({ categories, editable }: { categories: CategoryRow[]; editable: boolean }) {
@@ -38,9 +45,35 @@ export function CategoriesEditor({ categories, editable }: { categories: Categor
   const [parentId, setParentId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [siteFor, setSiteFor] = useState<CategoryRow | null>(null);
+  const [dragged, setDragged] = useState<CategoryRow | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  // Новый порядок показываем сразу, не дожидаясь ответа сервера; свежий список с
+  // сервера приходит с тем же порядком, так что подмена ему не мешает
+  const [localOrder, setLocalOrder] = useState<Map<string, number>>(new Map());
 
-  const rows = flattenCategoryTree(buildCategoryTree(categories));
+  const ordered = categories.map((category) =>
+    localOrder.has(category.id) ? { ...category, sortOrder: localOrder.get(category.id) } : category,
+  );
+  const rows = flattenCategoryTree(buildCategoryTree(ordered));
   const byId = new Map(categories.map((category) => [category.id, category]));
+  const canDrag = editable && mode.kind === "idle" && !pending;
+
+  function drop(target: DropTarget) {
+    if (!dragged) return;
+    const siblings = ordered.filter((category) => category.parentId === dragged.parentId);
+    const ids = reorderSiblings(siblings, dragged.id, target.id, target.place);
+    if (!ids) return;
+    const previous = localOrder;
+    setLocalOrder(new Map([...localOrder, ...ids.map((id, index) => [id, index] as const)]));
+    startTransition(async () => {
+      const result = await reorderCategoriesAction({ parentId: dragged.parentId, ids });
+      if (result.ok) toast.success(result.message);
+      else {
+        setLocalOrder(previous);
+        toast.error(result.error);
+      }
+    });
+  }
 
   function handle(action: Promise<CategoryResult>) {
     startTransition(async () => {
@@ -166,7 +199,45 @@ export function CategoriesEditor({ categories, editable }: { categories: Categor
                     </Button>
                   </form>
                 ) : (
-                  <div className="flex min-h-10 items-center gap-2 text-sm" style={{ paddingLeft: indent }}>
+                  <div
+                    className={cn(
+                      "flex min-h-10 items-center gap-2 border-y-2 border-transparent text-sm",
+                      dragged?.id === row.id && "opacity-40",
+                      dropTarget?.id === row.id &&
+                        (dropTarget.place === "before" ? "border-t-primary" : "border-b-primary"),
+                    )}
+                    style={{ paddingLeft: indent }}
+                    draggable={canDrag}
+                    onDragStart={(event) => {
+                      event.dataTransfer.effectAllowed = "move";
+                      setDragged(byId.get(row.id) ?? null);
+                    }}
+                    onDragEnd={() => {
+                      setDragged(null);
+                      setDropTarget(null);
+                    }}
+                    onDragOver={(event) => {
+                      // Переставлять можно только внутри своего раздела
+                      if (!dragged || dragged.id === row.id || dragged.parentId !== row.parentId) return;
+                      event.preventDefault();
+                      const box = event.currentTarget.getBoundingClientRect();
+                      const place = event.clientY < box.top + box.height / 2 ? "before" : "after";
+                      if (dropTarget?.id !== row.id || dropTarget.place !== place) setDropTarget({ id: row.id, place });
+                    }}
+                    onDragLeave={() => setDropTarget((current) => (current?.id === row.id ? null : current))}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      if (dropTarget) drop(dropTarget);
+                      setDragged(null);
+                      setDropTarget(null);
+                    }}
+                  >
+                    {editable ? (
+                      <GripVertical
+                        className={cn("text-muted-foreground size-4 shrink-0", canDrag ? "cursor-grab" : "opacity-30")}
+                        aria-label="Перетащите, чтобы поменять порядок"
+                      />
+                    ) : null}
                     <span className={row.depth === 0 ? "font-medium" : undefined}>{row.name}</span>
                     {byId.get(row.id)?.slug ? (
                       <span className="text-muted-foreground font-mono text-xs">/{byId.get(row.id)?.slug}</span>

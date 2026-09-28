@@ -7,7 +7,13 @@
 /** Глубже — это уже не каталог, а лабиринт; на сайте два уровня. */
 export const CATEGORY_MAX_DEPTH = 4;
 
-export type CategoryNode = { id: string; name: string; parentId: string | null };
+export type CategoryNode = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  /** Порядок среди соседей — задаётся перетаскиванием в ERP; одинаковый — по алфавиту */
+  sortOrder?: number;
+};
 
 export type CategoryTreeItem<T extends CategoryNode = CategoryNode> = T & {
   depth: number;
@@ -21,9 +27,30 @@ export class CategoryError extends Error {
   }
 }
 
-const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "ru");
+const byOrder = (a: CategoryNode, b: CategoryNode) =>
+  (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name, "ru");
 
-/** Дерево из плоского списка, на каждом уровне — по алфавиту. Сироты (родитель не найден) — в корень. */
+/**
+ * Новый порядок соседей после перетаскивания: `moved` встаёт перед `target`
+ * или после него. Возвращает id по порядку; перетаскивать можно только внутри
+ * одного раздела — иначе null.
+ */
+export function reorderSiblings(
+  siblings: readonly CategoryNode[],
+  moved: string,
+  target: string,
+  place: "before" | "after",
+): string[] | null {
+  if (moved === target) return null;
+  const ordered = [...siblings].sort(byOrder).map((node) => node.id);
+  if (!ordered.includes(moved) || !ordered.includes(target)) return null;
+  const rest = ordered.filter((id) => id !== moved);
+  const index = rest.indexOf(target) + (place === "after" ? 1 : 0);
+  rest.splice(index, 0, moved);
+  return rest.join() === ordered.join() ? null : rest;
+}
+
+/** Дерево из плоского списка, на каждом уровне — в заданном порядке, затем по алфавиту. Сироты (родитель не найден) — в корень. */
 export function buildCategoryTree<T extends CategoryNode>(categories: readonly T[]): CategoryTreeItem<T>[] {
   const ids = new Set(categories.map((category) => category.id));
   const childrenOf = new Map<string | null, T[]>();
@@ -35,7 +62,7 @@ export function buildCategoryTree<T extends CategoryNode>(categories: readonly T
   const build = (parentId: string | null, depth: number, seen: Set<string>): CategoryTreeItem<T>[] =>
     [...(childrenOf.get(parentId) ?? [])]
       .filter((category) => !seen.has(category.id))
-      .sort(byName)
+      .sort(byOrder)
       .map((category) => {
         const path = new Set(seen).add(category.id);
         return { ...category, depth, children: build(category.id, depth + 1, path) };

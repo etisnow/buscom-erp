@@ -28,17 +28,19 @@ export async function listCategories(): Promise<CategoryRow[]> {
       id: true,
       name: true,
       parentId: true,
+      sortOrder: true,
       slug: true,
       metaTitle: true,
       metaDescription: true,
       _count: { select: { products: true } },
     },
-    orderBy: { name: "asc" },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
     parentId: row.parentId,
+    sortOrder: row.sortOrder,
     productsCount: row._count.products,
     slug: row.slug,
     metaTitle: row.metaTitle,
@@ -48,6 +50,12 @@ export async function listCategories(): Promise<CategoryRow[]> {
 
 async function allNodes(tx: Tx): Promise<CategoryNode[]> {
   return tx.productCategory.findMany({ select: { id: true, name: true, parentId: true } });
+}
+
+/** Место в конце раздела: новая или перенесённая категория встаёт последней. */
+async function nextSortOrder(tx: Tx, parentId: string | null): Promise<number> {
+  const last = await tx.productCategory.aggregate({ where: { parentId }, _max: { sortOrder: true } });
+  return (last._max.sortOrder ?? -1) + 1;
 }
 
 function assertEditor(user: SessionUser): void {
@@ -65,7 +73,10 @@ export async function createCategory(
     const nodes = await allNodes(tx);
     assertCategoryPlacement(null, input.parentId, nodes);
     const name = normalizeCategoryName(input.name, input.parentId, nodes);
-    return tx.productCategory.create({ data: { name, parentId: input.parentId }, select: { id: true } });
+    return tx.productCategory.create({
+      data: { name, parentId: input.parentId, sortOrder: await nextSortOrder(tx, input.parentId) },
+      select: { id: true },
+    });
   });
 }
 
@@ -81,7 +92,34 @@ export async function updateCategory(
     if (!nodes.some((node) => node.id === id)) throw new CategoryError("Категория не найдена — обновите страницу");
     assertCategoryPlacement(id, input.parentId, nodes);
     const name = normalizeCategoryName(input.name, input.parentId, nodes, id);
-    await tx.productCategory.update({ where: { id }, data: { name, parentId: input.parentId } });
+    const moved = nodes.find((node) => node.id === id)?.parentId !== input.parentId;
+    await tx.productCategory.update({
+      where: { id },
+      data: {
+        name,
+        parentId: input.parentId,
+        ...(moved ? { sortOrder: await nextSortOrder(tx, input.parentId) } : {}),
+      },
+    });
+  });
+}
+
+/**
+ * Порядок категорий внутри раздела — после перетаскивания в ERP. Приходит полный
+ * список соседей по порядку: частичный или чужой список значит, что дерево на
+ * экране устарело, — тогда ничего не меняем. Тот же порядок — в меню сайта.
+ */
+export async function reorderCategories(parentId: string | null, ids: string[], user: SessionUser): Promise<void> {
+  assertEditor(user);
+  await db.$transaction(async (tx) => {
+    const siblings = await tx.productCategory.findMany({ where: { parentId }, select: { id: true } });
+    const expected = new Set(siblings.map((row) => row.id));
+    if (ids.length !== expected.size || new Set(ids).size !== ids.length || ids.some((id) => !expected.has(id))) {
+      throw new CategoryError("Категории изменились — обновите страницу");
+    }
+    for (const [index, id] of ids.entries()) {
+      await tx.productCategory.update({ where: { id }, data: { sortOrder: index } });
+    }
   });
 }
 
