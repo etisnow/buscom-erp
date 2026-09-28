@@ -311,7 +311,7 @@ function CheckoutForm({
         </div>
         <div className="grid gap-3 md:grid-cols-3">
           <label className="flex flex-col gap-1.5">
-            <Label>Имя *</Label>
+            <Label>ФИО *</Label>
             <input name="name" autoComplete="name" className={input} />
             {field("name")}
           </label>

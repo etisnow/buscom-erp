@@ -92,7 +92,7 @@ export function QuickOrder({
       <p className="text-muted text-sm">Оставьте телефон — менеджер перезвонит, уточнит доставку и оплату.</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className="text-sm">Имя *</span>
+          <span className="text-sm">ФИО *</span>
           <input name="name" autoComplete="name" className={input} />
           {field("name")}
         </label>

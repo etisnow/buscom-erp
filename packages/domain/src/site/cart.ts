@@ -133,7 +133,7 @@ export const checkoutSchema = z
     /** Ключ идемпотентности: повторная отправка той же формы не создаст второй заказ */
     requestId: z.uuid(),
     customerType: z.enum(["PERSON", "COMPANY"]),
-    name: trimmed(120).min(2, { error: "Укажите имя" }),
+    name: trimmed(120).min(2, { error: "Укажите ФИО" }),
     // Телефон и согласие проверяются в общей проверке ниже: ошибка в них не должна
     // прятать остальные — покупатель видит все ошибки формы сразу
     phone: z.string().max(40),
@@ -227,7 +227,7 @@ export function buildSiteOrderPayload(input: CheckoutInput, cart: PricedCart): S
 export const quickOrderSchema = z
   .object({
     requestId: z.uuid(),
-    name: trimmed(120).min(2, { error: "Укажите имя" }),
+    name: trimmed(120).min(2, { error: "Укажите ФИО" }),
     phone: z.string().max(40),
     consent: z.boolean(),
     website: z.string().max(0, { error: "Ошибка формы — обновите страницу" }).optional(),

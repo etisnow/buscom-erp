@@ -24,13 +24,6 @@ export const dynamic = "force-dynamic";
 /** В подборе на главной — самые ходовые модели, остальные на странице «Все модели» */
 const MODELS_ON_HOME = 8;
 
-/** Преимущества под первым экраном. «Отгрузку в день заказа» из макета не обещаем — склада в учёте нет. */
-const PERKS = [
-  { title: "Склад в Нижнем Новгороде", text: COMPANY.warehouse.street },
-  { title: "Доставка в РФ и СНГ", text: "Беларусь, Казахстан, Киргизия" },
-  { title: "Собственный цех", text: "Установка и переоборудование" },
-] as const;
-
 const STEPS = ["Присылаете модель и фото салона", "Считаем комплект и работы", "Устанавливаем в цехе"] as const;
 
 /** Главная по макету (экран 01): подбор по модели, цех, разделы, хиты, заявка и текст о компании. */
@@ -43,47 +36,29 @@ export default async function HomePage() {
   ]);
   return (
     <div className="flex flex-col gap-10 md:gap-14">
-      <div className="flex flex-col gap-3 md:gap-5">
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_540px] lg:gap-6">
-          <section className="card flex flex-col justify-between gap-5 p-5 md:gap-7 md:p-10">
-            <div className="flex flex-col gap-3.5">
-              <h1 className="text-[26px] leading-[1.1] font-bold tracking-[-.02em] text-balance md:text-[46px]">
-                {page.title}
-              </h1>
-              <p className="text-ink-2 hidden max-w-[580px] text-[17px] leading-normal md:block">
-                Сиденья, полки, шторки, люки, климат и детали кузова для отечественных и зарубежных моделей. Склад в
-                Нижнем Новгороде.
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_540px] lg:gap-6">
+        <section className="card flex flex-col justify-between gap-5 p-5 md:gap-7 md:p-10">
+          <div className="flex flex-col gap-3.5">
+            <h1 className="text-[26px] leading-[1.1] font-bold tracking-[-.02em] text-balance md:text-[46px]">
+              {page.title}
+            </h1>
+            <p className="text-ink-2 hidden max-w-[580px] text-[17px] leading-normal md:block">
+              Сиденья, полки, шторки, люки, климат и детали кузова для отечественных и зарубежных моделей. Склад в
+              Нижнем Новгороде.
+            </p>
+          </div>
+          <div className="md:bg-surface flex flex-col gap-3.5 overflow-hidden md:rounded-xl md:p-5">
+            <h2 className="font-semibold md:text-base">Подбор по модели автомобиля</h2>
+            {models.length > 0 ? (
+              <ModelPicker models={models.slice(0, MODELS_ON_HOME)} />
+            ) : (
+              <p className="text-ink-2 text-sm leading-normal">
+                Напишите модель и пришлите фото в Max {COMPANY.max.display} — подберём детали и назовём цену.
               </p>
-            </div>
-            <div className="md:bg-surface flex flex-col gap-3.5 overflow-hidden md:rounded-xl md:p-5">
-              <h2 className="font-semibold md:text-base">Подбор по модели автомобиля</h2>
-              {models.length > 0 ? (
-                <ModelPicker models={models.slice(0, MODELS_ON_HOME)} />
-              ) : (
-                <p className="text-ink-2 text-sm leading-normal">
-                  Напишите модель и пришлите фото в Max {COMPANY.max.display} — подберём детали и назовём цену.
-                </p>
-              )}
-            </div>
-          </section>
-          <WorkshopBanner />
-        </div>
-        <ul className="hidden gap-3 md:grid md:grid-cols-3">
-          {PERKS.map((perk) => (
-            <li key={perk.title} className="card flex items-center gap-3.5 rounded-xl px-5 py-[18px]">
-              <span
-                aria-hidden
-                className="bg-brand-soft flex size-10 shrink-0 items-center justify-center rounded-[10px]"
-              >
-                <span className="bg-brand size-3 rounded-[3px]" />
-              </span>
-              <span className="flex flex-col gap-0.5">
-                <span className="text-[15px] font-semibold">{perk.title}</span>
-                <span className="text-muted text-[13px]">{perk.text}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
+            )}
+          </div>
+        </section>
+        <WorkshopBanner />
       </div>
 
       {categories.length > 0 && (
