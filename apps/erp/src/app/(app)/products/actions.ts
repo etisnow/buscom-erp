@@ -10,7 +10,7 @@ import {
   type SupplierPriceResult,
 } from "@/server/products/supplier-price";
 import { addImages, deleteImage, makeImageMain } from "@/server/products/images";
-import { createProduct, updateProduct } from "@/server/products/service";
+import { createProduct, deleteProduct, updateProduct } from "@/server/products/service";
 import { importFromSupplier, type SupplierImportResult } from "@/server/products/supplier-import";
 import { requireUser } from "@/server/session";
 
@@ -138,6 +138,18 @@ export async function toggleProductAction(id: string, isActive: boolean): Promis
     () => updateProduct(id, { isActive }, user),
     isActive ? "Товар снова в каталоге" : "Товар скрыт из каталога",
   );
+}
+
+export async function deleteProductAction(id: string): Promise<ProductResult> {
+  const user = await requireUser();
+  let ordersCount = 0;
+  const result = await run(async () => {
+    ({ ordersCount } = await deleteProduct(id, user));
+  }, "Товар удалён");
+  if (result.ok && ordersCount > 0) {
+    return { ok: true, message: `Товар удалён. В заказах (${ordersCount}) позиции остались как были` };
+  }
+  return result;
 }
 
 /**

@@ -1,12 +1,20 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ProductDialog } from "@/components/products/product-dialog";
 import { ProductThumb } from "@/components/products/product-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatRub } from "@buscom/domain/money";
@@ -27,17 +35,20 @@ function CostSuffix({ nominal, formula }: { nominal: number; formula: unknown })
 import { categoryPath } from "@buscom/domain/product/categories";
 import type { CategoryRow } from "@/server/products/categories";
 import type { SupplierOption } from "@/server/suppliers/list";
-import { toggleProductAction, type ProductResult } from "@/app/(app)/products/actions";
+import { deleteProductAction, toggleProductAction, type ProductResult } from "@/app/(app)/products/actions";
 
 export function ProductsTable({
   rows,
   canEditCatalog,
+  canDelete,
   suppliers,
   categories,
   carModels,
 }: {
   rows: ProductRow[];
   canEditCatalog: boolean;
+  /** Удаление — руководителю и администратору */
+  canDelete: boolean;
   suppliers: SupplierOption[];
   categories: CategoryRow[];
   /** Модели авто для совместимости в карточке товара */
@@ -45,6 +56,7 @@ export function ProductsTable({
 }) {
   const [pending, startTransition] = useTransition();
   const [editingProduct, setEditingProduct] = useState<ProductRow | null>(null);
+  const [deletingProduct, setDeletingProduct] = useState<ProductRow | null>(null);
 
   function handle(action: Promise<ProductResult>) {
     startTransition(async () => {
@@ -186,6 +198,18 @@ export function ProductsTable({
                       >
                         {product.isActive ? "Скрыть" : "Вернуть"}
                       </Button>
+                      {canDelete ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive size-8"
+                          aria-label="Удалить товар"
+                          disabled={pending}
+                          onClick={() => setDeletingProduct(product)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      ) : null}
                     </div>
                   </TableCell>
                 ) : null}
@@ -194,6 +218,35 @@ export function ProductsTable({
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={deletingProduct !== null} onOpenChange={(open) => !open && setDeletingProduct(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Удалить товар?</DialogTitle>
+            <DialogDescription>
+              «{deletingProduct?.name}» ({deletingProduct?.sku}) пропадёт из каталога и с сайта вместе со снимками,
+              опциями и закупочными ценами — восстановить нельзя. Заказы не изменятся: в позициях хранится снимок. Адрес
+              товара на сайте будет вести в его категорию. Чтобы только убрать товар из продажи, нажмите «Скрыть».
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setDeletingProduct(null)}>
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={pending}
+              onClick={() => {
+                if (deletingProduct) handle(deleteProductAction(deletingProduct.id));
+                setDeletingProduct(null);
+              }}
+            >
+              Удалить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {editingProduct ? (
         <ProductDialog

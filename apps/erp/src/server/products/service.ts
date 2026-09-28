@@ -3,6 +3,7 @@ import type { Kopecks } from "@buscom/domain/money";
 import { normalizeCompatibility, unknownModels } from "@buscom/domain/product/compatibility";
 import { assertProductImage } from "@buscom/domain/product/images";
 import { normalizeOptionGroups, type OptionGroupDraft } from "@buscom/domain/product/options";
+import { hasRole, PRODUCT_DELETE_ROLES } from "@buscom/domain/user/role";
 import { Prisma } from "@buscom/db/client";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
@@ -225,6 +226,45 @@ async function replaceOptionPrices(tx: Tx, productId: string, suppliers: Product
     }),
   );
   if (data.length > 0) await tx.productSupplierOptionPrice.createMany({ data, skipDuplicates: true });
+}
+
+/**
+ * Удаление товара. Заказы от него не зависят: позиция хранит снимок артикула,
+ * названия и цен, ссылка на товар в ней обнуляется (`ON DELETE SET NULL`).
+ * Снимки, опции и закупки у поставщиков уходят каскадом.
+ *
+ * Адрес товара на сайте не должен стать 404: и сам адрес, и прежние адреса,
+ * которые вели на товар, переадресуются в его категорию. Нет категории на сайте —
+ * на главную (переадресация без цели).
+ */
+export async function deleteProduct(id: string, user: SessionUser): Promise<{ ordersCount: number }> {
+  if (!hasRole(user.role, PRODUCT_DELETE_ROLES)) {
+    throw new ForbiddenError("Удалять товары может только руководитель или администратор");
+  }
+
+  return db.$transaction(async (tx) => {
+    const product = await tx.product.findUnique({
+      where: { id },
+      select: { slug: true, category: { select: { id: true, slug: true } } },
+    });
+    if (!product) throw new Error("Товар не найден — обновите страницу");
+
+    const categoryId = product.category?.slug ? product.category.id : null;
+    const target = categoryId ? { categoryId, toPath: null } : { categoryId: null, toPath: "/" };
+    await tx.urlRedirect.updateMany({ where: { productId: id }, data: { productId: null, ...target } });
+    if (product.slug) {
+      const fromPath = `/${product.slug}`;
+      await tx.urlRedirect.upsert({
+        where: { fromPath },
+        create: { fromPath, statusCode: 301, ...target },
+        update: { productId: null, statusCode: 301, ...target },
+      });
+    }
+
+    const ordersCount = await tx.order.count({ where: { items: { some: { productId: id } } } });
+    await tx.product.delete({ where: { id } });
+    return { ordersCount };
+  });
 }
 
 export function canEditCatalog(role: SessionUser["role"]): boolean {

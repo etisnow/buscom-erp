@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { listCategories } from "@/server/products/categories";
 import { listProducts } from "@/server/products/list";
 import { canEditCatalog } from "@/server/products/service";
+import { hasRole, PRODUCT_DELETE_ROLES } from "@buscom/domain/user/role";
 import { getCarModels } from "@/server/settings/service";
 import { listSupplierOptions } from "@/server/suppliers/list";
 import { requirePageUser } from "@/server/session";
@@ -77,6 +78,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
       <ProductsTable
         rows={result.rows}
         canEditCatalog={canEditCatalog(user.role)}
+        canDelete={hasRole(user.role, PRODUCT_DELETE_ROLES)}
         suppliers={suppliers}
         categories={categories}
         carModels={carModels}
