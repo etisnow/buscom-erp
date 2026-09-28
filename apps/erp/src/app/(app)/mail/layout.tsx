@@ -18,7 +18,9 @@ async function MailboxFolders() {
       label: (folder.specialUse && SPECIAL_FOLDER_LABELS[folder.specialUse]) || folder.name,
       depth: folder.depth,
       messages: folder.messages,
-      unseen: folder.unseen,
+      // Свои отправленные письма непрочитанными не бывают: копия из другой почтовой
+      // программы может прийти без флага \Seen, но выделять её незачем
+      unseen: folder.specialUse === "\\Sent" ? null : folder.unseen,
       selectable: folder.selectable,
     }));
   } catch (error) {

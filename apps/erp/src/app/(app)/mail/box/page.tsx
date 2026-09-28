@@ -36,6 +36,8 @@ export default async function MailboxFolderPage({ searchParams }: PageProps<"/ma
   const folder = folders.find((item) => item.path === path);
   const title = (folder?.specialUse && SPECIAL_FOLDER_LABELS[folder.specialUse]) || folder?.name || path;
   const isSent = folder?.specialUse === "\\Sent";
+  // В «Отправленных» жирным не выделяем: это наши письма, «непрочитанных» среди них нет
+  const bold = (seen: boolean) => !seen && !isSent;
 
   return (
     <main className="flex flex-col gap-4">
@@ -56,13 +58,13 @@ export default async function MailboxFolderPage({ searchParams }: PageProps<"/ma
                 href={`/mail/box/letter?folder=${encodeURIComponent(path)}&uid=${letter.uid}`}
                 className="hover:bg-muted/50 grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto] items-baseline gap-3 px-3 py-2 text-sm max-sm:grid-cols-[minmax(0,1fr)_auto]"
               >
-                <span className={cn("truncate", !letter.seen && "font-semibold")}>
+                <span className={cn("truncate", bold(letter.seen) && "font-semibold")}>
                   {isSent ? `→ ${letter.to}` : letter.from}
                 </span>
                 <span
                   className={cn(
                     "min-w-0 truncate max-sm:col-span-2 max-sm:row-start-2",
-                    !letter.seen && "font-semibold",
+                    bold(letter.seen) && "font-semibold",
                   )}
                 >
                   {letter.subject}
