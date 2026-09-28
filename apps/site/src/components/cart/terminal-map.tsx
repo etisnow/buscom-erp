@@ -48,19 +48,36 @@ const PIN_SELECTED = "islands#orangeIcon";
 
 let loading: Promise<YMaps> | null = null;
 
+/**
+ * Загрузка API — одна на страницу. Второй такой же скрипт Яндекс отвергает
+ * («api is already enabled on this page»), поэтому признак берём со страницы, а
+ * не только из переменной модуля: модуль бывает загружен заново (горячая
+ * перезагрузка в разработке), а скрипт на странице остаётся.
+ */
 function loadMaps(apiKey: string): Promise<YMaps> {
+  const page = window as unknown as { ymaps?: YMaps };
+  if (page.ymaps) {
+    const ymaps = page.ymaps;
+    return ymaps.ready().then(() => ymaps);
+  }
+  const existing = document.querySelector<HTMLScriptElement>("script[data-yandex-maps]");
   loading ??= new Promise<YMaps>((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(apiKey)}&lang=ru_RU`;
-    script.onload = () => {
-      const ymaps = (window as unknown as { ymaps?: YMaps }).ymaps;
-      if (ymaps) ymaps.ready().then(() => resolve(ymaps), reject);
+    const script = existing ?? document.createElement("script");
+    script.addEventListener("load", () => {
+      if (page.ymaps) page.ymaps.ready().then(() => resolve(page.ymaps!), reject);
       else reject(new Error("JS API карт не отдал ymaps"));
-    };
-    script.onerror = () => reject(new Error("JS API карт не загрузился"));
-    document.head.append(script);
+    });
+    script.addEventListener("error", () => {
+      // Сбойный скрипт убираем: следующая попытка загрузит заново
+      script.remove();
+      reject(new Error("JS API карт не загрузился"));
+    });
+    if (!existing) {
+      script.src = `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(apiKey)}&lang=ru_RU`;
+      script.dataset.yandexMaps = "";
+      document.head.append(script);
+    }
   });
-  // Сбой не запоминаем: следующая попытка загрузит заново
   loading.catch(() => (loading = null));
   return loading;
 }
