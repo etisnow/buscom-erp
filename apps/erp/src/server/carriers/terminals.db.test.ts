@@ -16,7 +16,7 @@ let file: unknown = FIXTURE;
 
 vi.mock("@/server/carriers/dellin", () => ({ downloadDellinTerminals: async () => file }));
 
-/** Филиал ПЭК по образцу документации: основное отделение, ПВЗ, отделение только на приём */
+/** Выдержка из настоящего ответа ПЭК: три пункта Нижнего Новгорода (один — ПВЗ) и отделение только на приём */
 const PEC_FIXTURE = JSON.parse(
   readFileSync(join(__dirname, "../../../../../packages/domain/src/carrier/fixtures/pec-branches.json"), "utf8"),
 ) as unknown;
@@ -80,7 +80,7 @@ describeDb("справочник терминалов ДЛ (живая БД)", (
     await syncTerminals("DELLIN");
     await saveCarrierSettings({ ...DEFAULT_CARRIER_SETTINGS, pecLogin: "buscom", pecApiKey: "ключ" }, "test");
 
-    expect(await syncTerminals("PEC")).toMatchObject({ total: 3, deactivated: 0 });
+    expect(await syncTerminals("PEC")).toMatchObject({ total: 4, deactivated: 0 });
     expect(await db.carrierTerminal.count({ where: { carrier: "DELLIN", isActive: true } })).toBe(6);
     expect(
       await db.carrierTerminal.findMany({
@@ -89,9 +89,10 @@ describeDb("справочник терминалов ДЛ (живая БД)", (
         select: { name: true, isPickupPoint: true, givesOutCargo: true },
       }),
     ).toEqual([
-      { name: "Армавир", isPickupPoint: false, givesOutCargo: true },
-      { name: "Армавир ПВЗ Ленина", isPickupPoint: true, givesOutCargo: true },
-      { name: "Армавир Приём", isPickupPoint: false, givesOutCargo: false },
+      { name: "Иваново ТекстильПрофи", isPickupPoint: false, givesOutCargo: false },
+      { name: "Нижний Новгород", isPickupPoint: false, givesOutCargo: true },
+      { name: "Нижний Новгород Второй", isPickupPoint: false, givesOutCargo: true },
+      { name: "Нижний Новгород Гордеевская 7 оф 117", isPickupPoint: true, givesOutCargo: true },
     ]);
   });
 });

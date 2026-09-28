@@ -1,104 +1,470 @@
 {
   "branches": [
     {
-      "id": "e5c3ede6-5ce7-11df-ac33-0017085a0478",
-      "branchCode": "АМ",
-      "title": "Армавир",
-      "address": "Краснодарский край, г. Армавир, ул. Мичурина, д. 7",
-      "coordinatesobj": { "latitude": 44.98426, "longitude": 41.100951 },
+      "id": "64adbe1c-a185-11dc-a911-000a5e19ccb4",
+      "title": "Нижний Новгород",
+      "address": "г. Нижний Новгород, ул. Вторчермета, д.1, стр.К2",
+      "postalCode": "",
+      "coordinates": "56.3049,43.865099",
+      "coordinatesobj": {
+        "latitude": 56.3049,
+        "longitude": 43.865099
+      },
+      "bitrixId": "58740",
+      "branchCode": "НН",
+      "timezone": "UTC+03:00",
       "country": "РОССИЯ",
+      "countryOfRegistrationCode": "643",
       "cities": [
         {
-          "title": "Армавир",
-          "cityId": "22f8a64a-9647-428f-89a6-1208c4edf756",
+          "title": "Нижний Новгород",
+          "bitrixId": "58740",
+          "cityId": "46281a79-417a-4abf-86ef-11000404cb98",
           "cityStatus": 1,
-          "divisions": ["8112fb89-5a96-11e4-94e4-00155d9d920f", "2b8edc50-213e-11ec-80cf-00155d4a0436"]
-        },
-        { "title": "Успенское (Успенский р-н)", "cityId": "e15306b6-30ca-11de-b7f2-0019bbc986b4", "divisions": [] }
+          "divisions": [
+            "ad81dc39-5a96-11e4-94e4-00155d9d920f",
+            "3762494b-0f51-11e5-8227-00155d668909",
+            "1e4e60da-6513-11e9-80cd-00155d4a0436"
+          ]
+        }
       ],
       "divisions": [
         {
-          "id": "8112fb89-5a96-11e4-94e4-00155d9d920f",
-          "cityId": "e5c3ede7-5ce7-11df-ac33-0017085a0478",
-          "name": "Армавир",
+          "id": "ad81dc39-5a96-11e4-94e4-00155d9d920f",
+          "cityId": "46281a79-417a-4abf-86ef-11000404cb98",
+          "name": "Нижний Новгород",
+          "divisionPriority": 80,
+          "isAcceptanceOnly": false,
+          "isPartialDistributionAllowed": false,
           "departmentTypeId": 4,
           "departmentType": "Основное отделение филиала компании",
           "warehouses": [
             {
-              "warehouseCode": "АМ0001",
-              "id": "c496b0c6-8e45-11df-bb3b-0019bbc941ce",
-              "divisionId": "8112fb89-5a96-11e4-94e4-00155d9d920f",
-              "name": "Армавир 01",
-              "divisionName": "Армавир",
-              "address": "г.Армавир, ул.Мичурина 7",
-              "addressDivision": "Россия, Краснодарский край, Армавир, улица Мичурина, 7",
-              "coordinatesobj": { "latitude": 44.98426, "longitude": 41.100951 },
-              "telephone": "8(86137) 638-08",
-              "maxWeight": 0.0,
-              "maxVolume": 0.0,
-              "maxWeightPerPlace": 0.0,
-              "maxDimension": 0.0,
+              "warehouseCode": "НН0008",
+              "id": "dda1b157-7e66-11e7-80c8-00155d668927",
+              "divisionId": "ad81dc39-5a96-11e4-94e4-00155d9d920f",
+              "name": "Нижний Новгород 01",
+              "divisionName": "Нижний Новгород",
+              "address": "Нижний Новгород,ул.Вторчермета,1,к2",
+              "addressDivision": "Россия, Нижний Новгород, улица Вторчермета, 1 к2",
+              "isAcceptanceOnly": false,
+              "isWarehouseGivesFreights": true,
+              "isWarehouseAcceptsFreights": true,
+              "isRestrictions": null,
+              "isFreightSurcharge": false,
+              "coordinates": "56.3049,43.865099",
+              "coordinatesobj": {
+                "latitude": 56.3049,
+                "longitude": 43.865099
+              },
+              "email": "nnov@pecom.ru",
+              "telephone": "8(831) 215-13-00",
+              "maxWeight": 0,
+              "maxVolume": 0,
+              "maxWeightPerPlace": 0,
+              "maxDimension": 0,
+              "endOfAvailabilityBeforeClosing": null,
+              "endOfCostCalculationAvailability": null,
               "departmentClosingDate": null,
               "divisionTimeOfWork": [
-                { "workFrom": "09:00", "workTo": "18:00", "dayOfWeek": "1" },
-                { "workFrom": "09:00", "workTo": "18:00", "dayOfWeek": "2" },
-                { "workFrom": "09:00", "workTo": "18:00", "dayOfWeek": "3" },
-                { "workFrom": "09:00", "workTo": "18:00", "dayOfWeek": "4" },
-                { "workFrom": "09:00", "workTo": "18:00", "dayOfWeek": "5" },
-                { "workFrom": "10:00", "workTo": "14:00", "dayOfWeek": "6" }
-              ],
-              "kindsOfTransportation": [
-                { "description": "Автоперевозка", "type": 3, "operations": ["Выдача грузов", "Прием грузов"] },
-                { "description": "Авиаперевозка", "type": 1, "operations": ["Выдача грузов"] }
+                {
+                  "workFrom": "08:00",
+                  "workTo": "19:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "1"
+                },
+                {
+                  "workFrom": "08:00",
+                  "workTo": "19:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "2"
+                },
+                {
+                  "workFrom": "08:00",
+                  "workTo": "19:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "3"
+                },
+                {
+                  "workFrom": "08:00",
+                  "workTo": "19:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "4"
+                },
+                {
+                  "workFrom": "08:00",
+                  "workTo": "19:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "5"
+                },
+                {
+                  "workFrom": "10:00",
+                  "workTo": "16:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "6"
+                }
               ]
+            }
+          ],
+          "kindsOfTransportation": [
+            {
+              "description": "Автоперевозка",
+              "type": 3,
+              "operations": ["Прием грузов", "Выдача грузов"]
+            },
+            {
+              "description": "Авиаперевозка",
+              "type": 1,
+              "operations": ["Прием грузов", "Выдача грузов"]
+            },
+            {
+              "description": "Easy Way",
+              "type": 12,
+              "operations": ["Прием грузов", "Выдача грузов"]
+            },
+            {
+              "description": "Экспресс",
+              "type": 5,
+              "operations": ["Прием грузов", "Выдача грузов"]
             }
           ]
         },
         {
-          "id": "2b8edc50-213e-11ec-80cf-00155d4a0436",
-          "cityId": "22f8a64a-9647-428f-89a6-1208c4edf756",
-          "name": "Армавир ПВЗ Ленина",
+          "id": "3762494b-0f51-11e5-8227-00155d668909",
+          "cityId": "46281a79-417a-4abf-86ef-11000404cb98",
+          "name": "Нижний Новгород Второй",
+          "divisionPriority": 70,
+          "isAcceptanceOnly": false,
+          "isPartialDistributionAllowed": false,
+          "departmentTypeId": 0,
+          "departmentType": "Отделение компании",
+          "warehouses": [
+            {
+              "warehouseCode": "НН0001",
+              "id": "36cf9b40-a415-11dc-a911-000a5e19ccb4",
+              "divisionId": "3762494b-0f51-11e5-8227-00155d668909",
+              "name": "Нижний Новгород Второй",
+              "divisionName": "Нижний Новгород Второй",
+              "address": "Нижний Новгород,ул.Геологов,1П",
+              "addressDivision": "Россия, Нижний Новгород, улица Геологов, 1П",
+              "isAcceptanceOnly": false,
+              "isWarehouseGivesFreights": true,
+              "isWarehouseAcceptsFreights": true,
+              "isRestrictions": null,
+              "isFreightSurcharge": false,
+              "coordinates": "56.24615,43.99133",
+              "coordinatesobj": {
+                "latitude": 56.24615,
+                "longitude": 43.99133
+              },
+              "email": "nnov@pecom.ru",
+              "telephone": "8(831) 215-13-00",
+              "maxWeight": 0,
+              "maxVolume": 0,
+              "maxWeightPerPlace": 0,
+              "maxDimension": 0,
+              "endOfAvailabilityBeforeClosing": null,
+              "endOfCostCalculationAvailability": null,
+              "departmentClosingDate": null,
+              "divisionTimeOfWork": [
+                {
+                  "workFrom": "09:00",
+                  "workTo": "19:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "1"
+                },
+                {
+                  "workFrom": "09:00",
+                  "workTo": "19:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "2"
+                },
+                {
+                  "workFrom": "09:00",
+                  "workTo": "19:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "3"
+                },
+                {
+                  "workFrom": "09:00",
+                  "workTo": "19:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "4"
+                },
+                {
+                  "workFrom": "09:00",
+                  "workTo": "19:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "5"
+                }
+              ]
+            }
+          ],
+          "kindsOfTransportation": [
+            {
+              "description": "Автоперевозка",
+              "type": 3,
+              "operations": ["Прием грузов", "Выдача грузов"]
+            },
+            {
+              "description": "Авиаперевозка",
+              "type": 1,
+              "operations": ["Прием грузов", "Выдача грузов"]
+            },
+            {
+              "description": "Easy Way",
+              "type": 12,
+              "operations": ["Прием грузов", "Выдача грузов"]
+            },
+            {
+              "description": "Экспресс",
+              "type": 5,
+              "operations": ["Прием грузов", "Выдача грузов"]
+            }
+          ]
+        },
+        {
+          "id": "1e4e60da-6513-11e9-80cd-00155d4a0436",
+          "cityId": "46281a79-417a-4abf-86ef-11000404cb98",
+          "name": "Нижний Новгород Гордеевская 7 оф 117",
+          "divisionPriority": 70,
+          "isAcceptanceOnly": false,
+          "isPartialDistributionAllowed": false,
           "departmentTypeId": 1,
           "departmentType": "ПВЗ",
           "warehouses": [
             {
-              "id": "5c7775d4-0013-11ec-80cf-00155d4a0436",
-              "name": "Армавир ПВЗ 01",
-              "address": "г.Армавир, ул.Ленина 10",
-              "addressDivision": "Россия, Краснодарский край, Армавир, улица Ленина, 10",
-              "coordinatesobj": { "latitude": 44.99, "longitude": 41.12 },
-              "telephone": "",
-              "maxWeight": 60.0,
-              "maxVolume": 0.25,
-              "maxWeightPerPlace": 30.0,
-              "maxDimension": 0.8,
+              "warehouseCode": "НН0010",
+              "id": "1e4e60db-6513-11e9-80cd-00155d4a0436",
+              "divisionId": "1e4e60da-6513-11e9-80cd-00155d4a0436",
+              "name": "Нижний Новгород Гордеевская 7 оф 117",
+              "divisionName": "Нижний Новгород Гордеевская 7 оф 117",
+              "address": "Нижний Нов, улица Гордеевская, 7",
+              "addressDivision": "Нижний Нов, улица Гордеевская, 7",
+              "isAcceptanceOnly": false,
+              "isWarehouseGivesFreights": true,
+              "isWarehouseAcceptsFreights": true,
+              "isRestrictions": null,
+              "isFreightSurcharge": true,
+              "coordinates": "56.325191,43.94603",
+              "coordinatesobj": {
+                "latitude": 56.325191,
+                "longitude": 43.94603
+              },
+              "email": "nnov@pecom.ru",
+              "telephone": "8(831) 215-13-00",
+              "maxWeight": 50,
+              "maxVolume": 0.35,
+              "maxWeightPerPlace": 25,
+              "maxDimension": 1.2,
+              "endOfAvailabilityBeforeClosing": null,
+              "endOfCostCalculationAvailability": null,
               "departmentClosingDate": null,
-              "divisionTimeOfWork": [{ "workFrom": "", "workTo": "23:59", "dayOfWeek": "7" }],
-              "kindsOfTransportation": [{ "description": "Автоперевозка", "type": 3, "operations": ["Выдача грузов"] }]
+              "divisionTimeOfWork": [
+                {
+                  "workFrom": "10:00",
+                  "workTo": "20:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "1"
+                },
+                {
+                  "workFrom": "10:00",
+                  "workTo": "20:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "2"
+                },
+                {
+                  "workFrom": "10:00",
+                  "workTo": "20:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "3"
+                },
+                {
+                  "workFrom": "10:00",
+                  "workTo": "20:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "4"
+                },
+                {
+                  "workFrom": "10:00",
+                  "workTo": "20:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "5"
+                },
+                {
+                  "workFrom": "10:00",
+                  "workTo": "17:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "6"
+                },
+                {
+                  "workFrom": "10:00",
+                  "workTo": "15:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "7"
+                }
+              ]
+            }
+          ],
+          "kindsOfTransportation": [
+            {
+              "description": "Автоперевозка",
+              "type": 3,
+              "operations": ["Прием грузов", "Выдача грузов"]
+            },
+            {
+              "description": "Авиаперевозка",
+              "type": 1,
+              "operations": ["Прием грузов", "Выдача грузов"]
+            },
+            {
+              "description": "Easy Way",
+              "type": 12,
+              "operations": ["Выдача грузов"]
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "id": "568048f9-1b20-11e1-968b-984be1640252",
+      "title": "Иваново",
+      "address": "Ивановская обл., г.Иваново, ул. Парижской Коммуны, д. 84",
+      "postalCode": "",
+      "coordinates": "56.999441,40.916123",
+      "coordinatesobj": {
+        "latitude": 56.999441,
+        "longitude": 40.916123
+      },
+      "bitrixId": "92885",
+      "branchCode": "ИВ",
+      "timezone": "UTC+03:00",
+      "country": "РОССИЯ",
+      "countryOfRegistrationCode": "643",
+      "cities": [
         {
-          "id": "0e963bfc-360e-11eb-80ce-00155d4a0436",
-          "cityId": "22f8a64a-9647-428f-89a6-1208c4edf756",
-          "name": "Армавир закрывается",
-          "departmentTypeId": 0,
-          "warehouses": []
-        },
+          "title": "Иваново",
+          "bitrixId": "92885",
+          "cityId": "dae51ac7-4a44-4eb6-bd34-f1ea7f6a2639",
+          "cityStatus": 1,
+          "divisions": ["def27855-0608-11e5-9187-00155d668909"]
+        }
+      ],
+      "divisions": [
         {
-          "id": "8188a021-128d-11ea-80ce-00155d4a0436",
-          "cityId": "22f8a64a-9647-428f-89a6-1208c4edf756",
-          "name": "Армавир Приём",
+          "id": "def27855-0608-11e5-9187-00155d668909",
+          "cityId": "dae51ac7-4a44-4eb6-bd34-f1ea7f6a2639",
+          "name": "Иваново ТекстильПрофи",
+          "divisionPriority": 70,
+          "isAcceptanceOnly": true,
+          "isPartialDistributionAllowed": false,
           "departmentTypeId": 0,
+          "departmentType": "Отделение компании",
           "warehouses": [
             {
-              "id": "8188a022-128d-11ea-80ce-00155d4a0436",
-              "name": "Армавир 02",
-              "address": "г.Армавир, ул.Кирова 1",
-              "coordinatesobj": { "latitude": 44.97, "longitude": 41.09 },
+              "warehouseCode": "ИВ0003",
+              "id": "b4e07661-7058-11e2-86bb-80c16e64f59a",
+              "divisionId": "def27855-0608-11e5-9187-00155d668909",
+              "name": "Иваново ТекстильПрофи",
+              "divisionName": "Иваново ТекстильПрофи",
+              "address": "Иваново,ул.Сосновая,1В",
+              "addressDivision": "Россия, Иваново, Сосновая улица, 1 пав. 1012",
+              "isAcceptanceOnly": true,
+              "isWarehouseGivesFreights": false,
+              "isWarehouseAcceptsFreights": true,
+              "isRestrictions": null,
+              "isFreightSurcharge": false,
+              "coordinates": "57.010256,41.01028",
+              "coordinatesobj": {
+                "latitude": 57.010256358342,
+                "longitude": 41.010279668014
+              },
+              "email": "ivanovo@pecom.ru",
+              "telephone": "8(4932) 260-330 ",
+              "maxWeight": 0,
+              "maxVolume": 0,
+              "maxWeightPerPlace": 0,
+              "maxDimension": 0,
+              "endOfAvailabilityBeforeClosing": null,
+              "endOfCostCalculationAvailability": null,
               "departmentClosingDate": null,
-              "divisionTimeOfWork": [],
-              "kindsOfTransportation": [{ "description": "Автоперевозка", "type": 3, "operations": ["Прием грузов"] }]
+              "divisionTimeOfWork": [
+                {
+                  "workFrom": "09:00",
+                  "workTo": "18:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "1"
+                },
+                {
+                  "workFrom": "09:00",
+                  "workTo": "18:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "2"
+                },
+                {
+                  "workFrom": "09:00",
+                  "workTo": "18:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "3"
+                },
+                {
+                  "workFrom": "09:00",
+                  "workTo": "18:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "4"
+                },
+                {
+                  "workFrom": "09:00",
+                  "workTo": "18:00",
+                  "dinnerFrom": null,
+                  "dinnerTo": null,
+                  "dayOfWeek": "5"
+                }
+              ]
+            }
+          ],
+          "kindsOfTransportation": [
+            {
+              "description": "Автоперевозка",
+              "type": 3,
+              "operations": ["Прием грузов"]
+            },
+            {
+              "description": "Авиаперевозка",
+              "type": 1,
+              "operations": ["Прием грузов"]
+            },
+            {
+              "description": "Easy Way",
+              "type": 12,
+              "operations": ["Прием грузов"]
+            },
+            {
+              "description": "Экспресс",
+              "type": 5,
+              "operations": ["Прием грузов"]
             }
           ]
         }

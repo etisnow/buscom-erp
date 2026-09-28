@@ -4,62 +4,73 @@ import { describe, expect, it } from "vitest";
 import { formatWeekSchedule, parsePecBranches } from "./pec";
 
 /**
- * Филиал по образцу ответа `/branches/all/` из документации ПЭК (kabinet.pecom.ru/api/v1/help/branches):
- * основное отделение, ПВЗ, закрывающееся отделение без склада, отделение только на приём
+ * Выдержка из настоящего ответа `/branches/all/` (29.09.2026): филиал Нижний Новгород —
+ * основное отделение, обычное отделение и ПВЗ; из Иванова — отделение только на приём.
+ * Без описаний проезда и календарей праздников
  */
 const fixture = JSON.parse(readFileSync(join(__dirname, "fixtures", "pec-branches.json"), "utf8")) as unknown;
 
 describe("parsePecBranches", () => {
-  it("склад отделения — пункт; закрывающееся отделение без склада пропускается", () => {
+  it("пункт — склад отделения, код — id склада", () => {
     const { terminals, skipped } = parsePecBranches(fixture);
     expect(skipped).toBe(0);
     expect(terminals.map((terminal) => terminal.externalId)).toEqual([
-      "c496b0c6-8e45-11df-bb3b-0019bbc941ce",
-      "5c7775d4-0013-11ec-80cf-00155d4a0436",
-      "8188a022-128d-11ea-80ce-00155d4a0436",
+      "dda1b157-7e66-11e7-80c8-00155d668927",
+      "36cf9b40-a415-11dc-a911-000a5e19ccb4",
+      "1e4e60db-6513-11e9-80cd-00155d4a0436",
+      "b4e07661-7058-11e2-86bb-80c16e64f59a",
     ]);
   });
 
-  it("основное отделение: город по ссылке из списка городов, график по дням, без ограничений — null", () => {
-    expect(parsePecBranches(fixture).terminals[0]).toEqual({
-      externalId: "c496b0c6-8e45-11df-bb3b-0019bbc941ce",
-      cityName: "Армавир",
-      cityCode: null,
-      name: "Армавир",
-      address: "г.Армавир, ул.Мичурина 7",
-      fullAddress: "Россия, Краснодарский край, Армавир, улица Мичурина, 7",
-      latitude: 44.98426,
-      longitude: 41.100951,
-      schedule: "пн-пт 09:00-18:00; сб 10:00-14:00; вс выходной",
-      phone: "8(86137) 638-08",
+  it("основное отделение: город, график по дням, операции отделения, без ограничений — null", () => {
+    expect(parsePecBranches(fixture).terminals[0]).toMatchObject({
+      cityName: "Нижний Новгород",
+      name: "Нижний Новгород",
+      address: "Нижний Новгород,ул.Вторчермета,1,к2",
+      schedule: "пн-пт 08:00-19:00; сб 10:00-16:00; вс выходной",
       receivesCargo: true,
       givesOutCargo: true,
       isPickupPoint: false,
       maxWeightKg: null,
       maxLengthCm: null,
-      maxWidthCm: null,
-      maxHeightCm: null,
     });
   });
 
   it("ПВЗ помечен, ограничение места — в наших единицах", () => {
-    expect(parsePecBranches(fixture).terminals[1]).toMatchObject({
+    expect(parsePecBranches(fixture).terminals[2]).toMatchObject({
       isPickupPoint: true,
       givesOutCargo: true,
-      receivesCargo: false,
-      maxWeightKg: 30,
-      maxLengthCm: 80,
-      phone: null,
+      maxWeightKg: 25,
+      maxLengthCm: 120,
     });
   });
 
-  it("операции берутся только автоперевозки; отделение вне списка городов — город филиала", () => {
-    expect(parsePecBranches(fixture).terminals[2]).toMatchObject({
-      cityName: "Армавир",
-      givesOutCargo: false,
+  it("отделение только на приём груз не выдаёт", () => {
+    expect(parsePecBranches(fixture).terminals[3]).toMatchObject({
+      cityName: "Иваново",
       receivesCargo: true,
-      schedule: null,
+      givesOutCargo: false,
     });
+  });
+
+  it("отделение без склада (скоро закроется) пропускается, вне списка городов — город филиала", () => {
+    const division = (id: string, warehouses: unknown[]) => ({
+      id,
+      name: `Отделение ${id}`,
+      departmentTypeId: 0,
+      warehouses,
+      kindsOfTransportation: [{ type: 3, operations: ["Выдача грузов"] }],
+    });
+    const { terminals } = parsePecBranches({
+      branches: [
+        {
+          title: "Армавир",
+          cities: [],
+          divisions: [division("1", []), division("2", [{ id: "w2", address: "ул. Мичурина, 7" }])],
+        },
+      ],
+    });
+    expect(terminals.map((terminal) => [terminal.externalId, terminal.cityName])).toEqual([["w2", "Армавир"]]);
   });
 
   it("чужой формат ответа — ошибка", () => {

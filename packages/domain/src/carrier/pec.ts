@@ -46,6 +46,8 @@ const limit = z
   .nullish()
   .transform((value) => (value && value > 0 ? value : null));
 
+const kindsSchema = z.array(z.object({ type: z.number(), operations: z.array(z.string()) })).nullish();
+
 const warehouseSchema = z.object({
   id: text.min(1),
   address: text.min(1),
@@ -58,7 +60,7 @@ const warehouseSchema = z.object({
   divisionTimeOfWork: z
     .array(z.object({ workFrom: z.string().nullish(), workTo: z.string(), dayOfWeek: z.coerce.number() }))
     .nullish(),
-  kindsOfTransportation: z.array(z.object({ type: z.number(), operations: z.array(z.string()) })).nullish(),
+  kindsOfTransportation: kindsSchema,
 });
 
 const divisionSchema = z.object({
@@ -66,6 +68,8 @@ const divisionSchema = z.object({
   name: text.min(1),
   departmentTypeId: z.number().nullish(),
   warehouses: z.array(z.unknown()).nullish(),
+  /** Операции — у отделения (так в живом ответе, 29.09.2026); пример в документации кладёт их в склад */
+  kindsOfTransportation: kindsSchema,
 });
 
 /** Отделения разбираются поштучно: одно битое не должно сорвать обновление справочника */
@@ -106,7 +110,7 @@ export function parsePecBranches(raw: unknown): { terminals: CarrierTerminalReco
         }
         const data = warehouse.data;
         if (data.departmentClosingDate) continue;
-        const operations = (data.kindsOfTransportation ?? [])
+        const operations = (division.data.kindsOfTransportation ?? data.kindsOfTransportation ?? [])
           .filter((kind) => kind.type === AUTO_TRANSPORT)
           .flatMap((kind) => kind.operations);
         terminals.push({
