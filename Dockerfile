@@ -88,6 +88,8 @@ ENV NODE_ENV=production \
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 COPY --from=site-builder --chown=nextjs:nodejs /app/apps/site/.next/standalone ./
 COPY --from=site-builder --chown=nextjs:nodejs /app/apps/site/.next/static ./apps/site/.next/static
+# public/ standalone не берёт: логотип для писем покупателю (public/mail) отдаёт сайт
+COPY --from=site-builder --chown=nextjs:nodejs /app/apps/site/public ./apps/site/public
 WORKDIR /app/apps/site
 # Картинки товаров режет оптимизатор Next (next/image), ему нужен sharp под musl.
 # Не попал в standalone или не грузится нативная часть — все картинки сайта

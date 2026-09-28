@@ -10,11 +10,12 @@ import { COMPANY } from "@buscom/domain/company";
 import { CONFIRMATION_TEMPLATE, orderConfirmationLetter } from "@buscom/domain/email/order-confirmation";
 import { EMAIL_TEMPLATE_KEYS, type EmailTemplateKey } from "@buscom/domain/email/templates";
 import { parseOrderItemOptions } from "@buscom/domain/product/options";
-import { requisitesReady } from "@buscom/domain/settings";
+import { requisitesReady, transferCard } from "@buscom/domain/settings";
 import type { Prisma } from "@buscom/db/client";
 import { buildInvoice } from "@/server/documents/invoice";
 import { renderPdf } from "@/server/documents/pdf";
 import { db } from "@/server/db";
+import { env } from "@/server/env";
 import { sendClientLetter, senderAddress } from "@/server/mail";
 import { findOrderByNumber } from "@/server/orders/details";
 import { OrderConflictError, OrderNotFoundError, writeOrderEvent } from "@/server/orders/internal";
@@ -94,7 +95,7 @@ export async function sendOrderEmail(input: SendOrderEmailInput): Promise<{ id: 
  */
 export async function sendSiteOrderConfirmation(
   orderNumber: number,
-  to: { email: string; customerName: string },
+  to: { email: string; customerName: string; invoice: boolean },
 ): Promise<{ id: string; source: Buffer }> {
   const order = await db.order.findFirst({
     where: { number: orderNumber, deletedAt: null },
@@ -108,32 +109,60 @@ export async function sendSiteOrderConfirmation(
       customer: { select: { email: true } },
       items: {
         orderBy: { sortOrder: "asc" },
-        select: { name: true, sku: true, quantity: true, priceKopecks: true, options: true },
+        select: {
+          name: true,
+          sku: true,
+          quantity: true,
+          priceKopecks: true,
+          options: true,
+          product: {
+            select: {
+              slug: true,
+              isActive: true,
+              images: { orderBy: { sortOrder: "asc" }, take: 1, select: { id: true } },
+            },
+          },
+        },
       },
     },
   });
   if (!order) throw new OrderNotFoundError();
+  const settings = await readSettings();
+  const site = env.SITE_URL;
   const letter = orderConfirmationLetter(
     {
       number: orderNumber,
       customerName: to.customerName,
-      items: order.items.map((item) => ({ ...item, options: parseOrderItemOptions(item.options) })),
+      items: order.items.map(({ product, ...item }) => {
+        const image = product?.images[0];
+        return {
+          ...item,
+          options: parseOrderItemOptions(item.options),
+          url: product?.isActive && product.slug ? `${site}/${product.slug}` : null,
+          imageUrl: image ? `${site}/img/${image.id}?size=thumb` : null,
+        };
+      }),
       totalKopecks: order.totalKopecks,
       deliveryMethod: order.deliveryMethod,
       carrier: order.carrier,
       deliveryAddress: order.deliveryAddress,
+      payment: to.invoice ? "INVOICE" : "CARD",
     },
     {
       phone: COMPANY.phone.display,
+      phoneHref: COMPANY.phone.href,
       email: COMPANY.email,
       pickupAddress: `${COMPANY.warehouse.city}, ${COMPANY.warehouse.street}`,
       hours: COMPANY.hours,
+      siteUrl: site,
+      card: transferCard(settings.sellerRequisites),
     },
   );
   return deliverOrderLetter(order, {
     to: [to.email],
     subject: letter.subject,
     body: letter.body,
+    html: letter.html,
     template: CONFIRMATION_TEMPLATE,
     user: null,
     attachments: [],
@@ -144,6 +173,8 @@ type OrderLetter = {
   to: string[];
   subject: string;
   body: string;
+  /** HTML-версия письма; в переписку ERP ложится текст */
+  html?: string;
   template?: string | null;
   /** null — письмо отправила система (подтверждение заказа с сайта) */
   user: SessionUser | null;
@@ -178,6 +209,7 @@ async function deliverOrderLetter(
     to: input.to,
     subject: input.subject,
     text: input.body,
+    html: input.html,
     messageId,
     inReplyTo: previous?.messageId ?? null,
     references,

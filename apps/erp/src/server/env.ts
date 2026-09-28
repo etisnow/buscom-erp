@@ -34,6 +34,16 @@ const envSchema = z.object({
   DADATA_API_KEY: z.string().min(1).optional(),
 
   /**
+   * Адрес сайта — ссылки на товары и картинки в письме покупателю о заказе.
+   * До переключения домена в бою — https://new.bus-com.ru (docker-compose.prod.yml).
+   */
+  SITE_URL: z
+    .string()
+    .url()
+    .default("https://bus-com.ru")
+    .transform((value) => value.replace(/\/+$/, "")),
+
+  /**
    * Ключ API dewatermark.ai (кабинет сервиса → API) — снимает водяной знак со
    * снимков при импорте товара с сайта поставщика. Не задан — импорт работает,
    * снимки приходят как есть, со знаком, и форма об этом предупреждает.

@@ -29,6 +29,9 @@ const REQUISITE_FIELDS: { key: keyof SellerRequisites; label: string }[] = [
   { key: "bic", label: "БИК" },
   { key: "signerName", label: "Подписант" },
   { key: "phone", label: "Телефон" },
+  { key: "cardBank", label: "Банк карты для переводов" },
+  { key: "cardNumber", label: "Номер карты для переводов" },
+  { key: "cardHolder", label: "Получатель перевода" },
 ];
 
 function useSettingsAction() {
@@ -161,7 +164,10 @@ export function RequisitesEditor({ requisites }: { requisites: SellerRequisites 
     <section className="flex flex-col gap-3 rounded-lg border p-4">
       <div>
         <h2 className="font-heading font-medium">Реквизиты продавца</h2>
-        <p className="text-muted-foreground text-sm">Подставляются в счёт на оплату для юрлиц.</p>
+        <p className="text-muted-foreground text-sm">
+          Подставляются в счёт на оплату для юрлиц. Карта — в письмо частному лицу о заказе с сайта: без номера и
+          получателя письмо обещает, что реквизиты пришлёт менеджер.
+        </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">

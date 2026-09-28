@@ -46,6 +46,10 @@ export const sellerRequisitesSchema = z.object({
   bic: z.string().default(""),
   signerName: z.string().default(""),
   phone: z.string().default(""),
+  /** Карта для переводов частных лиц — в письме покупателю о заказе с сайта */
+  cardBank: z.string().default(""),
+  cardNumber: z.string().default(""),
+  cardHolder: z.string().default(""),
 });
 
 export type SellerRequisites = z.infer<typeof sellerRequisitesSchema>;
@@ -61,6 +65,9 @@ export const DEFAULT_SELLER_REQUISITES: SellerRequisites = {
   bic: "",
   signerName: "",
   phone: "",
+  cardBank: "",
+  cardNumber: "",
+  cardHolder: "",
 };
 
 /**
@@ -190,6 +197,13 @@ export function parseSetting<K extends keyof AppSettings>(key: K, raw: unknown):
     default:
       return DEFAULT_SETTINGS[key];
   }
+}
+
+/** Карта для переводов, если заполнены номер и получатель; иначе письмо обещает реквизиты от менеджера */
+export function transferCard(requisites: SellerRequisites): { bank: string; number: string; holder: string } | null {
+  const number = requisites.cardNumber.replace(/D/g, "");
+  const holder = requisites.cardHolder.trim();
+  return number.length >= 16 && holder ? { bank: requisites.cardBank.trim(), number, holder } : null;
 }
 
 /** Реквизиты заполнены настолько, что счёт печатать осмысленно. */

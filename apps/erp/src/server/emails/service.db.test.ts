@@ -315,7 +315,7 @@ describeDb("переписка с клиентом (живая БД)", () => {
     };
     const result = await ingestSiteOrder(payload);
     if (result.status !== 201) throw new Error("заказ не создан");
-    expect(result.confirmation).toEqual({ email: "petr@mail.ru", customerName: "Пётр" });
+    expect(result.confirmation).toEqual({ email: "petr@mail.ru", customerName: "Пётр", invoice: false });
 
     await sendSiteOrderConfirmation(result.orderNumber, result.confirmation!);
     expect(sent.at(-1)).toMatchObject({
@@ -323,6 +323,7 @@ describeDb("переписка с клиентом (живая БД)", () => {
       subject: `Заказ № ${result.orderNumber} принят — Баском`,
     });
     expect(sent.at(-1)?.text).toContain("• Люк, арт. X-1 — 2 шт.");
+    expect(sent.at(-1)?.html).toContain("Заказ принят");
     const email = await db.email.findFirstOrThrow({ where: { template: "site_order" } });
     expect(email).toMatchObject({ direction: "OUTBOUND", userId: null, toEmails: ["petr@mail.ru"] });
     const event = await db.orderEvent.findFirstOrThrow({ where: { type: "EMAIL_SENT", orderId: email.orderId! } });

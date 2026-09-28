@@ -49,6 +49,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Статика сборки и картинки товаров — не старые адреса и не страницы
-  matcher: ["/((?!_next/static|_next/image|img/|favicon.ico|icon.png|apple-icon.png|robots.txt|sitemap.xml).*)"],
+  // Статика сборки, картинки товаров и логотип для писем (public/mail) — не старые адреса и не страницы
+  matcher: ["/((?!_next/static|_next/image|img/|mail/|favicon.ico|icon.png|apple-icon.png|robots.txt|sitemap.xml).*)"],
 };

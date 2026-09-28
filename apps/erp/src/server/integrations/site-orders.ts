@@ -22,7 +22,7 @@ export type IngestResult =
    * Заказ создан. `confirmation` — кому отправить письмо о заказе: только заказам
    * нового сайта (`numberedByErp`) с почтой покупателя; старый сайт писал сам
    */
-  | { status: 201; orderNumber: number; confirmation: { email: string; customerName: string } | null }
+  | { status: 201; orderNumber: number; confirmation: { email: string; customerName: string; invoice: boolean } | null }
   /** Повтор с тем же externalId — ничего не меняем */
   | { status: 200; orderNumber: number; duplicate: true }
   /** Сохранили сырым, но разобрать не смогли — разбор вручную в журнале */
@@ -88,7 +88,13 @@ export async function ingestSiteOrder(payload: unknown): Promise<IngestResult> {
     const orderNumber = await createOrderFromPayload(parsed.order, inbox.id);
     const email = normalizeEmailAddress(parsed.order.customer.email);
     const confirmation =
-      parsed.order.numberedByErp && email ? { email, customerName: parsed.order.customer.name.trim() } : null;
+      parsed.order.numberedByErp && email
+        ? {
+            email,
+            customerName: parsed.order.customer.name.trim(),
+            invoice: parsed.order.payment?.method === "INVOICE",
+          }
+        : null;
     return { status: 201, orderNumber, confirmation };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Неизвестная ошибка при создании заказа";

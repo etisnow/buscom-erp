@@ -163,6 +163,8 @@ export type ClientLetter = {
   to: string[];
   subject: string;
   text: string;
+  /** HTML-версия; текст остаётся альтернативой для программ без HTML */
+  html?: string;
   /** Наш Message-ID без скобок — по нему потом узнаём ответ клиента */
   messageId: string;
   inReplyTo?: string | null;
@@ -205,6 +207,7 @@ async function buildClientLetter(
     to: letter.to,
     subject: letter.subject,
     text: letter.text,
+    ...(letter.html ? { html: letter.html } : {}),
     messageId: `<${letter.messageId}>`,
     ...(letter.inReplyTo ? { inReplyTo: `<${letter.inReplyTo}>` } : {}),
     ...(letter.references?.length ? { references: letter.references.map((id) => `<${id}>`) } : {}),
