@@ -128,7 +128,7 @@ export function MapsKeyEditor({ yandexMapsApiKey }: { yandexMapsApiKey: string }
       <div>
         <h2 className="font-heading font-medium">Карта терминалов на сайте</h2>
         <p className="text-muted-foreground text-sm">
-          Ключ «JavaScript API и HTTP Геокодер» из кабинета{" "}
+          Ключ продукта «JavaScript API» (геокодер не нужен — координаты пунктов дают сами ТК) из кабинета{" "}
           <a href="https://developer.tech.yandex.ru/" target="_blank" rel="noreferrer" className="underline">
             developer.tech.yandex.ru
           </a>
