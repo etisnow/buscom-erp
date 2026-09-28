@@ -69,7 +69,7 @@ export async function listSuppliers(filters: SupplierFilters): Promise<SupplierL
 const detailsInclude = {
   stages: {
     orderBy: { sortOrder: "asc" },
-    select: { id: true, name: true, _count: { select: { tracks: true } } },
+    select: { id: true, name: true, jobFunction: true, _count: { select: { tracks: true } } },
   },
   products: {
     orderBy: { product: { name: "asc" } },

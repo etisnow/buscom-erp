@@ -79,7 +79,12 @@ export function SupplierStages({
   const { pending, handle } = useAction();
   const dirty =
     stages.length !== initial.length ||
-    stages.some((stage, index) => stage.key !== initial[index].key || stage.name !== initial[index].name);
+    stages.some(
+      (stage, index) =>
+        stage.key !== initial[index].key ||
+        stage.name !== initial[index].name ||
+        stage.jobFunction !== initial[index].jobFunction,
+    );
 
   return (
     <section className="flex flex-col gap-3 rounded-lg border p-4">
@@ -105,7 +110,7 @@ export function SupplierStages({
               handle(
                 setSupplierStagesAction(
                   supplierId,
-                  stages.map((stage) => ({ id: stage.id, name: stage.name })),
+                  stages.map((stage) => ({ id: stage.id, name: stage.name, jobFunction: stage.jobFunction })),
                 ),
               )
             }

@@ -70,13 +70,14 @@ export default async function SupplierPage({ params }: PageProps<"/suppliers/[id
 
         <SupplierStages
           // Ключ по составу цепочки: после сохранения форма берёт свежие id этапов с сервера.
-          key={supplier.stages.map((stage) => `${stage.id}:${stage.name}`).join("|")}
+          key={supplier.stages.map((stage) => `${stage.id}:${stage.name}:${stage.jobFunction}`).join("|")}
           supplierId={supplier.id}
           editable={editable}
           initial={supplier.stages.map((stage) => ({
             id: stage.id,
             key: stage.id,
             name: stage.name,
+            jobFunction: stage.jobFunction,
             ordersCount: stage._count.tracks,
           }))}
         />

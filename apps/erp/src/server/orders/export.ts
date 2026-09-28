@@ -8,7 +8,6 @@ import { ORDER_STATUS_LABELS } from "@buscom/domain/order/status";
 import { SLA_ENABLED } from "@buscom/domain/sla";
 import { db } from "@/server/db";
 import { ordersWhere, type OrderListFilters } from "@/server/orders/list";
-import type { SessionUser } from "@/server/session";
 
 /**
  * Выгрузка списка заказов в CSV (PRD, M7: «выгрузка любого списка»).
@@ -40,9 +39,9 @@ export type OrdersCsv = {
   truncated: boolean;
 };
 
-export async function exportOrdersCsv(filters: OrderListFilters, user: SessionUser): Promise<OrdersCsv> {
+export async function exportOrdersCsv(filters: OrderListFilters): Promise<OrdersCsv> {
   const now = new Date();
-  const where = ordersWhere(filters, user, now);
+  const where = ordersWhere(filters, now);
 
   const orders = await db.order.findMany({
     where,

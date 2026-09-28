@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
   // Страница в выгрузке не участвует: файл содержит весь список, а не одну страницу.
   const filters = { ...parseOrderListParams(raw, defaultView()), page: 1 };
-  const { csv, fileName, truncated } = await exportOrdersCsv(filters, user);
+  const { csv, fileName, truncated } = await exportOrdersCsv(filters);
 
   return new NextResponse(csv, {
     headers: {

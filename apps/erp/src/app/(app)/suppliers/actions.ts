@@ -35,7 +35,13 @@ const supplierSchema = z.object({
   comment: z.string().optional(),
 });
 
-const stagesSchema = z.array(z.object({ id: z.string().min(1).optional(), name: z.string() }));
+const stagesSchema = z.array(
+  z.object({
+    id: z.string().min(1).optional(),
+    name: z.string(),
+    jobFunction: z.enum(["MANAGER", "LOGIST"]).nullable().optional(),
+  }),
+);
 
 function toError(error: unknown): { ok: false; error: string } {
   if (

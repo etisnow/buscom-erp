@@ -22,7 +22,7 @@ export function NewSupplierDialog() {
     startTransition(async () => {
       const result = await createSupplierAction(
         value,
-        stages.map((stage) => ({ name: stage.name })),
+        stages.map((stage) => ({ name: stage.name, jobFunction: stage.jobFunction })),
       );
       if (!result.ok) {
         toast.error(result.error);

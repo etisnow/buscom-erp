@@ -18,10 +18,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatMoscowDate } from "@buscom/domain/datetime";
-import { ROLE_LABELS } from "@buscom/domain/user/role";
-import type { UserRole } from "@buscom/db/enums";
+import { JOB_FUNCTION_LABELS, JOB_FUNCTIONS, ROLE_LABELS } from "@buscom/domain/user/role";
+import type { JobFunction, UserRole } from "@buscom/db/enums";
 import type { UserRow } from "@/server/users/service";
 import {
+  changeJobFunctionAction,
   changeRoleAction,
   createUserAction,
   resetPasswordAction,
@@ -30,6 +31,24 @@ import {
 } from "@/app/(app)/admin/users/actions";
 
 const ROLES = Object.keys(ROLE_LABELS) as UserRole[];
+
+/** У Select нет пустого значения — «не задана» кодируется отдельным ключом */
+const NO_FUNCTION = "NONE";
+
+function JobFunctionItems() {
+  return (
+    <>
+      <SelectItem value={NO_FUNCTION}>Не задана</SelectItem>
+      {JOB_FUNCTIONS.map((item) => (
+        <SelectItem key={item} value={item}>
+          {JOB_FUNCTION_LABELS[item]}
+        </SelectItem>
+      ))}
+    </>
+  );
+}
+
+const functionValue = (value: string) => (value === NO_FUNCTION ? "" : value);
 
 /** Временный пароль: показываем администратору один раз, он передаёт его сотруднику. */
 function suggestPassword(): string {
@@ -47,6 +66,7 @@ export function UsersTable({ users, currentUserId }: { users: UserRow[]; current
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>("MANAGER");
+  const [jobFunction, setJobFunction] = useState<JobFunction | typeof NO_FUNCTION>("MANAGER");
   const [password, setPassword] = useState(suggestPassword);
 
   function handle(action: Promise<AdminResult>) {
@@ -102,6 +122,17 @@ export function UsersTable({ users, currentUserId }: { users: UserRow[]; current
                 </Select>
               </div>
               <div className="flex flex-col gap-1.5">
+                <Label htmlFor="user-function">Функция</Label>
+                <Select value={jobFunction} onValueChange={(value) => setJobFunction(value as JobFunction)}>
+                  <SelectTrigger id="user-function">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <JobFunctionItems />
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="user-password">Временный пароль</Label>
                 <div className="flex gap-2">
                   <Input id="user-password" value={password} onChange={(event) => setPassword(event.target.value)} />
@@ -119,7 +150,15 @@ export function UsersTable({ users, currentUserId }: { users: UserRow[]; current
               <Button
                 disabled={pending || !name.trim() || !email.trim()}
                 onClick={() => {
-                  handle(createUserAction({ name, email, role, password }));
+                  handle(
+                    createUserAction({
+                      name,
+                      email,
+                      role,
+                      jobFunction: functionValue(jobFunction) as JobFunction | "",
+                      password,
+                    }),
+                  );
                   setCreateOpen(false);
                   setName("");
                   setEmail("");
@@ -140,6 +179,7 @@ export function UsersTable({ users, currentUserId }: { users: UserRow[]; current
               <TableHead>Имя</TableHead>
               <TableHead>Email</TableHead>
               <TableHead className="w-48">Роль</TableHead>
+              <TableHead className="w-40">Функция</TableHead>
               <TableHead className="w-24 text-right">Заказов</TableHead>
               <TableHead className="w-32">В системе с</TableHead>
               <TableHead className="w-56">Доступ</TableHead>
@@ -170,6 +210,20 @@ export function UsersTable({ users, currentUserId }: { users: UserRow[]; current
                             {ROLE_LABELS[item]}
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={user.jobFunction ?? NO_FUNCTION}
+                      disabled={pending}
+                      onValueChange={(value) => handle(changeJobFunctionAction(user.id, functionValue(value)))}
+                    >
+                      <SelectTrigger size="sm" aria-label="Функция">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <JobFunctionItems />
                       </SelectContent>
                     </Select>
                   </TableCell>
@@ -209,6 +263,7 @@ export function UsersTable({ users, currentUserId }: { users: UserRow[]; current
 
       <p className="text-muted-foreground text-xs">
         Отключённый сотрудник теряет все сессии сразу. Себя отключить или снять с себя роль администратора нельзя.
+        Функция (менеджер, логист) прав не меняет: по ней этапы поставщиков и вкладки списка заказов.
       </p>
     </div>
   );

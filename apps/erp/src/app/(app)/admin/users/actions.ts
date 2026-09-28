@@ -4,17 +4,26 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ADMIN_ROLES } from "@buscom/domain/user/role";
 import { ForbiddenError } from "@/server/errors";
-import { changeUserRole, createUser, resetUserPassword, setUserActive } from "@/server/users/service";
+import {
+  changeUserJobFunction,
+  changeUserRole,
+  createUser,
+  resetUserPassword,
+  setUserActive,
+} from "@/server/users/service";
 import { requireUser } from "@/server/session";
 
 export type AdminResult = { ok: true; message?: string } | { ok: false; error: string };
 
 const ROLES = ["MANAGER", "HEAD", "ADMIN"] as const;
+/** «Не задана» приходит пустой строкой: у Select не бывает пустого значения, форма шлёт "" */
+const jobFunctionSchema = z.enum(["MANAGER", "LOGIST", ""]).transform((value) => (value === "" ? null : value));
 
 const createSchema = z.object({
   name: z.string().min(1, { error: "Укажите имя" }),
   email: z.email({ error: "Некорректный email" }),
   role: z.enum(ROLES),
+  jobFunction: jobFunctionSchema,
   password: z.string().min(8, { error: "Временный пароль — минимум 8 символов" }),
 });
 
@@ -45,6 +54,14 @@ export async function changeRoleAction(userId: string, role: string): Promise<Ad
   if (!parsed.success) return { ok: false, error: "Неизвестная роль" };
 
   return run(() => changeUserRole(userId, parsed.data, actor.id), "Роль изменена");
+}
+
+export async function changeJobFunctionAction(userId: string, jobFunction: string): Promise<AdminResult> {
+  await requireUser(ADMIN_ROLES);
+  const parsed = jobFunctionSchema.safeParse(jobFunction);
+  if (!parsed.success) return { ok: false, error: "Неизвестная функция" };
+
+  return run(() => changeUserJobFunction(userId, parsed.data), "Функция изменена");
 }
 
 export async function setActiveAction(userId: string, isActive: boolean): Promise<AdminResult> {

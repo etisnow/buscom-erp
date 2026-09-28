@@ -3,6 +3,7 @@ import { OrderEditError } from "@buscom/domain/order/editing";
 import { OrderTransitionError } from "@buscom/domain/order/status";
 import { SupplierStageError } from "@buscom/domain/supplier/stages";
 import { createOrder } from "@/server/orders/create";
+import { listOrders } from "@/server/orders/list";
 import { updateOrderItems } from "@/server/orders/items";
 import { changeOrderStatus } from "@/server/orders/status";
 import { changeSupplierStage } from "@/server/orders/suppliers";
@@ -373,5 +374,33 @@ describeDb("поставщики и их цепочки в заказе (жив�
 
     const supplier = await testDb.supplier.findUniqueOrThrow({ where: { id: supplierId } });
     expect(supplier.enabledActions.sort()).toEqual(["SUPPLIER_INVOICE", "SUPPLIER_REQUEST"]);
+  });
+
+  it("вкладки «Менеджер» и «Логист» — по функции текущего этапа трека", async () => {
+    const { supplierId, stages, item } = await setup();
+    await setSupplierStages(
+      supplierId,
+      [
+        { id: stages[0].id, name: stages[0].name, jobFunction: "MANAGER" },
+        { id: stages[1].id, name: stages[1].name, jobFunction: "LOGIST" },
+        { id: stages[2].id, name: stages[2].name, jobFunction: null },
+      ],
+      manager,
+    );
+    const order = await createOrder({ source: "PHONE", customer: { name: "Клиент" }, items: [item], user: manager });
+    const counts = async () => (await listOrders({ view: "all" })).counts;
+    const move = async (toStageId: string, expectedStageId: string | null) =>
+      changeSupplierStage({ orderId: order.id, supplierId, toStageId, expectedStageId, user: manager });
+
+    // Трек не начат — дело менеджера
+    expect(await counts()).toMatchObject({ all: 1, manager: 1, logist: 0 });
+    await move(stages[0].id, null);
+    expect(await counts()).toMatchObject({ manager: 1, logist: 0 });
+    await move(stages[1].id, stages[0].id);
+    expect(await counts()).toMatchObject({ manager: 0, logist: 1 });
+    expect((await listOrders({ view: "logist" })).rows.map((row) => row.number)).toEqual([order.number]);
+    // Ничей этап — ни в одной вкладке, кроме «Все»
+    await move(stages[2].id, stages[1].id);
+    expect(await counts()).toMatchObject({ all: 1, manager: 0, logist: 0 });
   });
 });

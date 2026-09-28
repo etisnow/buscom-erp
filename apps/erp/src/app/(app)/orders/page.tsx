@@ -36,7 +36,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
   const filters = parseOrderListParams(params, defaultView());
 
   const [result, managers, sources] = await Promise.all([
-    listOrders(filters, user),
+    listOrders(filters),
     listManagers(),
     listDictionary("ORDER_SOURCE"),
   ]);

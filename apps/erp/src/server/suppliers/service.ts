@@ -1,4 +1,5 @@
 import "server-only";
+import type { JobFunction } from "@buscom/db/enums";
 import { normalizePhone } from "@buscom/domain/customer/phone";
 import { hasCustomerRequisites, type CustomerRequisites } from "@buscom/domain/customer/requisites";
 import { normalizeEnabledActions } from "@buscom/domain/supplier/actions";
@@ -69,6 +70,8 @@ export type StageDraft = {
   /** id существующего этапа; без него этап новый */
   id?: string;
   name: string;
+  /** Чей этап; null — ничей */
+  jobFunction?: JobFunction | null;
 };
 
 /**
@@ -107,7 +110,7 @@ export async function setSupplierStages(supplierId: string, stages: StageDraft[]
     await tx.supplierStage.deleteMany({ where: { id: { in: removed.map((stage) => stage.id) } } });
 
     for (const [index, stage] of stages.entries()) {
-      const data = { name: names[index], sortOrder: index };
+      const data = { name: names[index], sortOrder: index, jobFunction: stage.jobFunction ?? null };
       if (stage.id) {
         await tx.supplierStage.update({ where: { id: stage.id }, data });
       } else {

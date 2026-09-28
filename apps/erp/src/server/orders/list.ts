@@ -4,15 +4,18 @@ import { SLA_ENABLED } from "@buscom/domain/sla";
 import type { Prisma } from "@buscom/db/client";
 import type { OrderStatus } from "@buscom/db/enums";
 import { db } from "@/server/db";
-import type { SessionUser } from "@/server/session";
 
-/** Сохранённые виды из PRD, «Список заказов». */
-export type OrderView = "all" | "mine" | "unassigned" | "overdue";
+/**
+ * Виды списка (вкладки). «Менеджер» и «Логист» — по функции, за которой закреплён
+ * текущий этап трека поставщика (решение владельца 28.09.2026, вместо «Мои» и
+ * «Без менеджера»).
+ */
+export type OrderView = "all" | "manager" | "logist" | "overdue";
 
 export const ORDER_VIEW_LABELS: Record<OrderView, string> = {
   all: "Все",
-  mine: "Мои",
-  unassigned: "Без менеджера",
+  manager: "Менеджер",
+  logist: "Логист",
   overdue: "Просроченные",
 };
 
@@ -77,12 +80,13 @@ export type OrderListResult = {
 };
 
 /** Условие вида. `now` передаётся снаружи, чтобы счётчики и выборка считались на один момент. */
-function viewWhere(view: OrderView, user: SessionUser, now: Date): Prisma.OrderWhereInput {
+function viewWhere(view: OrderView, now: Date): Prisma.OrderWhereInput {
   switch (view) {
-    case "mine":
-      return { managerId: user.id };
-    case "unassigned":
-      return { managerId: null };
+    // Работа с поставщиком ещё не начата — тоже дело менеджера: он и двигает трек на первый этап
+    case "manager":
+      return { supplierTracks: { some: { OR: [{ stageId: null }, { stage: { jobFunction: "MANAGER" } }] } } };
+    case "logist":
+      return { supplierTracks: { some: { stage: { jobFunction: "LOGIST" } } } };
     case "overdue":
       return { slaDueAt: { lt: now } };
     case "all":
@@ -153,22 +157,22 @@ function baseWhere(filters: OrderListFilters): Prisma.OrderWhereInput {
 
 /** Виды, которые показываются вкладками: «Просроченные» — только при включённом SLA. */
 export const VISIBLE_ORDER_VIEWS: OrderView[] = SLA_ENABLED
-  ? ["all", "mine", "unassigned", "overdue"]
-  : ["all", "mine", "unassigned"];
+  ? ["all", "manager", "logist", "overdue"]
+  : ["all", "manager", "logist"];
 
 /**
  * Условия выборки для текущих фильтров и вида. Общие у списка и у выгрузки в CSV,
  * чтобы файл содержал ровно то, что человек видит на экране.
  */
-export function ordersWhere(filters: OrderListFilters, user: SessionUser, now: Date): Prisma.OrderWhereInput {
-  return { AND: [baseWhere(filters), viewWhere(filters.view, user, now)] };
+export function ordersWhere(filters: OrderListFilters, now: Date): Prisma.OrderWhereInput {
+  return { AND: [baseWhere(filters), viewWhere(filters.view, now)] };
 }
 
-export async function listOrders(filters: OrderListFilters, user: SessionUser): Promise<OrderListResult> {
+export async function listOrders(filters: OrderListFilters): Promise<OrderListResult> {
   const now = new Date();
   const page = Math.max(1, filters.page ?? 1);
   const base = baseWhere(filters);
-  const where: Prisma.OrderWhereInput = { AND: [base, viewWhere(filters.view, user, now)] };
+  const where: Prisma.OrderWhereInput = { AND: [base, viewWhere(filters.view, now)] };
 
   const [rows, total, ...counts] = await Promise.all([
     db.order.findMany({
@@ -179,7 +183,7 @@ export async function listOrders(filters: OrderListFilters, user: SessionUser): 
       take: PAGE_SIZE,
     }),
     db.order.count({ where }),
-    ...VISIBLE_ORDER_VIEWS.map((view) => db.order.count({ where: { AND: [base, viewWhere(view, user, now)] } })),
+    ...VISIBLE_ORDER_VIEWS.map((view) => db.order.count({ where: { AND: [base, viewWhere(view, now)] } })),
   ]);
 
   return {
@@ -189,8 +193,8 @@ export async function listOrders(filters: OrderListFilters, user: SessionUser): 
     pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)),
     counts: {
       all: 0,
-      mine: 0,
-      unassigned: 0,
+      manager: 0,
+      logist: 0,
       overdue: 0,
       ...Object.fromEntries(VISIBLE_ORDER_VIEWS.map((view, index) => [view, counts[index] ?? 0])),
     },

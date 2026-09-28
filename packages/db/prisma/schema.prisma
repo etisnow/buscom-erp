@@ -21,22 +21,31 @@ enum UserRole {
   ADMIN
 }
 
+/// Функция сотрудника — отдельно от роли (роль даёт права, функция — участок работы).
+/// Этапы цепочек поставщиков закрепляются за функцией, по ней вкладки списка заказов
+enum JobFunction {
+  MANAGER
+  LOGIST
+}
+
 model User {
-  id                 String    @id @default(cuid())
+  id                 String       @id @default(cuid())
   name               String
-  email              String    @unique
-  emailVerified      Boolean   @default(false)
+  email              String       @unique
+  emailVerified      Boolean      @default(false)
   image              String?
-  role               UserRole  @default(MANAGER)
-  isActive           Boolean   @default(true)
+  role               UserRole     @default(MANAGER)
+  /// Функция: менеджер или логист; null — не задана
+  jobFunction        JobFunction?
+  isActive           Boolean      @default(true)
   /// Почта для уведомлений из личных настроек. null — не задана, уведомления идут на `email` входа
   notificationEmail  String?
   /// На что подписан: ключи тем из packages/domain/src/notification/topics.ts
-  notificationTopics String[]  @default([])
+  notificationTopics String[]     @default([])
   /// Сообщения чата до этого момента прочитаны; null — чат ещё не открывал
   chatReadAt         DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   sessions      Session[]
   notifications Notification[]
@@ -378,12 +387,14 @@ model Supplier {
 /// Этап в цепочке работы с поставщиком: «Запрошен счёт», «Оплачено поставщику»…
 /// Это подстатусы заказа «в работе» — порядок задаёт `sortOrder`.
 model SupplierStage {
-  id         String   @id @default(cuid())
-  supplierId String
-  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  name       String
-  sortOrder  Int
-  createdAt  DateTime @default(now())
+  id          String       @id @default(cuid())
+  supplierId  String
+  supplier    Supplier     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  name        String
+  sortOrder   Int
+  /// Чей этап: заказ с треком на нём попадает во вкладку этой функции; null — ничей
+  jobFunction JobFunction?
+  createdAt   DateTime     @default(now())
 
   /// Этап, на котором стоит трек заказа, удалить нельзя — иначе заказ потерял бы место в цепочке
   tracks OrderSupplierTrack[]

@@ -43,7 +43,7 @@ describeDb("выгрузка заказов в CSV (живая БД)", () => {
     await makeOrder(manager, "Иванов Иван", 100_000, "8 916 111-11-11");
     await makeOrder(manager, "ООО «Автолайн»", 250_000, "8 916 222-22-22");
 
-    const { csv, truncated } = await exportOrdersCsv({ view: "all" }, manager);
+    const { csv, truncated } = await exportOrdersCsv({ view: "all" });
     const rows = lines(csv);
 
     // Колонка «Просрочен» — только при включённом SLA (packages/domain/src/sla.ts).
@@ -59,7 +59,7 @@ describeDb("выгрузка заказов в CSV (живая БД)", () => {
     const order = await makeOrder(manager, "Иванов Иван", 100_000);
     await addPayment({ orderId: order.id, method: "CASH", amountKopecks: 40_000, paidAt: new Date(), user: manager });
 
-    const { csv } = await exportOrdersCsv({ view: "all" }, manager);
+    const { csv } = await exportOrdersCsv({ view: "all" });
     const [, row] = lines(csv);
     const cells = row!.split(";");
 
@@ -75,7 +75,7 @@ describeDb("выгрузка заказов в CSV (живая БД)", () => {
   it("имя с точкой с запятой берётся в кавычки, а не ломает колонки", async () => {
     await makeOrder(manager, "ООО «А; Б»", 100_000);
 
-    const { csv } = await exportOrdersCsv({ view: "all" }, manager);
+    const { csv } = await exportOrdersCsv({ view: "all" });
 
     expect(csv).toContain('"ООО «А; Б»"');
   });
@@ -85,18 +85,18 @@ describeDb("выгрузка заказов в CSV (живая БД)", () => {
     await makeOrder(manager, "Мой клиент", 100_000, "8 916 111-11-11");
     await makeOrder(other, "Чужой клиент", 100_000, "8 916 222-22-22");
 
-    const mine = await exportOrdersCsv({ view: "mine" }, manager);
+    const mine = await exportOrdersCsv({ view: "all", managerId: manager.id });
     expect(lines(mine.csv)).toHaveLength(2);
     expect(mine.csv).toContain("Мой клиент");
     expect(mine.csv).not.toContain("Чужой клиент");
 
-    const search = await exportOrdersCsv({ view: "all", query: "Чужой" }, manager);
+    const search = await exportOrdersCsv({ view: "all", query: "Чужой" });
     expect(lines(search.csv)).toHaveLength(2);
     expect(search.csv).toContain("Чужой клиент");
   });
 
   it("имя файла — дата выгрузки", async () => {
-    const { fileName } = await exportOrdersCsv({ view: "all" }, manager);
+    const { fileName } = await exportOrdersCsv({ view: "all" });
 
     expect(fileName).toMatch(/^zakazy-\d{4}-\d{2}-\d{2}\.csv$/);
   });

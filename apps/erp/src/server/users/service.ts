@@ -1,6 +1,6 @@
 import "server-only";
 import { hashPassword } from "better-auth/crypto";
-import type { UserRole } from "@buscom/db/enums";
+import type { JobFunction, UserRole } from "@buscom/db/enums";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 
@@ -9,6 +9,7 @@ export type UserRow = {
   name: string;
   email: string;
   role: UserRole;
+  jobFunction: JobFunction | null;
   isActive: boolean;
   createdAt: Date;
   ordersCount: number;
@@ -21,6 +22,7 @@ export async function listUsers(): Promise<UserRow[]> {
       name: true,
       email: true,
       role: true,
+      jobFunction: true,
       isActive: true,
       createdAt: true,
       _count: { select: { managedOrders: true } },
@@ -33,6 +35,7 @@ export async function listUsers(): Promise<UserRow[]> {
     name: user.name,
     email: user.email,
     role: user.role,
+    jobFunction: user.jobFunction,
     isActive: user.isActive,
     createdAt: user.createdAt,
     ordersCount: user._count.managedOrders,
@@ -43,6 +46,7 @@ export type CreateUserInput = {
   name: string;
   email: string;
   role: UserRole;
+  jobFunction: JobFunction | null;
   password: string;
 };
 
@@ -62,7 +66,7 @@ export async function createUser(input: CreateUserInput): Promise<{ id: string }
   }
 
   const user = await db.user.create({
-    data: { email, name: input.name.trim(), role: input.role, emailVerified: true },
+    data: { email, name: input.name.trim(), role: input.role, jobFunction: input.jobFunction, emailVerified: true },
     select: { id: true },
   });
 
@@ -84,6 +88,11 @@ export async function changeUserRole(userId: string, role: UserRole, actorId: st
     throw new ForbiddenError("Нельзя снять с себя роль администратора");
   }
   await db.user.update({ where: { id: userId }, data: { role } });
+}
+
+/** Смена функции (менеджер, логист) — на права не влияет, только на вкладки заказов. */
+export async function changeUserJobFunction(userId: string, jobFunction: JobFunction | null): Promise<void> {
+  await db.user.update({ where: { id: userId }, data: { jobFunction } });
 }
 
 /**

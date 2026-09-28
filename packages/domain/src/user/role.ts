@@ -1,4 +1,4 @@
-import type { UserRole } from "@buscom/db/enums";
+import type { JobFunction, UserRole } from "@buscom/db/enums";
 
 /** Названия ролей для UI (PRD, «Пользователи и роли»). */
 export const ROLE_LABELS: Record<UserRole, string> = {
@@ -6,6 +6,17 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   HEAD: "Руководитель",
   ADMIN: "Администратор",
 };
+
+/**
+ * Функция сотрудника — участок работы, отдельно от роли с её правами. За функцией
+ * закрепляются этапы цепочек поставщиков, по ней — вкладки списка заказов.
+ */
+export const JOB_FUNCTION_LABELS: Record<JobFunction, string> = {
+  MANAGER: "Менеджер",
+  LOGIST: "Логист",
+};
+
+export const JOB_FUNCTIONS = Object.keys(JOB_FUNCTION_LABELS) as JobFunction[];
 
 /** Роли, которым доступны экраны администрирования. */
 export const ADMIN_ROLES: UserRole[] = ["ADMIN"];

@@ -4,6 +4,9 @@ import { useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { JOB_FUNCTION_LABELS, JOB_FUNCTIONS } from "@buscom/domain/user/role";
+import type { JobFunction } from "@buscom/db/enums";
 
 export type StageRow = {
   /** id сохранённого этапа; у нового его нет */
@@ -11,6 +14,8 @@ export type StageRow = {
   /** Ключ строки для React: у нового этапа id ещё нет */
   key: string;
   name: string;
+  /** Чей этап: заказ на нём попадает во вкладку этой функции; null — ничей */
+  jobFunction: JobFunction | null;
   /** Сколько заказов сейчас стоят на этом этапе — такой этап не убрать */
   ordersCount: number;
 };
@@ -19,11 +24,14 @@ let nextKey = 0;
 
 export function newStageRow(name: string): StageRow {
   nextKey += 1;
-  return { key: `new-${nextKey}`, name, ordersCount: 0 };
+  return { key: `new-${nextKey}`, name, jobFunction: null, ordersCount: 0 };
 }
 
+const NO_FUNCTION = "NONE";
+
 /**
- * Редактор цепочки этапов: порядок стрелками, названия правятся на месте.
+ * Редактор цепочки этапов: порядок стрелками, названия правятся на месте,
+ * у каждого этапа — функция, за которой он закреплён (менеджер, логист).
  * Сохраняет родитель — редактор только меняет список.
  */
 export function StageChainEditor({
@@ -70,6 +78,31 @@ export function StageChainEditor({
                 aria-label={`Этап ${index + 1}`}
                 className="h-8 flex-1"
               />
+              <Select
+                value={stage.jobFunction ?? NO_FUNCTION}
+                disabled={disabled}
+                onValueChange={(value) =>
+                  onChange(
+                    stages.map((row, i) =>
+                      i === index
+                        ? { ...row, jobFunction: value === NO_FUNCTION ? null : (value as JobFunction) }
+                        : row,
+                    ),
+                  )
+                }
+              >
+                <SelectTrigger size="sm" className="w-32" aria-label={`Чей этап ${index + 1}`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_FUNCTION}>Ничей</SelectItem>
+                  {JOB_FUNCTIONS.map((item) => (
+                    <SelectItem key={item} value={item}>
+                      {JOB_FUNCTION_LABELS[item]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {stage.ordersCount > 0 ? (
                 <span className="text-muted-foreground text-xs whitespace-nowrap">заказов: {stage.ordersCount}</span>
               ) : null}

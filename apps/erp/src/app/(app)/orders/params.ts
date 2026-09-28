@@ -3,7 +3,7 @@ import { list, pageNumber, single, type RawParams } from "@/app/(app)/search-par
 import { VISIBLE_ORDER_VIEWS, type OrderListFilters, type OrderView } from "@/server/orders/list";
 
 /** Значения из URL приходят строками и могут быть чем угодно — разбираем схемой. */
-const viewSchema = z.enum(["all", "mine", "unassigned", "overdue"]);
+const viewSchema = z.enum(["all", "manager", "logist", "overdue"]);
 const statusSchema = z.enum(["NEW", "IN_PROGRESS", "COMPLETED", "CANCELLED"]);
 const paymentSchema = z.enum(["unpaid", "partial", "paid"]);
 
