@@ -8,6 +8,7 @@ import {
   parseSetting,
   SETTING_KEYS,
   type AppSettings,
+  type CarrierSettings,
   type ImapSettings,
   type SellerRequisites,
   type SmtpSettings,
@@ -39,6 +40,9 @@ export async function readSettings(): Promise<AppSettings> {
       ? parseSetting("emailTemplates", stored.get(SETTING_KEYS.emailTemplates))
       : DEFAULT_SETTINGS.emailTemplates,
     imap: stored.has(SETTING_KEYS.imap) ? parseSetting("imap", stored.get(SETTING_KEYS.imap)) : DEFAULT_SETTINGS.imap,
+    carriers: stored.has(SETTING_KEYS.carriers)
+      ? parseSetting("carriers", stored.get(SETTING_KEYS.carriers))
+      : DEFAULT_SETTINGS.carriers,
   };
 }
 
@@ -74,6 +78,10 @@ export async function saveImapSettings(settings: ImapSettings, userId: string): 
 
 export async function saveEmailTemplates(templates: EmailTemplates, userId: string): Promise<void> {
   await writeSetting(SETTING_KEYS.emailTemplates, templates, userId);
+}
+
+export async function saveCarrierSettings(settings: CarrierSettings, userId: string): Promise<void> {
+  await writeSetting(SETTING_KEYS.carriers, settings, userId);
 }
 
 export async function saveSellerRequisites(requisites: SellerRequisites, userId: string): Promise<void> {

@@ -16,6 +16,7 @@ export const SETTING_KEYS = {
   smtp: "smtp",
   emailTemplates: "emailTemplates",
   imap: "imap",
+  carriers: "carriers",
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
@@ -149,6 +150,27 @@ export function mergeImapSettings(current: ImapSettings, incoming: ImapSettings)
   return { ...incoming, password: incoming.password === "" ? current.password : incoming.password };
 }
 
+/**
+ * Ключи API транспортных компаний (docs/SITE-PLAN.md, этап 5а). Задаются в
+ * «Администрирование → Транспортные компании»; пустой ключ — интеграция с ТК выключена.
+ */
+export const carrierSettingsSchema = z.object({
+  /** Ключ приложения «Деловых Линий» (appkey, кабинет dev.dellin.ru) */
+  dellinAppKey: z.string().trim().max(200).default(""),
+});
+
+export type CarrierSettings = z.infer<typeof carrierSettingsSchema>;
+
+export const DEFAULT_CARRIER_SETTINGS: CarrierSettings = { dellinAppKey: "" };
+
+/**
+ * Ключ в браузер не отдаётся, как пароль почты: пустое поле из формы —
+ * «оставить сохранённый». Убрать ключ можно отдельной кнопкой.
+ */
+export function mergeCarrierSettings(current: CarrierSettings, incoming: CarrierSettings): CarrierSettings {
+  return { dellinAppKey: incoming.dellinAppKey === "" ? current.dellinAppKey : incoming.dellinAppKey };
+}
+
 export type AppSettings = {
   discountLimitPercent: number;
   slaMinutes: Record<OrderStatus, number | null>;
@@ -156,6 +178,7 @@ export type AppSettings = {
   smtp: SmtpSettings;
   emailTemplates: EmailTemplates;
   imap: ImapSettings;
+  carriers: CarrierSettings;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -165,6 +188,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   smtp: DEFAULT_SMTP_SETTINGS,
   emailTemplates: DEFAULT_EMAIL_TEMPLATES,
   imap: DEFAULT_IMAP_SETTINGS,
+  carriers: DEFAULT_CARRIER_SETTINGS,
 };
 
 /** Разбор значения из БД: негодное значение не роняет систему, а откатывается к умолчанию. */
@@ -193,6 +217,10 @@ export function parseSetting<K extends keyof AppSettings>(key: K, raw: unknown):
     case "imap": {
       const parsed = imapSettingsSchema.safeParse(raw);
       return (parsed.success ? parsed.data : DEFAULT_IMAP_SETTINGS) as AppSettings[K];
+    }
+    case "carriers": {
+      const parsed = carrierSettingsSchema.safeParse(raw);
+      return (parsed.success ? parsed.data : DEFAULT_CARRIER_SETTINGS) as AppSettings[K];
     }
     default:
       return DEFAULT_SETTINGS[key];

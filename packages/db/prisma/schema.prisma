@@ -755,6 +755,48 @@ model DictionaryItem {
   @@index([type, isActive])
 }
 
+/// Перевозчики, у которых терминалы загружаются по API (docs/SITE-PLAN.md, этап 5а)
+enum TerminalCarrier {
+  DELLIN
+}
+
+/// Терминалы и пункты транспортных компаний — из них покупатель выбирает пункт
+/// получения. Обновляются раз в сутки из API перевозчика (src/server/carriers);
+/// пропавший из выгрузки пункт гасится `isActive`, а не удаляется — в заказах
+/// он хранится снимком, а не ссылкой.
+model CarrierTerminal {
+  id            String          @id @default(cuid())
+  carrier       TerminalCarrier
+  /// Код пункта у перевозчика
+  externalId    String
+  cityName      String
+  /// Код города у перевозчика (у ДЛ — КЛАДР)
+  cityCode      String?
+  name          String
+  address       String
+  fullAddress   String?
+  latitude      Float?
+  longitude     Float?
+  /// График выдачи груза текстом, как его отдаёт перевозчик
+  schedule      String?
+  phone         String?
+  receivesCargo Boolean
+  givesOutCargo Boolean
+  /// Ограничения на одно место: вес в килограммах, стороны в сантиметрах
+  maxWeightKg   Int?
+  maxLengthCm   Int?
+  maxWidthCm    Int?
+  maxHeightCm   Int?
+  isActive      Boolean         @default(true)
+  /// Когда пункт последний раз пришёл в выгрузке перевозчика
+  syncedAt      DateTime
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([carrier, externalId])
+  @@index([carrier, isActive, cityName])
+}
+
 /// Настройки системы: одно значение на ключ, структура значения — за кодом
 /// (src/server/settings). Значения по умолчанию живут в домене, здесь только
 /// то, что администратор поменял.

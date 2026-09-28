@@ -1,0 +1,212 @@
+{
+  "city": [
+    {
+      "id": "16",
+      "name": "Нижний Новгород",
+      "code": "5200100000000000000000000",
+      "cityID": 417654,
+      "latitude": "56.279300",
+      "longitude": "43.948700",
+      "url": "dellin.ru",
+      "timeshift": "0",
+      "requestEndTime": "23:59",
+      "sfrequestEndTime": "17:00",
+      "day2dayRequest": "1",
+      "day2daySFRequest": "0",
+      "preorderRequest": "1",
+      "freeStorageDays": "2",
+      "terminals": {
+        "terminal": [
+          {
+            "id": "296",
+            "name": "Нижний Новгород Московское (основной)",
+            "address": "Московское ш., 52",
+            "fullAddress": "603028, Нижегородская обл, Нижний Новгород г, Московское ш, дом № 52",
+            "latitude": "56.312901",
+            "longitude": "43.904121",
+            "isPVZ": false,
+            "cashOnDelivery": true,
+            "storage": false,
+            "mail": "pismo@dellin.ru",
+            "isOffice": false,
+            "receiveCargo": true,
+            "giveoutCargo": true,
+            "default": true,
+            "calcSchedule": {
+              "derival": "пн-пт: 08:00-20:00; сб: 09:00-17:00; вс: 11:00-16:00",
+              "arrival": "пн-пт: 08:00-20:00; сб: 09:00-17:00; вс: 11:00-16:00"
+            },
+            "mainPhone": "7 (831) 200-00-03",
+            "maxWeight": 3000,
+            "maxLength": 12,
+            "maxWidth": 2.42,
+            "maxHeight": 2.45,
+            "maxVolume": 14.5,
+            "maxShippingWeight": 20000,
+            "maxShippingVolume": 70
+          },
+          {
+            "id": "667",
+            "name": "Нижний Новгород Геологов",
+            "address": "ул. Геологов, 2Е",
+            "fullAddress": "603141, Нижегородская обл, Нижний Новгород г, Геологов ул, дом № 2, Е",
+            "latitude": "56.245674",
+            "longitude": "43.993374",
+            "isPVZ": false,
+            "cashOnDelivery": true,
+            "storage": false,
+            "mail": "pismo@dellin.ru",
+            "isOffice": false,
+            "receiveCargo": true,
+            "giveoutCargo": true,
+            "default": false,
+            "calcSchedule": {
+              "derival": "пн-пт: 09:00-18:00; сб, вс: выходной",
+              "arrival": "пн-пт: 09:00-18:00; сб, вс: выходной"
+            },
+            "mainPhone": "7 (831) 200-00-03",
+            "maxWeight": 3000,
+            "maxLength": 6.5,
+            "maxWidth": 2.42,
+            "maxHeight": 2.45,
+            "maxVolume": 14.5,
+            "maxShippingWeight": 20000,
+            "maxShippingVolume": 70
+          },
+          {
+            "id": "764",
+            "name": "Нижний Новгород Московское (склад)",
+            "address": "Московское ш., 52",
+            "fullAddress": "603116, Нижегородская обл, Нижний Новгород г, Московское ш, дом № 52",
+            "latitude": "56.312901",
+            "longitude": "43.904121",
+            "isPVZ": false,
+            "cashOnDelivery": true,
+            "storage": true,
+            "mail": null,
+            "isOffice": false,
+            "receiveCargo": false,
+            "giveoutCargo": false,
+            "default": false,
+            "calcSchedule": {
+              "derival": "",
+              "arrival": ""
+            },
+            "mainPhone": "7 (831) 200-00-03",
+            "maxWeight": 3000,
+            "maxLength": 12,
+            "maxWidth": 2.42,
+            "maxHeight": 2.45,
+            "maxVolume": 0,
+            "maxShippingWeight": 0,
+            "maxShippingVolume": 80
+          }
+        ]
+      }
+    },
+    {
+      "id": "3",
+      "name": "Москва",
+      "code": "7700000000000000000000000",
+      "cityID": 200555,
+      "latitude": "55.759000",
+      "longitude": "37.635000",
+      "url": "www.dellin.ru",
+      "timeshift": "0",
+      "requestEndTime": "23:59",
+      "sfrequestEndTime": "18:00",
+      "day2dayRequest": "1",
+      "day2daySFRequest": "0",
+      "preorderRequest": "1",
+      "freeStorageDays": "2",
+      "terminals": {
+        "terminal": [
+          {
+            "id": "125",
+            "name": "Москва Щелковская",
+            "address": "ул. Монтажная , д. 3",
+            "fullAddress": "107497, Москва г, Монтажная ул, дом № 3",
+            "latitude": "55.818283",
+            "longitude": "37.769585",
+            "isPVZ": false,
+            "cashOnDelivery": false,
+            "storage": false,
+            "mail": null,
+            "isOffice": false,
+            "receiveCargo": true,
+            "giveoutCargo": false,
+            "default": false,
+            "calcSchedule": {
+              "derival": "пн-пт: 09:00-20:00; сб, вс: выходной",
+              "arrival": ""
+            },
+            "mainPhone": "7 (495) 775-55-30",
+            "maxWeight": 3000,
+            "maxLength": 12,
+            "maxWidth": 2.42,
+            "maxHeight": 2.45,
+            "maxVolume": 14.5,
+            "maxShippingWeight": 20000,
+            "maxShippingVolume": 70
+          },
+          {
+            "id": "762",
+            "name": "Москва Капотня (склад)",
+            "address": "Московская обл, Люберецкий р-н, г. Котельники, Дзержинское ш., 14",
+            "fullAddress": "140053, Московская обл, Котельники г, Дзержинское ш, дом № 14",
+            "latitude": "55.646336",
+            "longitude": "37.834568",
+            "isPVZ": false,
+            "cashOnDelivery": true,
+            "storage": true,
+            "mail": null,
+            "isOffice": false,
+            "receiveCargo": false,
+            "giveoutCargo": false,
+            "default": false,
+            "calcSchedule": {
+              "derival": "",
+              "arrival": ""
+            },
+            "mainPhone": "7 (495) 775-55-30",
+            "maxWeight": 3000,
+            "maxLength": 12,
+            "maxWidth": 2.42,
+            "maxHeight": 2.45,
+            "maxVolume": 0,
+            "maxShippingWeight": 19000,
+            "maxShippingVolume": 65
+          },
+          {
+            "id": "18",
+            "name": "Москва Запад",
+            "address": "Рябиновая ул, 37, стр 1",
+            "fullAddress": "121471, Москва г, Рябиновая ул, дом № 37, стр 1",
+            "latitude": "55.704140",
+            "longitude": "37.424175",
+            "isPVZ": false,
+            "cashOnDelivery": true,
+            "storage": false,
+            "mail": "pismo@dellin.ru",
+            "isOffice": false,
+            "receiveCargo": true,
+            "giveoutCargo": true,
+            "default": false,
+            "calcSchedule": {
+              "derival": "пн-пт: 09:00-20:00; сб, вс: выходной",
+              "arrival": "пн-пт: 09:00-20:00; сб, вс: выходной"
+            },
+            "mainPhone": "7 (495) 775-55-30",
+            "maxWeight": 3000,
+            "maxLength": 13,
+            "maxWidth": 2.42,
+            "maxHeight": 2.45,
+            "maxVolume": 14.5,
+            "maxShippingWeight": 20000,
+            "maxShippingVolume": 70
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 /**
  * Выполняется один раз при старте сервера Next (node_modules/next/dist/docs,
- * «Instrumentation»). Здесь — фоновые задачи процесса: опрос ящика заказов, отправка уведомлений
- * и стирание файлов чата старше года.
+ * «Instrumentation»). Здесь — фоновые задачи процесса: опрос ящика заказов, отправка уведомлений,
+ * стирание файлов чата старше года и обновление справочника пунктов ТК.
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
@@ -11,6 +11,8 @@ export async function register() {
     startNotificationDispatch();
     const { startChatRetention } = await import("@/server/chat/retention");
     startChatRetention();
+    const { startTerminalSync } = await import("@/server/carriers/scheduler");
+    startTerminalSync();
     // Импорт истории почты, оборванный выкатом, продолжается сам. Только в бою:
     // базу разработки делят две машины, и продолжили бы его обе
     if (process.env.NODE_ENV === "production") {

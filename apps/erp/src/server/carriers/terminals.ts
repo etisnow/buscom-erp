@@ -1,0 +1,76 @@
+import "server-only";
+import { parseDellinTerminals } from "@buscom/domain/carrier/dellin";
+import { canDeactivateMissing } from "@buscom/domain/carrier/terminals";
+import type { TerminalCarrier } from "@buscom/db/enums";
+import { db } from "@/server/db";
+import { downloadDellinTerminals } from "@/server/carriers/dellin";
+import { readSettings } from "@/server/settings/service";
+
+/**
+ * Справочник пунктов ТК (docs/SITE-PLAN.md, этап 5а). Обновляется из API
+ * перевозчика раз в сутки (`scheduler.ts`) или кнопкой в «Администрирование →
+ * Транспортные компании». Сайт читает таблицу напрямую и от API ТК не зависит.
+ */
+
+export type TerminalSyncSummary = {
+  /** Пунктов в выгрузке */
+  total: number;
+  /** Пунктов, которые не разобрались (битые записи у перевозчика) */
+  skipped: number;
+  /** Погашено пропавших из выгрузки */
+  deactivated: number;
+  /** Выгрузка заметно меньше прежнего — пропавшие не гасились */
+  suspicious: boolean;
+};
+
+/** `null` — ключ ДЛ не задан, обновлять нечем. */
+export async function syncDellinTerminals(): Promise<TerminalSyncSummary | null> {
+  const { dellinAppKey } = (await readSettings()).carriers;
+  if (!dellinAppKey) return null;
+
+  const { terminals, skipped } = parseDellinTerminals(await downloadDellinTerminals(dellinAppKey));
+  const carrier: TerminalCarrier = "DELLIN";
+  const syncedAt = new Date();
+  const activeBefore = await db.carrierTerminal.count({ where: { carrier, isActive: true } });
+
+  // Без общей транзакции: сбой посередине оставит часть пунктов с прежними данными,
+  // и следующее обновление их поправит. Длинная транзакция через туннель хуже
+  for (const { externalId, ...data } of terminals) {
+    await db.carrierTerminal.upsert({
+      where: { carrier_externalId: { carrier, externalId } },
+      create: { carrier, externalId, ...data, syncedAt },
+      update: { ...data, isActive: true, syncedAt },
+    });
+  }
+
+  const suspicious = !canDeactivateMissing(activeBefore, terminals.length);
+  const deactivated = suspicious
+    ? 0
+    : (
+        await db.carrierTerminal.updateMany({
+          where: { carrier, isActive: true, syncedAt: { lt: syncedAt } },
+          data: { isActive: false },
+        })
+      ).count;
+
+  return { total: terminals.length, skipped, deactivated, suspicious };
+}
+
+export function describeTerminalSync(summary: TerminalSyncSummary): string {
+  const parts = [`пунктов ДЛ: ${summary.total}`];
+  if (summary.skipped) parts.push(`не разобрано: ${summary.skipped}`);
+  if (summary.deactivated) parts.push(`закрыто: ${summary.deactivated}`);
+  if (summary.suspicious) parts.push("выгрузка меньше прежней — пропавшие пункты оставлены");
+  return parts.join(", ");
+}
+
+export type TerminalStats = { active: number; givingOut: number; syncedAt: Date | null };
+
+export async function getTerminalStats(carrier: TerminalCarrier): Promise<TerminalStats> {
+  const [active, givingOut, last] = await Promise.all([
+    db.carrierTerminal.count({ where: { carrier, isActive: true } }),
+    db.carrierTerminal.count({ where: { carrier, isActive: true, givesOutCargo: true } }),
+    db.carrierTerminal.aggregate({ where: { carrier }, _max: { syncedAt: true } }),
+  ]);
+  return { active, givingOut, syncedAt: last._max.syncedAt };
+}

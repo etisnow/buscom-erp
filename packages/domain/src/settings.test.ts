@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_CARRIER_SETTINGS,
+  mergeCarrierSettings,
   DEFAULT_SELLER_REQUISITES,
   DEFAULT_SETTINGS,
   DEFAULT_IMAP_SETTINGS,
@@ -191,5 +193,19 @@ describe("IMAP", () => {
   it("порт по умолчанию 993, негодное значение из БД — умолчания", () => {
     expect(imapSettingsSchema.parse({ host: "h" }).port).toBe(993);
     expect(parseSetting("imap", { port: "abc" })).toEqual(DEFAULT_IMAP_SETTINGS);
+  });
+});
+
+describe("ключи API транспортных компаний", () => {
+  it("пустое поле из формы оставляет сохранённый ключ, новый — заменяет, пробелы обрезаются", () => {
+    const saved = { dellinAppKey: "ключ-1" };
+    expect(mergeCarrierSettings(saved, { dellinAppKey: "" })).toEqual(saved);
+    expect(mergeCarrierSettings(saved, { dellinAppKey: "ключ-2" })).toEqual({ dellinAppKey: "ключ-2" });
+    expect(parseSetting("carriers", { dellinAppKey: "  ключ-3 " })).toEqual({ dellinAppKey: "ключ-3" });
+  });
+
+  it("негодное значение из БД — умолчания, по умолчанию ключа нет", () => {
+    expect(parseSetting("carriers", "мусор")).toEqual(DEFAULT_CARRIER_SETTINGS);
+    expect(DEFAULT_SETTINGS.carriers.dellinAppKey).toBe("");
   });
 });
