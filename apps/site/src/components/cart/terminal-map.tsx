@@ -4,89 +4,79 @@ import { useEffect, useRef, useState } from "react";
 import { cityKey } from "@buscom/domain/carrier/terminals";
 
 /**
- * Карта пунктов выдачи в оформлении (Яндекс Карты, JS API v3). Точки ТК
+ * Карта пунктов выдачи в оформлении (Яндекс Карты, JS API 2.1). Точки ТК
  * собираются в кластеры; выбранный город — карта подгоняется под его пункты,
  * выбранный терминал подсвечен; нажатие на точку выбирает терминал.
  *
+ * Версия 2.1, а не 3: ключ владельца (бесплатный тариф) v3 отвечает «Invalid api
+ * key» с разрешённого адреса, 2.1 — принимает (29.09.2026, DECISIONS).
+ *
  * Скрипт API грузится только здесь и один раз на страницу — покупателям без
- * «Деловых линий» он не нужен. Не загрузился (нет сети, ключ не принят) —
- * карты просто нет, выбор списком работает и без неё.
+ * ТК со справочником он не нужен. Не загрузился (нет сети, ключ не принят,
+ * кончился суточный лимит) — карты нет, выбор списком работает и без неё.
  */
 
 export type MapTerminal = { id: string; city: string; name: string; latitude: number | null; longitude: number | null };
 
-/** Координаты в JS API v3 — [долгота, широта] */
-type LngLat = [number, number];
-type Location = { center: LngLat; zoom: number } | { bounds: [LngLat, LngLat] };
+/** Координаты в JS API 2.1 — [широта, долгота] */
+type LatLng = [number, number];
 
-type YMapInstance = {
-  addChild(child: unknown): YMapInstance;
-  update(props: { location: Location & { duration?: number } }): void;
+type EventManager = { add(type: "click", handler: () => void): void };
+type Placemark = { options: { set(key: "preset", value: string): void }; events: EventManager };
+type GeoCollection = { add(object: unknown): void };
+type YMap = {
+  geoObjects: GeoCollection;
+  setBounds(bounds: [LatLng, LatLng], options: { checkZoomRange: boolean; zoomMargin: number; duration: number }): void;
+  setCenter(center: LatLng, zoom: number, options: { duration: number }): void;
   destroy(): void;
-  readonly zoom: number;
 };
-type Feature = { type: "Feature"; id: string; geometry: { type: "Point"; coordinates: LngLat } };
-type Clusterer = { update(props: { marker: (feature: Feature) => unknown }): void };
-type MarkerProps = { coordinates: LngLat; source: string; onClick?: () => void; zIndex?: number };
 type YMaps = {
-  ready: Promise<void>;
-  YMap: new (element: HTMLElement, props: { location: Location }) => YMapInstance;
-  YMapDefaultSchemeLayer: new () => unknown;
-  YMapFeatureDataSource: new (props: { id: string }) => unknown;
-  YMapLayer: new (props: { source: string; type: "markers"; zIndex: number }) => unknown;
-  YMapMarker: new (props: MarkerProps, element: HTMLElement) => unknown;
-  import: ((name: string) => Promise<unknown>) & { registerCdn(url: string, name: string): void };
-};
-type ClustererModule = {
-  YMapClusterer: new (props: {
-    method: unknown;
-    features: Feature[];
-    marker: (feature: Feature) => unknown;
-    cluster: (coordinates: LngLat, features: Feature[]) => unknown;
-  }) => Clusterer;
-  clusterByGrid(options: { gridSize: number }): unknown;
+  ready(): Promise<void>;
+  Map: new (
+    element: HTMLElement,
+    state: { bounds: [LatLng, LatLng]; controls: string[] },
+    options: { suppressMapOpenBlock: boolean; yandexMapDisablePoiInteractivity: boolean },
+  ) => YMap;
+  Clusterer: new (options: { preset: string; groupByCoordinates: boolean; gridSize: number }) => {
+    add(placemarks: Placemark[]): void;
+  };
+  Placemark: new (coordinates: LatLng, properties: { hintContent: string }, options: { preset: string }) => Placemark;
 };
 
-const SOURCE = "terminals";
-const CLUSTERER = "@yandex/ymaps3-clusterer@0.0.12";
+const PIN = "islands#greenDotIcon";
+const PIN_SELECTED = "islands#orangeIcon";
 
-let loading: Promise<{ ymaps: YMaps; clusterer: ClustererModule }> | null = null;
+let loading: Promise<YMaps> | null = null;
 
-function loadMaps(apiKey: string) {
+function loadMaps(apiKey: string): Promise<YMaps> {
   loading ??= new Promise<YMaps>((resolve, reject) => {
     const script = document.createElement("script");
-    script.src = `https://api-maps.yandex.ru/v3/?apikey=${encodeURIComponent(apiKey)}&lang=ru_RU`;
+    script.src = `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(apiKey)}&lang=ru_RU`;
     script.onload = () => {
-      const ymaps = (window as unknown as { ymaps3?: YMaps }).ymaps3;
-      if (ymaps) ymaps.ready.then(() => resolve(ymaps), reject);
-      else reject(new Error("JS API карт не отдал ymaps3"));
+      const ymaps = (window as unknown as { ymaps?: YMaps }).ymaps;
+      if (ymaps) ymaps.ready().then(() => resolve(ymaps), reject);
+      else reject(new Error("JS API карт не отдал ymaps"));
     };
     script.onerror = () => reject(new Error("JS API карт не загрузился"));
     document.head.append(script);
-  }).then(async (ymaps) => {
-    ymaps.import.registerCdn("https://cdn.jsdelivr.net/npm/{package}", CLUSTERER);
-    return { ymaps, clusterer: (await ymaps.import("@yandex/ymaps3-clusterer")) as ClustererModule };
   });
   // Сбой не запоминаем: следующая попытка загрузит заново
   loading.catch(() => (loading = null));
   return loading;
 }
 
-/** Прямоугольник вокруг точек с запасом по краям: [северо-запад, юго-восток] */
-function boundsOf(points: LngLat[]): [LngLat, LngLat] {
-  const lngs = points.map((point) => point[0]);
-  const lats = points.map((point) => point[1]);
-  const [west, east, south, north] = [Math.min(...lngs), Math.max(...lngs), Math.min(...lats), Math.max(...lats)];
-  const padLng = Math.max((east - west) * 0.15, 0.02);
-  const padLat = Math.max((north - south) * 0.15, 0.01);
+/** Прямоугольник вокруг точек: [юго-запад, северо-восток] */
+function boundsOf(points: LatLng[]): [LatLng, LatLng] {
+  const lats = points.map((point) => point[0]);
+  const lngs = points.map((point) => point[1]);
   return [
-    [west - padLng, north + padLat],
-    [east + padLng, south - padLat],
+    [Math.min(...lats), Math.min(...lngs)],
+    [Math.max(...lats), Math.max(...lngs)],
   ];
 }
 
-const coordinatesOf = (terminal: MapTerminal): LngLat | null =>
-  terminal.latitude === null || terminal.longitude === null ? null : [terminal.longitude, terminal.latitude];
+const coordinatesOf = (terminal: MapTerminal): LatLng | null =>
+  terminal.latitude === null || terminal.longitude === null ? null : [terminal.latitude, terminal.longitude];
 
 export function TerminalMap({
   apiKey,
@@ -103,13 +93,12 @@ export function TerminalMap({
   onSelect: (id: string) => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
-  const map = useRef<YMapInstance | null>(null);
-  const clusterer = useRef<Clusterer | null>(null);
-  const markerFor = useRef<((feature: Feature) => unknown) | null>(null);
-  // Обработчики маркеров создаются один раз — свежие значения берут отсюда
-  const latest = useRef({ selectedId, onSelect });
+  const map = useRef<YMap | null>(null);
+  const placemarks = useRef(new Map<string, Placemark>());
+  // Обработчики точек создаются один раз — свежий выбор берут отсюда
+  const onSelectRef = useRef(onSelect);
   useEffect(() => {
-    latest.current = { selectedId, onSelect };
+    onSelectRef.current = onSelect;
   });
   const [failed, setFailed] = useState(false);
   /** Карта создана — подгонка под город и терминал, выбранные до её загрузки, срабатывает сейчас */
@@ -124,67 +113,32 @@ export function TerminalMap({
     });
     if (!element || points.length === 0) return;
     let cancelled = false;
+    const created = placemarks.current;
 
     loadMaps(apiKey).then(
-      ({ ymaps, clusterer: module }) => {
+      (ymaps) => {
         if (cancelled) return;
-        const instance = new ymaps.YMap(element, {
-          location: { bounds: boundsOf(points.map((point) => point.coordinates)) },
+        const instance = new ymaps.Map(
+          element,
+          { bounds: boundsOf(points.map((point) => point.coordinates)), controls: ["zoomControl"] },
+          // Без кнопки «Открыть в Яндекс Картах» и без карточек чужих организаций по клику
+          { suppressMapOpenBlock: true, yandexMapDisablePoiInteractivity: true },
+        );
+        const clusterer = new ymaps.Clusterer({
+          preset: "islands#greenClusterIcons",
+          groupByCoordinates: false,
+          gridSize: 64,
         });
-        instance
-          .addChild(new ymaps.YMapDefaultSchemeLayer())
-          .addChild(new ymaps.YMapFeatureDataSource({ id: SOURCE }))
-          .addChild(new ymaps.YMapLayer({ source: SOURCE, type: "markers", zIndex: 1800 }));
-
-        const byId = new Map(points.map((point) => [point.terminal.id, point.terminal]));
-        const marker = (feature: Feature) => {
-          const selected = feature.id === latest.current.selectedId;
-          const pin = document.createElement("div");
-          pin.className = selected
-            ? "bg-accent size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white shadow-md"
-            : "bg-brand size-4 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full border-2 border-white shadow";
-          pin.title = byId.get(feature.id)?.name ?? "";
-          return new ymaps.YMapMarker(
-            {
-              coordinates: feature.geometry.coordinates,
-              source: SOURCE,
-              zIndex: selected ? 10 : 0,
-              onClick: () => latest.current.onSelect(feature.id),
-            },
-            pin,
-          );
-        };
-        const cluster = (coordinates: LngLat, features: Feature[]) => {
-          const circle = document.createElement("div");
-          circle.className =
-            "bg-brand flex size-9 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-2 border-white text-sm font-semibold text-white shadow-md";
-          circle.textContent = String(features.length);
-          return new ymaps.YMapMarker(
-            {
-              coordinates,
-              source: SOURCE,
-              // Нажатие на кластер приближает к нему
-              onClick: () =>
-                instance.update({ location: { center: coordinates, zoom: instance.zoom + 3, duration: 300 } }),
-            },
-            circle,
-          );
-        };
-
-        const created = new module.YMapClusterer({
-          method: module.clusterByGrid({ gridSize: 64 }),
-          features: points.map((point) => ({
-            type: "Feature",
-            id: point.terminal.id,
-            geometry: { type: "Point", coordinates: point.coordinates },
-          })),
-          marker,
-          cluster,
-        });
-        instance.addChild(created);
+        clusterer.add(
+          points.map(({ terminal, coordinates }) => {
+            const placemark = new ymaps.Placemark(coordinates, { hintContent: terminal.name }, { preset: PIN });
+            placemark.events.add("click", () => onSelectRef.current(terminal.id));
+            created.set(terminal.id, placemark);
+            return placemark;
+          }),
+        );
+        instance.geoObjects.add(clusterer);
         map.current = instance;
-        clusterer.current = created;
-        markerFor.current = marker;
         setReady(true);
       },
       (error: unknown) => {
@@ -198,7 +152,7 @@ export function TerminalMap({
       cancelled = true;
       map.current?.destroy();
       map.current = null;
-      clusterer.current = null;
+      created.clear();
       setReady(false);
     };
   }, [apiKey, terminals]);
@@ -208,25 +162,20 @@ export function TerminalMap({
     const points = terminals
       .filter((terminal) => cityKey(terminal.city) === cityKey(city))
       .map(coordinatesOf)
-      .filter((point): point is LngLat => point !== null);
+      .filter((point): point is LatLng => point !== null);
     if (!map.current || points.length === 0) return;
-    map.current.update({
-      location:
-        points.length === 1
-          ? { center: points[0]!, zoom: 14, duration: 400 }
-          : { bounds: boundsOf(points), duration: 400 },
-    });
+    if (points.length === 1) map.current.setCenter(points[0]!, 14, { duration: 300 });
+    else map.current.setBounds(boundsOf(points), { checkZoomRange: true, zoomMargin: 40, duration: 300 });
   }, [city, terminals, ready]);
 
   // Выбран терминал — подсветка и приближение к нему
   useEffect(() => {
-    if (!clusterer.current || !markerFor.current) return;
-    // Новая функция маркера — сигнал кластеризатору перерисовать точки
-    const marker = markerFor.current;
-    clusterer.current.update({ marker: (feature) => marker(feature) });
+    for (const [id, placemark] of placemarks.current) {
+      placemark.options.set("preset", id === selectedId ? PIN_SELECTED : PIN);
+    }
     const terminal = terminals.find((item) => item.id === selectedId);
     const coordinates = terminal && coordinatesOf(terminal);
-    if (coordinates) map.current?.update({ location: { center: coordinates, zoom: 14, duration: 400 } });
+    if (coordinates) map.current?.setCenter(coordinates, 15, { duration: 300 });
   }, [selectedId, terminals, ready]);
 
   if (failed) return null;
