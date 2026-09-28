@@ -1,13 +1,11 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useId, useMemo, useRef, useState, useTransition } from "react";
+import { cityKey, suggestCities } from "@buscom/domain/carrier/terminals";
 import { CARRIERS } from "@buscom/domain/site/cart";
 import { terminalsAction } from "@/app/korzina/actions";
 
 type Terminal = Awaited<ReturnType<typeof terminalsAction>>[number];
-
-/** Город для сравнения: регистр и «ё» не важны */
-const cityKey = (city: string) => city.trim().toLowerCase().replaceAll("ё", "е");
 
 /**
  * Доставка в оформлении (docs/SITE-PLAN.md, этап 5а). У ТК со справочником пунктов
@@ -78,22 +76,7 @@ export function DeliveryFields({
         </label>
 
         {picking ? (
-          <label className="flex flex-col gap-1.5">
-            <Label>Город получения *</Label>
-            <input
-              list="terminal-cities"
-              value={city}
-              onChange={(event) => chooseCity(event.target.value)}
-              autoComplete="address-level2"
-              placeholder="Начните вводить город"
-              className={input}
-            />
-            <datalist id="terminal-cities">
-              {cities.map((item) => (
-                <option key={item} value={item} />
-              ))}
-            </datalist>
-          </label>
+          <CityInput cities={cities} value={city} onChange={chooseCity} input={input} />
         ) : (
           <label className="flex flex-col gap-1.5">
             <Label>Город и адрес терминала или доставки *</Label>
@@ -110,7 +93,7 @@ export function DeliveryFields({
 
       {picking && (
         <div className="flex flex-col gap-2">
-          {city.trim() && inCity.length === 0 && (
+          {city.trim() && inCity.length === 0 && suggestCities(cities, city).length === 0 && (
             <p className="text-ink-2 text-sm">
               В этом городе нет терминала «{carrier}». Выберите город из подсказок или впишите адрес вручную.
             </p>
@@ -156,6 +139,97 @@ export function DeliveryFields({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Город с подсказками из справочника. Свой список, а не `<datalist>`: тот браузер
+ * рисует по-своему (с системной прокруткой) и ищет совпадения с середины слова.
+ */
+function CityInput({
+  cities,
+  value,
+  onChange,
+  input,
+}: {
+  cities: string[];
+  value: string;
+  onChange: (city: string) => void;
+  input: string;
+}) {
+  const id = useId();
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const suggestions = open ? suggestCities(cities, value) : [];
+
+  function pick(city: string) {
+    onChange(city);
+    setOpen(false);
+  }
+
+  function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (suggestions.length === 0) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      setActive((current) => (current + step + suggestions.length) % suggestions.length);
+    } else if (event.key === "Enter") {
+      // Enter выбирает подсказку, а не отправляет форму
+      event.preventDefault();
+      pick(suggestions[active] ?? suggestions[0]!);
+    } else if (event.key === "Escape") {
+      setOpen(false);
+    }
+  }
+
+  return (
+    <label className="relative flex flex-col gap-1.5">
+      <Label>Город получения *</Label>
+      <input
+        role="combobox"
+        aria-expanded={suggestions.length > 0}
+        aria-controls={`${id}-list`}
+        aria-autocomplete="list"
+        aria-activedescendant={suggestions.length > 0 ? `${id}-${active}` : undefined}
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value);
+          setActive(0);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={onKeyDown}
+        autoComplete="off"
+        placeholder="Начните вводить город"
+        className={input}
+      />
+      {suggestions.length > 0 && (
+        <ul
+          id={`${id}-list`}
+          role="listbox"
+          className="border-line-strong absolute top-full left-0 z-20 mt-1 w-full overflow-hidden rounded-xl border bg-white py-1 shadow-lg"
+        >
+          {suggestions.map((city, index) => (
+            <li
+              key={city}
+              id={`${id}-${index}`}
+              role="option"
+              aria-selected={index === active}
+              // mousedown, а не click: иначе поле потеряет фокус и список закроется раньше выбора
+              onMouseDown={(event) => {
+                event.preventDefault();
+                pick(city);
+              }}
+              onMouseEnter={() => setActive(index)}
+              className={`cursor-pointer px-3.5 py-2.5 text-[15px] ${index === active ? "bg-brand-soft" : ""}`}
+            >
+              {city}
+            </li>
+          ))}
+        </ul>
+      )}
+    </label>
   );
 }
 

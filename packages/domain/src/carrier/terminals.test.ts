@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canDeactivateMissing,
+  suggestCities,
   terminalAddressLine,
   terminalCarrierOf,
   terminalSnapshotSchema,
@@ -44,5 +45,25 @@ describe("снимок терминала", () => {
   it("снимок проходит схему, чужой перевозчик — нет", () => {
     expect(terminalSnapshotSchema.parse(snapshot)).toEqual(snapshot);
     expect(terminalSnapshotSchema.safeParse({ ...snapshot, carrier: "CDEK" }).success).toBe(false);
+  });
+});
+
+describe("suggestCities", () => {
+  const cities = ["Альметьевск", "Москва", "Мурманск", "Набережные Челны", "Нижний Новгород", "Орёл", "Смоленск"];
+
+  it("сначала города с набранного начала, потом — со слова внутри и с середины", () => {
+    expect(suggestCities(cities, "м")).toEqual(["Москва", "Мурманск", "Альметьевск", "Смоленск"]);
+    expect(suggestCities(cities, "новг")).toEqual(["Нижний Новгород"]);
+  });
+
+  it("регистр и «ё» не важны, пустой ввод — ничего, лимит соблюдается", () => {
+    expect(suggestCities(cities, "ОРЕ")).toEqual(["Орёл"]);
+    expect(suggestCities(cities, "ОРЕЛ")).toEqual([]);
+    expect(suggestCities(cities, "  ")).toEqual([]);
+    expect(suggestCities(cities, "н", 2)).toEqual(["Набережные Челны", "Нижний Новгород"]);
+  });
+
+  it("город совпал целиком — подсказка не нужна", () => {
+    expect(suggestCities(cities, "москва")).toEqual([]);
   });
 });

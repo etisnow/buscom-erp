@@ -32,6 +32,33 @@ export const terminalSnapshotSchema = z.object({
 
 export type TerminalSnapshot = z.infer<typeof terminalSnapshotSchema>;
 
+/** Город для сравнения: регистр, пробелы по краям и «ё» не важны */
+export function cityKey(city: string): string {
+  return city.trim().toLowerCase().replaceAll("ё", "е");
+}
+
+/**
+ * Подсказки городов при вводе: сначала те, что начинаются с набранного, затем —
+ * где с него начинается слово («новг» → «Нижний Новгород»), затем — с середины.
+ * Город уже набран целиком — подсказывать нечего.
+ */
+export function suggestCities(cities: readonly string[], query: string, limit = 8): string[] {
+  const needle = cityKey(query);
+  if (!needle || cities.some((city) => cityKey(city) === needle)) return [];
+  const rank = (city: string) => {
+    const key = cityKey(city);
+    if (key.startsWith(needle)) return 0;
+    if (key.split(/[\s-]+/).some((word) => word.startsWith(needle))) return 1;
+    return key.includes(needle) ? 2 : -1;
+  };
+  return cities
+    .map((city) => ({ city, rank: rank(city) }))
+    .filter((item) => item.rank >= 0)
+    .sort((a, b) => a.rank - b.rank || a.city.localeCompare(b.city, "ru"))
+    .slice(0, limit)
+    .map((item) => item.city);
+}
+
 /** Адрес доставки строкой — для поля адреса заказа, писем и накладных. */
 export function terminalAddressLine(terminal: TerminalSnapshot): string {
   return `${terminal.city}, ${terminal.address} (терминал «${terminal.name}»)`;
