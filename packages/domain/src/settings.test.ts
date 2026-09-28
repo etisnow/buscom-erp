@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_CARRIER_SETTINGS,
   mergeCarrierSettings,
+  mergePecSettings,
   DEFAULT_SELLER_REQUISITES,
   DEFAULT_SETTINGS,
   DEFAULT_IMAP_SETTINGS,
@@ -197,22 +198,32 @@ describe("IMAP", () => {
 });
 
 describe("ключи API транспортных компаний", () => {
-  const saved = { dellinAppKey: "ключ-1", yandexMapsApiKey: "карты-1" };
+  const saved = { dellinAppKey: "ключ-1", yandexMapsApiKey: "карты-1", pecLogin: "buscom", pecApiKey: "пэк-1" };
 
   it("пустое поле ключа ДЛ оставляет сохранённый, новый — заменяет; ключ карт форма ДЛ не трогает", () => {
     expect(mergeCarrierSettings(saved, { dellinAppKey: "" })).toEqual(saved);
     expect(mergeCarrierSettings(saved, { dellinAppKey: "ключ-2" })).toEqual({ ...saved, dellinAppKey: "ключ-2" });
   });
 
-  it("пробелы обрезаются, старое значение без ключа карт читается", () => {
+  it("пробелы обрезаются, старое значение без новых ключей читается", () => {
     expect(parseSetting("carriers", { dellinAppKey: "  ключ-3 " })).toEqual({
       dellinAppKey: "ключ-3",
       yandexMapsApiKey: "",
+      pecLogin: "",
+      pecApiKey: "",
+    });
+  });
+
+  it("ПЭК: логин меняется как есть, пустой ключ оставляет сохранённый; остальное не трогается", () => {
+    expect(mergePecSettings(saved, { pecLogin: "новый", pecApiKey: "" })).toEqual({ ...saved, pecLogin: "новый" });
+    expect(mergePecSettings(saved, { pecLogin: "buscom", pecApiKey: "пэк-2" })).toEqual({
+      ...saved,
+      pecApiKey: "пэк-2",
     });
   });
 
   it("негодное значение из БД — умолчания, по умолчанию ключей нет", () => {
     expect(parseSetting("carriers", "мусор")).toEqual(DEFAULT_CARRIER_SETTINGS);
-    expect(DEFAULT_SETTINGS.carriers).toEqual({ dellinAppKey: "", yandexMapsApiKey: "" });
+    expect(DEFAULT_SETTINGS.carriers).toEqual({ dellinAppKey: "", yandexMapsApiKey: "", pecLogin: "", pecApiKey: "" });
   });
 });

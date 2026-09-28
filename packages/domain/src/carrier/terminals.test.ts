@@ -30,8 +30,9 @@ describe("снимок терминала", () => {
     schedule: "пн-пт: 08:00-20:00",
   };
 
-  it("терминалы загружаются только у ДЛ", () => {
+  it("терминалы загружаются у ДЛ и ПЭК", () => {
     expect(terminalCarrierOf("Деловые линии")).toBe("DELLIN");
+    expect(terminalCarrierOf("ПЭК")).toBe("PEC");
     expect(terminalCarrierOf("СДЭК")).toBeNull();
     expect(terminalCarrierOf(undefined)).toBeNull();
   });

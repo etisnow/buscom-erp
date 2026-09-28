@@ -8,24 +8,24 @@ import { Label } from "@/components/ui/label";
 import type { SettingsResult } from "@/app/(app)/admin/dictionaries/actions";
 import {
   checkDellinKeyAction,
+  checkPecAction,
   clearDellinKeyAction,
+  clearPecAction,
   saveCarrierSettingsAction,
   saveMapsKeyAction,
-  syncDellinTerminalsAction,
+  savePecAction,
+  syncTerminalsAction,
 } from "@/app/(app)/admin/carriers/actions";
+import type { TerminalCarrier } from "@buscom/db/enums";
+
+/** Справочник в базе: действующие пункты, из них видимые покупателю, время последнего обновления по Москве */
+export type TerminalsView = { active: number; givingOut: number; syncedAt: string | null };
 
 /**
  * Ключ API «Деловых Линий». Сохранённый ключ в браузер не отдаётся: поле приходит
  * пустым, а `hasDellinKey` говорит, задан ли он. Пустое поле при сохранении — «оставить прежний».
  */
-export function CarrierKeysEditor({
-  hasDellinKey,
-  terminals,
-}: {
-  hasDellinKey: boolean;
-  /** Справочник в базе: действующие пункты, из них выдающие груз, время последнего обновления по Москве */
-  terminals: { active: number; givingOut: number; syncedAt: string | null };
-}) {
+export function CarrierKeysEditor({ hasDellinKey, terminals }: { hasDellinKey: boolean; terminals: TerminalsView }) {
   const [dellinAppKey, setDellinAppKey] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -102,24 +102,7 @@ export function CarrierKeysEditor({
         <span className="text-muted-foreground text-xs">Проверяется ключ из поля, а если оно пустое — сохранённый</span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-        <span className="text-sm">
-          {terminals.syncedAt
-            ? `Терминалов в справочнике: ${terminals.active}, выдают груз: ${terminals.givingOut}. Обновлено ${terminals.syncedAt}`
-            : "Справочник терминалов ещё не загружался"}
-        </span>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={pending || !hasDellinKey}
-          onClick={() => handle(syncDellinTerminalsAction)}
-        >
-          Обновить сейчас
-        </Button>
-        <span className="text-muted-foreground text-xs">
-          В бою справочник обновляется сам раз в сутки; обновление занимает до минуты
-        </span>
-      </div>
+      <TerminalSync carrier="DELLIN" terminals={terminals} enabled={hasDellinKey} />
     </section>
   );
 }
@@ -170,6 +153,153 @@ export function MapsKeyEditor({ yandexMapsApiKey }: { yandexMapsApiKey: string }
           Сохранить ключ карт
         </Button>
       </div>
+    </section>
+  );
+}
+
+/** Строка справочника перевозчика: сколько пунктов, когда обновлён, «Обновить сейчас». */
+function TerminalSync({
+  carrier,
+  terminals,
+  enabled,
+}: {
+  carrier: TerminalCarrier;
+  terminals: TerminalsView;
+  /** Ключ перевозчика сохранён — обновлять есть чем */
+  enabled: boolean;
+}) {
+  const [pending, startTransition] = useTransition();
+
+  function sync() {
+    startTransition(async () => {
+      const result = await syncTerminalsAction(carrier);
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.error);
+    });
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+      <span className="text-sm">
+        {terminals.syncedAt
+          ? `Пунктов в справочнике: ${terminals.active}, из них покупателю показываются: ${terminals.givingOut}. Обновлено ${terminals.syncedAt}`
+          : "Справочник пунктов ещё не загружался"}
+      </span>
+      <Button size="sm" variant="outline" disabled={pending || !enabled} onClick={sync}>
+        {pending ? "Обновляем…" : "Обновить сейчас"}
+      </Button>
+      <span className="text-muted-foreground text-xs">
+        В бою справочник обновляется сам раз в сутки; обновление занимает до минуты
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Доступ к API ПЭК: логин личного кабинета и ключ API. Ключ, как у ДЛ, в браузер
+ * не отдаётся — пустое поле при сохранении оставляет прежний.
+ */
+export function PecKeysEditor({
+  pecLogin,
+  hasPecKey,
+  terminals,
+}: {
+  pecLogin: string;
+  hasPecKey: boolean;
+  terminals: TerminalsView;
+}) {
+  const [login, setLogin] = useState(pecLogin);
+  const [apiKey, setApiKey] = useState("");
+  const [pending, startTransition] = useTransition();
+  const configured = Boolean(pecLogin) && hasPecKey;
+
+  function handle(action: () => Promise<SettingsResult>, clearKey = false) {
+    startTransition(async () => {
+      const result = await action();
+      if (result.ok) {
+        toast.success(result.message);
+        if (clearKey) setApiKey("");
+      } else toast.error(result.error);
+    });
+  }
+
+  return (
+    <section className="flex flex-col gap-3 rounded-lg border p-4">
+      <div>
+        <h2 className="font-heading font-medium">ПЭК</h2>
+        <p className="text-muted-foreground text-sm">
+          Логин{" "}
+          <a href="https://kabinet.pecom.ru/" target="_blank" rel="noreferrer" className="underline">
+            личного кабинета ПЭК
+          </a>{" "}
+          и ключ из раздела «Регистрационные данные → Ключи API» — договор не нужен. По ним ERP берёт список отделений
+          ПЭК; мелкие ПВЗ покупателю не показываются — сиденья туда не примут.
+        </p>
+      </div>
+
+      <div className="grid max-w-2xl gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs" htmlFor="pec-login">
+            Логин кабинета
+          </Label>
+          <Input
+            id="pec-login"
+            autoComplete="off"
+            value={login}
+            onChange={(event) => setLogin(event.target.value)}
+            className="h-8"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs" htmlFor="pec-key">
+            Ключ API
+          </Label>
+          <Input
+            id="pec-key"
+            type="password"
+            autoComplete="new-password"
+            value={apiKey}
+            onChange={(event) => setApiKey(event.target.value)}
+            className="h-8"
+            placeholder={hasPecKey ? "сохранён, оставьте пустым" : ""}
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={pending || !login || (!apiKey && !hasPecKey)}
+          onClick={() => handle(() => savePecAction({ pecLogin: login, pecApiKey: apiKey }), true)}
+        >
+          Сохранить
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={pending || !login || (!apiKey && !hasPecKey)}
+          onClick={() => handle(() => checkPecAction({ pecLogin: login, pecApiKey: apiKey }))}
+        >
+          {pending ? "Проверяем…" : "Проверить"}
+        </Button>
+        {configured ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-destructive"
+            disabled={pending}
+            onClick={() => handle(clearPecAction, true)}
+          >
+            Удалить доступ
+          </Button>
+        ) : null}
+        <span className="text-muted-foreground text-xs">
+          Проверяется то, что в полях, — сохранять перед этим не нужно
+        </span>
+      </div>
+
+      <TerminalSync carrier="PEC" terminals={terminals} enabled={configured} />
     </section>
   );
 }

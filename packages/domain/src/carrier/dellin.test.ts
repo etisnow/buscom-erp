@@ -28,6 +28,7 @@ describe("parseDellinTerminals", () => {
       phone: "7 (831) 200-00-03",
       receivesCargo: true,
       givesOutCargo: true,
+      isPickupPoint: false,
       maxWeightKg: 3000,
       maxLengthCm: 1200,
       maxWidthCm: 242,

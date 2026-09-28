@@ -80,6 +80,8 @@ export function parseDellinTerminals(raw: unknown): { terminals: CarrierTerminal
         phone: terminal.mainPhone,
         receivesCargo: terminal.receiveCargo,
         givesOutCargo: terminal.giveoutCargo,
+        // Отдельных ПВЗ в справочнике ДЛ нет (isPVZ у всех false, 28.09.2026)
+        isPickupPoint: false,
         maxWeightKg: terminal.maxWeight === null ? null : Math.round(terminal.maxWeight),
         maxLengthCm: metersToCm(terminal.maxLength),
         maxWidthCm: metersToCm(terminal.maxWidth),

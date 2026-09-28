@@ -1,0 +1,108 @@
+{
+  "branches": [
+    {
+      "id": "e5c3ede6-5ce7-11df-ac33-0017085a0478",
+      "branchCode": "АМ",
+      "title": "Армавир",
+      "address": "Краснодарский край, г. Армавир, ул. Мичурина, д. 7",
+      "coordinatesobj": { "latitude": 44.98426, "longitude": 41.100951 },
+      "country": "РОССИЯ",
+      "cities": [
+        {
+          "title": "Армавир",
+          "cityId": "22f8a64a-9647-428f-89a6-1208c4edf756",
+          "cityStatus": 1,
+          "divisions": ["8112fb89-5a96-11e4-94e4-00155d9d920f", "2b8edc50-213e-11ec-80cf-00155d4a0436"]
+        },
+        { "title": "Успенское (Успенский р-н)", "cityId": "e15306b6-30ca-11de-b7f2-0019bbc986b4", "divisions": [] }
+      ],
+      "divisions": [
+        {
+          "id": "8112fb89-5a96-11e4-94e4-00155d9d920f",
+          "cityId": "e5c3ede7-5ce7-11df-ac33-0017085a0478",
+          "name": "Армавир",
+          "departmentTypeId": 4,
+          "departmentType": "Основное отделение филиала компании",
+          "warehouses": [
+            {
+              "warehouseCode": "АМ0001",
+              "id": "c496b0c6-8e45-11df-bb3b-0019bbc941ce",
+              "divisionId": "8112fb89-5a96-11e4-94e4-00155d9d920f",
+              "name": "Армавир 01",
+              "divisionName": "Армавир",
+              "address": "г.Армавир, ул.Мичурина 7",
+              "addressDivision": "Россия, Краснодарский край, Армавир, улица Мичурина, 7",
+              "coordinatesobj": { "latitude": 44.98426, "longitude": 41.100951 },
+              "telephone": "8(86137) 638-08",
+              "maxWeight": 0.0,
+              "maxVolume": 0.0,
+              "maxWeightPerPlace": 0.0,
+              "maxDimension": 0.0,
+              "departmentClosingDate": null,
+              "divisionTimeOfWork": [
+                { "workFrom": "09:00", "workTo": "18:00", "dayOfWeek": "1" },
+                { "workFrom": "09:00", "workTo": "18:00", "dayOfWeek": "2" },
+                { "workFrom": "09:00", "workTo": "18:00", "dayOfWeek": "3" },
+                { "workFrom": "09:00", "workTo": "18:00", "dayOfWeek": "4" },
+                { "workFrom": "09:00", "workTo": "18:00", "dayOfWeek": "5" },
+                { "workFrom": "10:00", "workTo": "14:00", "dayOfWeek": "6" }
+              ],
+              "kindsOfTransportation": [
+                { "description": "Автоперевозка", "type": 3, "operations": ["Выдача грузов", "Прием грузов"] },
+                { "description": "Авиаперевозка", "type": 1, "operations": ["Выдача грузов"] }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "2b8edc50-213e-11ec-80cf-00155d4a0436",
+          "cityId": "22f8a64a-9647-428f-89a6-1208c4edf756",
+          "name": "Армавир ПВЗ Ленина",
+          "departmentTypeId": 1,
+          "departmentType": "ПВЗ",
+          "warehouses": [
+            {
+              "id": "5c7775d4-0013-11ec-80cf-00155d4a0436",
+              "name": "Армавир ПВЗ 01",
+              "address": "г.Армавир, ул.Ленина 10",
+              "addressDivision": "Россия, Краснодарский край, Армавир, улица Ленина, 10",
+              "coordinatesobj": { "latitude": 44.99, "longitude": 41.12 },
+              "telephone": "",
+              "maxWeight": 60.0,
+              "maxVolume": 0.25,
+              "maxWeightPerPlace": 30.0,
+              "maxDimension": 0.8,
+              "departmentClosingDate": null,
+              "divisionTimeOfWork": [{ "workFrom": "", "workTo": "23:59", "dayOfWeek": "7" }],
+              "kindsOfTransportation": [{ "description": "Автоперевозка", "type": 3, "operations": ["Выдача грузов"] }]
+            }
+          ]
+        },
+        {
+          "id": "0e963bfc-360e-11eb-80ce-00155d4a0436",
+          "cityId": "22f8a64a-9647-428f-89a6-1208c4edf756",
+          "name": "Армавир закрывается",
+          "departmentTypeId": 0,
+          "warehouses": []
+        },
+        {
+          "id": "8188a021-128d-11ea-80ce-00155d4a0436",
+          "cityId": "22f8a64a-9647-428f-89a6-1208c4edf756",
+          "name": "Армавир Приём",
+          "departmentTypeId": 0,
+          "warehouses": [
+            {
+              "id": "8188a022-128d-11ea-80ce-00155d4a0436",
+              "name": "Армавир 02",
+              "address": "г.Армавир, ул.Кирова 1",
+              "coordinatesobj": { "latitude": 44.97, "longitude": 41.09 },
+              "departmentClosingDate": null,
+              "divisionTimeOfWork": [],
+              "kindsOfTransportation": [{ "description": "Автоперевозка", "type": 3, "operations": ["Прием грузов"] }]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

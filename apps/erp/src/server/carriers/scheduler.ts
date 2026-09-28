@@ -1,5 +1,8 @@
 import "server-only";
-import { describeTerminalSync, syncDellinTerminals } from "@/server/carriers/terminals";
+import type { TerminalCarrier } from "@buscom/db/enums";
+import { describeTerminalSync, syncTerminals } from "@/server/carriers/terminals";
+
+const CARRIERS: TerminalCarrier[] = ["DELLIN", "PEC"];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Первое обновление — не сразу при старте: выкат и так нагружает сервер */
@@ -19,12 +22,15 @@ export function startTerminalSync(): void {
   if (process.env.NODE_ENV !== "production") return;
   for (const timer of globalForTerminals.terminalSyncTimers ?? []) clearTimeout(timer);
 
+  // Перевозчики по очереди: сбой одного не мешает другому
   const tick = async () => {
-    try {
-      const summary = await syncDellinTerminals();
-      if (summary) console.log(`[terminals] Справочник обновлён: ${describeTerminalSync(summary)}`);
-    } catch (error) {
-      console.error("[terminals] Справочник ДЛ не обновлён", error);
+    for (const carrier of CARRIERS) {
+      try {
+        const summary = await syncTerminals(carrier);
+        if (summary) console.log(`[terminals] Справочник обновлён: ${describeTerminalSync(carrier, summary)}`);
+      } catch (error) {
+        console.error(`[terminals] Справочник ${carrier} не обновлён`, error);
+      }
     }
   };
 

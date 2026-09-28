@@ -1,9 +1,12 @@
 import "server-only";
 import { parseDellinTerminals } from "@buscom/domain/carrier/dellin";
-import { canDeactivateMissing } from "@buscom/domain/carrier/terminals";
+import { parsePecBranches } from "@buscom/domain/carrier/pec";
+import { canDeactivateMissing, type CarrierTerminalRecord } from "@buscom/domain/carrier/terminals";
+import type { CarrierSettings } from "@buscom/domain/settings";
 import type { TerminalCarrier } from "@buscom/db/enums";
 import { db } from "@/server/db";
 import { downloadDellinTerminals } from "@/server/carriers/dellin";
+import { downloadPecBranches } from "@/server/carriers/pec";
 import { readSettings } from "@/server/settings/service";
 
 /**
@@ -23,13 +26,24 @@ export type TerminalSyncSummary = {
   suspicious: boolean;
 };
 
-/** `null` — ключ ДЛ не задан, обновлять нечем. */
-export async function syncDellinTerminals(): Promise<TerminalSyncSummary | null> {
-  const { dellinAppKey } = (await readSettings()).carriers;
-  if (!dellinAppKey) return null;
+type Loaded = { terminals: CarrierTerminalRecord[]; skipped: number };
 
-  const { terminals, skipped } = parseDellinTerminals(await downloadDellinTerminals(dellinAppKey));
-  const carrier: TerminalCarrier = "DELLIN";
+/** Откуда берутся пункты каждого перевозчика; `null` — ключ не задан */
+const SOURCES: Record<TerminalCarrier, (settings: CarrierSettings) => Promise<Loaded> | null> = {
+  DELLIN: ({ dellinAppKey }) =>
+    dellinAppKey ? downloadDellinTerminals(dellinAppKey).then(parseDellinTerminals) : null,
+  PEC: ({ pecLogin, pecApiKey }) =>
+    pecLogin && pecApiKey ? downloadPecBranches({ login: pecLogin, apiKey: pecApiKey }).then(parsePecBranches) : null,
+};
+
+export const CARRIER_LABELS: Record<TerminalCarrier, string> = { DELLIN: "ДЛ", PEC: "ПЭК" };
+
+/** `null` — ключ перевозчика не задан, обновлять нечем. */
+export async function syncTerminals(carrier: TerminalCarrier): Promise<TerminalSyncSummary | null> {
+  const loading = SOURCES[carrier]((await readSettings()).carriers);
+  if (!loading) return null;
+
+  const { terminals, skipped } = await loading;
   const syncedAt = new Date();
   const activeBefore = await db.carrierTerminal.count({ where: { carrier, isActive: true } });
 
@@ -56,20 +70,21 @@ export async function syncDellinTerminals(): Promise<TerminalSyncSummary | null>
   return { total: terminals.length, skipped, deactivated, suspicious };
 }
 
-export function describeTerminalSync(summary: TerminalSyncSummary): string {
-  const parts = [`пунктов ДЛ: ${summary.total}`];
+export function describeTerminalSync(carrier: TerminalCarrier, summary: TerminalSyncSummary): string {
+  const parts = [`пунктов ${CARRIER_LABELS[carrier]}: ${summary.total}`];
   if (summary.skipped) parts.push(`не разобрано: ${summary.skipped}`);
   if (summary.deactivated) parts.push(`закрыто: ${summary.deactivated}`);
   if (summary.suspicious) parts.push("выгрузка меньше прежней — пропавшие пункты оставлены");
   return parts.join(", ");
 }
 
+/** `givingOut` — сколько пунктов видит покупатель: выдают груз и не мелкие ПВЗ */
 export type TerminalStats = { active: number; givingOut: number; syncedAt: Date | null };
 
 export async function getTerminalStats(carrier: TerminalCarrier): Promise<TerminalStats> {
   const [active, givingOut, last] = await Promise.all([
     db.carrierTerminal.count({ where: { carrier, isActive: true } }),
-    db.carrierTerminal.count({ where: { carrier, isActive: true, givesOutCargo: true } }),
+    db.carrierTerminal.count({ where: { carrier, isActive: true, givesOutCargo: true, isPickupPoint: false } }),
     db.carrierTerminal.aggregate({ where: { carrier }, _max: { syncedAt: true } }),
   ]);
   return { active, givingOut, syncedAt: last._max.syncedAt };

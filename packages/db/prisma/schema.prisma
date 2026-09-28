@@ -761,6 +761,7 @@ model DictionaryItem {
 /// Перевозчики, у которых терминалы загружаются по API (docs/SITE-PLAN.md, этап 5а)
 enum TerminalCarrier {
   DELLIN
+  PEC
 }
 
 /// Терминалы и пункты транспортных компаний — из них покупатель выбирает пункт
@@ -785,6 +786,9 @@ model CarrierTerminal {
   phone         String?
   receivesCargo Boolean
   givesOutCargo Boolean
+  /// Мелкий пункт выдачи (у ПЭК — ПВЗ с лимитом в десятки килограммов): покупателю не показывается,
+  /// сиденья и крупные комплектующие туда не примут (решение владельца 29.09.2026)
+  isPickupPoint Boolean         @default(false)
   /// Ограничения на одно место: вес в килограммах, стороны в сантиметрах
   maxWeightKg   Int?
   maxLengthCm   Int?

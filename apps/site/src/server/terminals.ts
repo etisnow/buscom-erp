@@ -28,7 +28,8 @@ const TERMINALS_TTL = 3600;
 const listCached = unstable_cache(
   async (carrier: TerminalCarrier): Promise<TerminalOption[]> => {
     const terminals = await db.carrierTerminal.findMany({
-      where: { carrier, isActive: true, givesOutCargo: true },
+      // Мелкие ПВЗ не показываем: сиденья туда не примут (решение владельца 29.09.2026)
+      where: { carrier, isActive: true, givesOutCargo: true, isPickupPoint: false },
       orderBy: [{ cityName: "asc" }, { name: "asc" }],
       select: {
         externalId: true,
@@ -79,9 +80,17 @@ export async function findTerminal(carrierName: string, id: string): Promise<Ter
   if (!carrier) return null;
   const terminal = await db.carrierTerminal.findUnique({
     where: { carrier_externalId: { carrier, externalId: id } },
-    select: { name: true, cityName: true, address: true, schedule: true, isActive: true, givesOutCargo: true },
+    select: {
+      name: true,
+      cityName: true,
+      address: true,
+      schedule: true,
+      isActive: true,
+      givesOutCargo: true,
+      isPickupPoint: true,
+    },
   });
-  if (!terminal?.isActive || !terminal.givesOutCargo) return null;
+  if (!terminal?.isActive || !terminal.givesOutCargo || terminal.isPickupPoint) return null;
   return {
     carrier,
     code: id,

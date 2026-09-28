@@ -163,11 +163,20 @@ export const carrierSettingsSchema = z.object({
    * ключом, защита — ограничение по адресу сайта в кабинете Яндекса
    */
   yandexMapsApiKey: z.string().trim().max(200).default(""),
+  /** Логин личного кабинета ПЭК — логин Basic-авторизации API */
+  pecLogin: z.string().trim().max(200).default(""),
+  /** Ключ API из кабинета ПЭК («Регистрационные данные → Ключи API») — пароль Basic-авторизации */
+  pecApiKey: z.string().trim().max(200).default(""),
 });
 
 export type CarrierSettings = z.infer<typeof carrierSettingsSchema>;
 
-export const DEFAULT_CARRIER_SETTINGS: CarrierSettings = { dellinAppKey: "", yandexMapsApiKey: "" };
+export const DEFAULT_CARRIER_SETTINGS: CarrierSettings = {
+  dellinAppKey: "",
+  yandexMapsApiKey: "",
+  pecLogin: "",
+  pecApiKey: "",
+};
 
 /**
  * Сохранение из формы ключа ДЛ. Ключ в браузер не отдаётся, как пароль почты:
@@ -247,4 +256,16 @@ export function transferCard(requisites: SellerRequisites): { bank: string; numb
 /** Реквизиты заполнены настолько, что счёт печатать осмысленно. */
 export function requisitesReady(requisites: SellerRequisites): boolean {
   return Boolean(requisites.name.trim() && requisites.inn.trim() && requisites.bankAccount.trim());
+}
+
+/** Сохранение из формы ПЭК: логин — как есть, ключ — как у ДЛ: пустое поле оставляет сохранённый. */
+export function mergePecSettings(
+  current: CarrierSettings,
+  incoming: Pick<CarrierSettings, "pecLogin" | "pecApiKey">,
+): CarrierSettings {
+  return {
+    ...current,
+    pecLogin: incoming.pecLogin,
+    pecApiKey: incoming.pecApiKey === "" ? current.pecApiKey : incoming.pecApiKey,
+  };
 }
