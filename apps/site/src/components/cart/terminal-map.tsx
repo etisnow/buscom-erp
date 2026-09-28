@@ -188,7 +188,8 @@ export function TerminalMap({
         setReady(true);
       },
       (error: unknown) => {
-        console.error("[map] Карта не загрузилась", error);
+        // Не error: карта необязательна, выбор списком работает и без неё
+        console.warn("[map] Карта не загрузилась", error);
         if (!cancelled) setFailed(true);
       },
     );
