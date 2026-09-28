@@ -2,7 +2,8 @@ import { beforeEach, expect, it } from "vitest";
 import { retryInboxEntry } from "@/server/integrations/inbox";
 import { ingestSiteOrder } from "@/server/integrations/site-orders";
 import { describeDb, resetDb, testDb } from "@/test/db";
-import { makeProduct } from "@/test/fixtures";
+import { updateOrderDelivery } from "@/server/orders/delivery";
+import { makeProduct, makeUser } from "@/test/fixtures";
 
 function payload(overrides: Record<string, unknown> = {}) {
   return {
@@ -138,6 +139,29 @@ describeDb("приём заказов с сайта (живая БД)", () => {
     expect(order.deliveryPriceKopecks).toBe(30_000);
     expect(order.totalKopecks).toBe(200_000);
     expect(order.events.some((event) => event.comment?.includes("не совпала"))).toBe(false);
+  });
+
+  it("терминал, выбранный на сайте, сохраняется снимком; правка адреса сбрасывает его", async () => {
+    const terminal = {
+      carrier: "DELLIN",
+      code: "296",
+      name: "Нижний Новгород Московское (основной)",
+      city: "Нижний Новгород",
+      address: "Московское ш., 52",
+      schedule: "пн-пт: 08:00-20:00",
+    };
+    const address = "Нижний Новгород, Московское ш., 52 (терминал «Нижний Новгород Московское (основной)»)";
+    await ingestSiteOrder(payload({ delivery: { method: "CARRIER", carrier: "Деловые линии", address, terminal } }));
+
+    const order = await testDb.order.findFirstOrThrow();
+    expect(order).toMatchObject({ carrier: "Деловые линии", deliveryAddress: address, deliveryTerminal: terminal });
+
+    const manager = await makeUser("MANAGER");
+    await updateOrderDelivery({ orderId: order.id, user: manager, trackingNumber: "123" });
+    expect((await testDb.order.findUniqueOrThrow({ where: { id: order.id } })).deliveryTerminal).toEqual(terminal);
+
+    await updateOrderDelivery({ orderId: order.id, user: manager, deliveryAddress: "Казань, ул. Техническая, 20" });
+    expect((await testDb.order.findUniqueOrThrow({ where: { id: order.id } })).deliveryTerminal).toBeNull();
   });
 
   it("дата создания берётся из payload", async () => {

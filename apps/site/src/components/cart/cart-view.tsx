@@ -6,12 +6,13 @@ import { useEffect, useState, useTransition } from "react";
 import { formatRub } from "@buscom/domain/money";
 import { pluralize } from "@buscom/domain/money-words";
 import { describeOptions } from "@buscom/domain/product/options";
-import { CARRIERS, cartToText, MAX_QUANTITY, type PricedCart } from "@buscom/domain/site/cart";
+import { cartToText, MAX_QUANTITY, type PricedCart } from "@buscom/domain/site/cart";
 import { lookupCompanyAction, placeOrderAction, priceCartAction } from "@/app/korzina/actions";
 import { ecommerce, reachGoal } from "@/components/analytics/metrika";
 import { NoPhoto } from "@/components/catalog/product-card";
 import { COMPANY, SITE_ORIGIN } from "@/config/company";
 import { cartActions, useCart } from "./cart-store";
+import { DeliveryFields } from "./delivery-fields";
 
 /**
  * Корзина и оформление (экран 04). Цены показываются из пересчёта на сервере
@@ -254,6 +255,7 @@ function CheckoutForm({
       inn: formData.get("inn") ?? undefined,
       kpp: formData.get("kpp") ?? undefined,
       carrier: formData.get("carrier") || undefined,
+      terminalId: formData.get("terminalId") || undefined,
       address: formData.get("address") ?? undefined,
       comment: formData.get("comment"),
       consent: formData.get("consent") === "on",
@@ -339,30 +341,7 @@ function CheckoutForm({
           Отправляем транспортной компанией по России, в Беларусь, Казахстан и Киргизию. Доставку оплачиваете
           транспортной компании по её тарифу — в сумму заказа она не входит.
         </p>
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-          <label className="flex flex-col gap-1.5">
-            <Label>Транспортная компания *</Label>
-            <select name="carrier" defaultValue="" className={input}>
-              <option value="" disabled>
-                Выберите
-              </option>
-              {CARRIERS.map((carrier) => (
-                <option key={carrier}>{carrier}</option>
-              ))}
-            </select>
-            {field("carrier")}
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <Label>Город и адрес терминала или доставки *</Label>
-            <input
-              name="address"
-              autoComplete="street-address"
-              placeholder="Например, Казань, ул. Техническая, 20"
-              className={input}
-            />
-            {field("address")}
-          </label>
-        </div>
+        <DeliveryFields input={input} field={field} />
       </fieldset>
 
       <fieldset className="flex flex-col gap-4">

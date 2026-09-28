@@ -3,6 +3,7 @@
  * Схема зафиксирована здесь: при несовместимых изменениях заводится /v2, а не правится эта.
  */
 import { z } from "zod";
+import { terminalSnapshotSchema } from "../carrier/terminals";
 import { orderItemOptionSchema } from "../product/options";
 
 const kopecks = z.number().int().min(0, { error: "Суммы — целые копейки, не меньше нуля" });
@@ -41,6 +42,11 @@ export const siteOrderSchema = z.object({
       method: z.enum(["PICKUP", "CARRIER", "COURIER"]).nullish(),
       carrier: z.string().nullish(),
       address: z.string().nullish(),
+      /**
+       * Добавлено 2026-09-28, необязательное — совместимо с v1. Снимок терминала ТК,
+       * выбранного из справочника (новый сайт); `address` при этом — тот же терминал строкой
+       */
+      terminal: terminalSnapshotSchema.nullish(),
       priceKopecks: kopecks.default(0),
     })
     .optional(),

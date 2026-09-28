@@ -17,6 +17,7 @@ import type { SiteOrderPayload } from "@buscom/domain/integration/contract";
 import { SlidingWindowLimiter } from "@buscom/domain/site/rate-limit";
 import { db } from "@/server/db";
 import { postToErp } from "@/server/erp";
+import { findTerminal } from "@/server/terminals";
 
 /**
  * Корзина и заказ на стороне сервера сайта. Цены — из базы на момент запроса,
@@ -94,7 +95,18 @@ export async function placeOrder(cartInput: unknown, formInput: unknown, ip: str
     return { ok: false, error: "Часть товаров изменилась — проверьте корзину и отправьте заказ ещё раз", cart };
   }
 
-  return sendOrder(buildSiteOrderPayload(form.data, cart), ip);
+  // Терминал — из справочника по коду: адрес и название из браузера не принимаются
+  const { terminalId, carrier } = form.data;
+  const terminal = terminalId && carrier ? await findTerminal(carrier, terminalId) : null;
+  if (terminalId && !terminal) {
+    return {
+      ok: false,
+      error: "Проверьте поля формы",
+      fieldErrors: { terminalId: "Этот терминал больше не выдаёт грузы — выберите другой" },
+    };
+  }
+
+  return sendOrder(buildSiteOrderPayload(form.data, cart, terminal), ip);
 }
 
 /** Товар из карточки «в 1 клик»: одна позиция, имя и телефон. Цена — из базы, как в корзине. */

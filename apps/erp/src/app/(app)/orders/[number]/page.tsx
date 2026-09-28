@@ -6,6 +6,7 @@ import { MobileCollapsible } from "@/components/layout/mobile-collapsible";
 import { Button } from "@/components/ui/button";
 import { OrderCustomer } from "@/components/orders/order-customer";
 import { OrderDelivery } from "@/components/orders/order-delivery";
+import { terminalSnapshotSchema } from "@buscom/domain/carrier/terminals";
 import { OrderHeader } from "@/components/orders/order-header";
 import { OrderHistory } from "@/components/orders/order-history";
 import { OrderItems } from "@/components/orders/order-items";
@@ -399,6 +400,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
               deliveryMethod={order.deliveryMethod}
               carrier={order.carrier}
               deliveryAddress={order.deliveryAddress}
+              terminal={terminalSnapshotSchema.safeParse(order.deliveryTerminal).data ?? null}
               deliveryPriceKopecks={order.deliveryPriceKopecks}
               trackingNumber={order.trackingNumber}
               shippedAt={order.shippedAt ? toDateInput(order.shippedAt) : ""}

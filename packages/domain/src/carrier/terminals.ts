@@ -2,6 +2,40 @@
  * Пункты транспортных компаний — общий вид для всех перевозчиков (docs/SITE-PLAN.md,
  * этап 5а). Разбор ответа конкретной ТК приводит к нему, дальше код одинаков.
  */
+import { z } from "zod";
+import type { TerminalCarrier } from "@buscom/db/enums";
+
+/**
+ * Перевозчики, у которых есть справочник пунктов: название в справочнике ТК
+ * (как в `CARRIERS` сайта и в ERP) → код. У остальных ТК адрес вписывается руками.
+ */
+const TERMINAL_CARRIERS: Record<string, TerminalCarrier> = { "Деловые линии": "DELLIN" };
+
+export function terminalCarrierOf(carrierName: string | null | undefined): TerminalCarrier | null {
+  return (carrierName && TERMINAL_CARRIERS[carrierName]) || null;
+}
+
+/**
+ * Снимок выбранного терминала в заказе — на момент оформления, как снимок позиции:
+ * пункт могут переименовать или закрыть, а в заказе должно остаться, куда ехать.
+ */
+export const terminalSnapshotSchema = z.object({
+  carrier: z.enum(["DELLIN"] satisfies TerminalCarrier[]),
+  /** Код пункта у перевозчика */
+  code: z.string().min(1).max(64),
+  name: z.string().min(1).max(300),
+  city: z.string().min(1).max(200),
+  address: z.string().min(1).max(500),
+  /** График выдачи груза */
+  schedule: z.string().max(500).nullable(),
+});
+
+export type TerminalSnapshot = z.infer<typeof terminalSnapshotSchema>;
+
+/** Адрес доставки строкой — для поля адреса заказа, писем и накладных. */
+export function terminalAddressLine(terminal: TerminalSnapshot): string {
+  return `${terminal.city}, ${terminal.address} (терминал «${terminal.name}»)`;
+}
 
 export type CarrierTerminalRecord = {
   /** Код пункта у перевозчика */

@@ -2,6 +2,7 @@ import "server-only";
 import type { Kopecks } from "@buscom/domain/money";
 import type { Cargo } from "@buscom/domain/order/delivery";
 import { TERMINAL_STATUSES } from "@buscom/domain/order/status";
+import { Prisma } from "@buscom/db/client";
 import type { DeliveryMethod } from "@buscom/db/enums";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
@@ -36,6 +37,12 @@ export async function updateOrderDelivery(input: UpdateDeliveryInput): Promise<O
     if (TERMINAL_STATUSES.includes(order.status)) {
       throw new ForbiddenError("Заказ закрыт — доставку изменить нельзя");
     }
+    // Снимок терминала описывает прежние ТК и адрес — после их правки он бы врал
+    const terminalChanged =
+      order.deliveryTerminal !== null &&
+      ((input.carrier !== undefined && input.carrier !== order.carrier) ||
+        (input.deliveryAddress !== undefined && input.deliveryAddress !== order.deliveryAddress) ||
+        (input.deliveryMethod !== undefined && input.deliveryMethod !== order.deliveryMethod));
     const data = {
       ...(input.deliveryMethod !== undefined ? { deliveryMethod: input.deliveryMethod } : {}),
       ...(input.carrier !== undefined ? { carrier: input.carrier } : {}),
@@ -53,7 +60,10 @@ export async function updateOrderDelivery(input: UpdateDeliveryInput): Promise<O
         : {}),
     };
 
-    await tx.order.update({ where: { id: order.id }, data });
+    await tx.order.update({
+      where: { id: order.id },
+      data: { ...data, ...(terminalChanged ? { deliveryTerminal: Prisma.DbNull } : {}) },
+    });
     if (input.deliveryPriceKopecks !== undefined) {
       await recalculateOrderTotals(tx, order.id, input.user);
     }
@@ -68,6 +78,7 @@ export async function updateOrderDelivery(input: UpdateDeliveryInput): Promise<O
           deliveryMethod: order.deliveryMethod,
           carrier: order.carrier,
           deliveryAddress: order.deliveryAddress,
+          deliveryTerminal: order.deliveryTerminal as Prisma.InputJsonValue | null,
           deliveryPriceKopecks: order.deliveryPriceKopecks,
           trackingNumber: order.trackingNumber,
           shippedAt: order.shippedAt,
@@ -76,7 +87,7 @@ export async function updateOrderDelivery(input: UpdateDeliveryInput): Promise<O
           cargoWidthCm: order.cargoWidthCm,
           cargoHeightCm: order.cargoHeightCm,
         },
-        after: data,
+        after: { ...data, ...(terminalChanged ? { deliveryTerminal: null } : {}) },
       },
     });
 

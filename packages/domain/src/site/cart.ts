@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { terminalAddressLine, terminalCarrierOf, type TerminalSnapshot } from "../carrier/terminals";
 import { normalizePhone } from "../customer/phone";
 import type { SiteOrderPayload } from "../integration/contract";
 import { formatRub, type Kopecks } from "../money";
@@ -149,6 +150,8 @@ export const checkoutSchema = z
     kpp: optional(9),
     deliveryMethod: z.enum(["PICKUP", "CARRIER"]),
     carrier: z.enum(CARRIERS).optional(),
+    /** Код терминала из справочника ТК; сам терминал сервер сайта берёт из базы, не из браузера */
+    terminalId: optional(64),
     address: optional(500),
     comment: optional(2000),
     consent: z.boolean(),
@@ -174,17 +177,31 @@ export const checkoutSchema = z
     if (value.deliveryMethod === "CARRIER") {
       if (!value.carrier)
         ctx.addIssue({ code: "custom", path: ["carrier"], message: "Выберите транспортную компанию" });
-      if (!value.address)
+      if (!value.address && !(value.terminalId && terminalCarrierOf(value.carrier)))
         ctx.addIssue({ code: "custom", path: ["address"], message: "Укажите город и адрес доставки" });
     }
   })
-  .transform((value) => ({ ...value, phone: normalizePhone(value.phone) as string }));
+  .transform((value) => ({
+    ...value,
+    phone: normalizePhone(value.phone) as string,
+    // Терминал выбирается только у ТК со справочником пунктов; у остальных код не значит ничего
+    terminalId: value.deliveryMethod === "CARRIER" && terminalCarrierOf(value.carrier) ? value.terminalId : undefined,
+  }));
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
-/** Заказ в формате контракта v1 для ERP. Цены — из пересчёта по базе, не из браузера. */
-export function buildSiteOrderPayload(input: CheckoutInput, cart: PricedCart): SiteOrderPayload {
+/**
+ * Заказ в формате контракта v1 для ERP. Цены — из пересчёта по базе, не из браузера.
+ * `terminal` — терминал, найденный сервером сайта в справочнике по `input.terminalId`:
+ * тогда адрес доставки — этот терминал, а не вписанное руками.
+ */
+export function buildSiteOrderPayload(
+  input: CheckoutInput,
+  cart: PricedCart,
+  terminal: TerminalSnapshot | null = null,
+): SiteOrderPayload {
   const company = input.customerType === "COMPANY";
+  const carrier = input.deliveryMethod === "CARRIER";
   return {
     externalId: `web-${input.requestId}`,
     numberedByErp: true,
@@ -207,8 +224,9 @@ export function buildSiteOrderPayload(input: CheckoutInput, cart: PricedCart): S
     })),
     delivery: {
       method: input.deliveryMethod,
-      carrier: input.deliveryMethod === "CARRIER" ? (input.carrier ?? null) : null,
-      address: input.deliveryMethod === "CARRIER" ? (input.address ?? null) : null,
+      carrier: carrier ? (input.carrier ?? null) : null,
+      address: carrier ? (terminal ? terminalAddressLine(terminal) : (input.address ?? null)) : null,
+      ...(carrier && terminal ? { terminal } : {}),
       priceKopecks: 0,
     },
     // Онлайн-оплаты нет (решение владельца 24.09.2026): юрлицу — счёт, физлицу
@@ -259,6 +277,7 @@ export function buildQuickOrderPayload(input: QuickOrderInput, cart: PricedCart)
       // Способ доставки ниже заменяется пустым — его уточнит менеджер
       deliveryMethod: "PICKUP",
       carrier: undefined,
+      terminalId: undefined,
       address: undefined,
       comment: undefined,
     },

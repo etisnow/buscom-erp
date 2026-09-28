@@ -19,6 +19,7 @@ import {
   type Cargo,
 } from "@buscom/domain/order/delivery";
 import { ORDER_DOCUMENT_LABELS } from "@buscom/domain/order/order-document";
+import type { TerminalSnapshot } from "@buscom/domain/carrier/terminals";
 import type { DeliveryMethod } from "@buscom/db/enums";
 import {
   deleteOrderDocumentAction,
@@ -40,6 +41,7 @@ export function OrderDelivery({
   deliveryMethod,
   carrier,
   deliveryAddress,
+  terminal,
   deliveryPriceKopecks,
   trackingNumber,
   shippedAt,
@@ -55,6 +57,8 @@ export function OrderDelivery({
   deliveryMethod: DeliveryMethod | null;
   carrier: string | null;
   deliveryAddress: string | null;
+  /** Терминал, выбранный покупателем из справочника ТК, — снимок на момент заказа */
+  terminal: TerminalSnapshot | null;
   deliveryPriceKopecks: number;
   trackingNumber: string | null;
   /** `2026-09-24` по Москве; пусто — не отгружен */
@@ -217,6 +221,12 @@ export function OrderDelivery({
             disabled={!canEdit}
             className={cn("h-8", mark("address"))}
           />
+          {terminal ? (
+            <span className="text-muted-foreground text-xs">
+              Терминал выбран покупателем из справочника, код {terminal.code}
+              {terminal.schedule ? `. Выдача: ${terminal.schedule}` : ""}. Правка ТК или адреса сбросит выбор
+            </span>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-1.5">

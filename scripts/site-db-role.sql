@@ -25,5 +25,6 @@ GRANT SELECT ON
   "ProductOption",
   "ProductOptionValue",
   "UrlRedirect",
-  "SitePage"
+  "SitePage",
+  "CarrierTerminal"
 TO buscom_site;

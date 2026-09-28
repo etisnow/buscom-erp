@@ -152,6 +152,7 @@ export async function createOrderFromPayload(
         deliveryMethod: payload.delivery?.method ?? null,
         carrier: payload.delivery?.carrier ?? null,
         deliveryAddress: payload.delivery?.address ?? null,
+        ...(payload.delivery?.terminal ? { deliveryTerminal: payload.delivery.terminal } : {}),
         deliveryPriceKopecks: payload.delivery?.priceKopecks ?? 0,
         customerComment: payload.comment ?? null,
         items: {

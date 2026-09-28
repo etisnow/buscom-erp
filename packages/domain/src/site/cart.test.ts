@@ -145,6 +145,36 @@ describe("оформление", () => {
       totalKopecks: 1_150_000,
     });
   });
+
+  it("выбран терминал — адрес вписывать не нужно, в заказ уходит снимок терминала", () => {
+    const input = checkoutSchema.parse({
+      ...base,
+      deliveryMethod: "CARRIER",
+      carrier: "Деловые линии",
+      terminalId: "296",
+    });
+    const terminal = {
+      carrier: "DELLIN" as const,
+      code: "296",
+      name: "Нижний Новгород Московское (основной)",
+      city: "Нижний Новгород",
+      address: "Московское ш., 52",
+      schedule: "пн-пт: 08:00-20:00",
+    };
+    const cart = priceCart([{ productId: "p-seat", valueIds: ["v-3"], quantity: 1 }], catalog);
+    expect(siteOrderSchema.parse(buildSiteOrderPayload(input, cart, terminal)).delivery).toEqual({
+      method: "CARRIER",
+      carrier: "Деловые линии",
+      address: "Нижний Новгород, Московское ш., 52 (терминал «Нижний Новгород Московское (основной)»)",
+      terminal,
+      priceKopecks: 0,
+    });
+  });
+
+  it("код терминала у ТК без справочника отбрасывается — нужен адрес", () => {
+    const result = checkoutSchema.safeParse({ ...base, deliveryMethod: "CARRIER", carrier: "СДЭК", terminalId: "1" });
+    expect(result.error?.issues.map((issue) => issue.path.join("."))).toEqual(["address"]);
+  });
 });
 
 describe("купить в 1 клик", () => {

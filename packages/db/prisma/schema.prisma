@@ -508,6 +508,9 @@ model Order {
   deliveryMethod   DeliveryMethod?
   carrier          String?
   deliveryAddress  String?
+  /// Снимок терминала ТК, выбранного покупателем из справочника (`TerminalSnapshot`,
+  /// packages/domain/src/carrier/terminals.ts). Сбрасывается, когда меняют ТК или адрес
+  deliveryTerminal Json?
   trackingNumber   String?
   /// Дата отгрузки: правится в карточке, при переходе в «Выполнен» ставится сама, если пусто
   shippedAt        DateTime?
