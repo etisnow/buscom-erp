@@ -20,7 +20,7 @@ export function Logo({ inverse = false, tagline = true }: { inverse?: boolean; t
           src={bus}
           alt=""
           unoptimized
-          priority
+          loading="eager"
           className={`h-5 w-auto md:h-[25px] ${inverse ? "brightness-0 invert" : ""}`}
         />
       </span>

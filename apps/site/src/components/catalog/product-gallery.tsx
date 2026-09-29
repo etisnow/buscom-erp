@@ -8,8 +8,9 @@ import { NoPhoto } from "./product-card";
  * Галерея карточки (макет, экран 03): большой снимок и превью — столбиком слева на
  * десктопе, лентой снизу на телефоне. Лента листается без видимой полосы прокрутки
  * (полоса съедала ширину превью), стрелками на снимке и щелчком по превью; выбранное
- * превью докручивается в видимую часть. Первый снимок предзагружается — это LCP
- * карточки. Размеры и webp — оптимизатор Next (next.config.ts, images).
+ * превью докручивается в видимую часть. Первый снимок — LCP карточки: грузится сразу
+ * и с высоким приоритетом. Не `preload`: ссылка в <head> шла без приоритета и спорила
+ * со шрифтами, а сам <img> и так есть в HTML. Размеры и webp — оптимизатор Next (next.config.ts, images).
  * `badges` — метки поверх снимка («Хит»).
  */
 export function ProductGallery({ imageIds, name, badges }: { imageIds: string[]; name: string; badges?: ReactNode }) {
@@ -47,7 +48,8 @@ export function ProductGallery({ imageIds, name, badges }: { imageIds: string[];
             alt={name}
             fill
             sizes="(min-width: 1440px) 640px, (min-width: 1024px) 45vw, 100vw"
-            preload={active === 0}
+            loading="eager"
+            fetchPriority={active === 0 ? "high" : undefined}
             className="object-contain"
           />
         ) : (
