@@ -11,7 +11,40 @@ on:
   pull_request:
 
 jobs:
+  # В main коммит попадает тем же SHA, что уже прошёл полный CI в development
+  # (пуш `development:main`). Повторять `check` (~3,5 минуты) незачем: если для этого
+  # SHA в development есть зелёный прогон CI — job check пропускается. Пропущенный
+  # job для итога CI и для выката (deploy.yml ждёт success) равен успешному.
+  # Нет зелёного прогона (коммит пошёл в main в обход development, либо прогон
+  # development ещё идёт) — check запускается как обычно. Сборка образов (docker)
+  # идёт всегда: из неё берётся публикация в GHCR.
+  gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      skip: ${{ steps.gate.outputs.skip }}
+    steps:
+      - id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: |
+          skip=false
+          if [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]; then
+            n=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$SHA&branch=development&status=success" --jq '.total_count' || echo 0)
+            echo "Зелёных прогонов CI в development для $SHA: $n"
+            [ "${n:-0}" -gt 0 ] && skip=true
+          fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+
   check:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
 
     services:

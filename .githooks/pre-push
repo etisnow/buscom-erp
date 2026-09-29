@@ -1,0 +1,26 @@
+#!/bin/sh
+# Проверки перед пушем: форматирование, типы, линтер и тесты (pnpm check, ~1,5 минуты).
+# Так ошибка ловится до отправки, а не красным крестиком в CI через несколько минут.
+# Тесты по живой базе и сборка Docker-образов локально не идут — их гоняет CI.
+#
+# Подключается сама при `pnpm install` (скрипт prepare) — или вручную:
+#   git config core.hooksPath .githooks
+# Обойти один раз: git push --no-verify
+
+set -e
+
+# Пуш того же коммита второй раз (development, затем development:main) не проверяем заново
+sha=$(git rev-parse HEAD)
+marker="$(git rev-parse --git-dir)/pre-push-checked"
+if [ -z "$(git status --porcelain)" ] && [ "$(cat "$marker" 2>/dev/null)" = "$sha" ]; then
+  echo "pre-push: коммит ${sha%"${sha#???????}"} уже проверен — пропускаю"
+  exit 0
+fi
+
+echo "pre-push: pnpm check (для обхода — git push --no-verify)"
+pnpm check
+
+# Запоминаем только чистое дерево: иначе проверенное могло отличаться от коммита
+if [ -z "$(git status --porcelain)" ]; then
+  echo "$sha" > "$marker"
+fi

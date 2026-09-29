@@ -9,6 +9,7 @@
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "check": "pnpm format:check && pnpm -r check",
+    "prepare": "git config core.hooksPath .githooks || true",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:tunnel": "tsx scripts/db-tunnel.ts",
