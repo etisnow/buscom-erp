@@ -231,15 +231,30 @@ describe("ключи API транспортных компаний", () => {
 });
 
 describe("ключи внешних сервисов", () => {
-  it("пустое поле ключа dewatermark оставляет сохранённый, новый — заменяет", () => {
-    const saved = { dewatermarkApiKey: "dw-1" };
-    expect(mergeServiceSettings(saved, { dewatermarkApiKey: "" })).toEqual(saved);
-    expect(mergeServiceSettings(saved, { dewatermarkApiKey: "dw-2" })).toEqual({ dewatermarkApiKey: "dw-2" });
+  it("пустое поле ключа оставляет сохранённый, новый — заменяет; ключи не мешают друг другу", () => {
+    const saved = { dewatermarkApiKey: "dw-1", photoroomApiKey: "pr-1" };
+    expect(mergeServiceSettings(saved, { dewatermarkApiKey: "", photoroomApiKey: "" })).toEqual(saved);
+    expect(mergeServiceSettings(saved, { dewatermarkApiKey: "dw-2", photoroomApiKey: "" })).toEqual({
+      dewatermarkApiKey: "dw-2",
+      photoroomApiKey: "pr-1",
+    });
+    expect(mergeServiceSettings(saved, { dewatermarkApiKey: "", photoroomApiKey: "pr-2" })).toEqual({
+      dewatermarkApiKey: "dw-1",
+      photoroomApiKey: "pr-2",
+    });
   });
 
-  it("пробелы обрезаются; негодное значение из БД — умолчания, по умолчанию ключа нет", () => {
-    expect(parseSetting("services", { dewatermarkApiKey: "  dw-3 " })).toEqual({ dewatermarkApiKey: "dw-3" });
+  it("пробелы обрезаются; негодное значение из БД — умолчания, по умолчанию ключей нет", () => {
+    expect(parseSetting("services", { dewatermarkApiKey: "  dw-3 ", photoroomApiKey: " pr-3 " })).toEqual({
+      dewatermarkApiKey: "dw-3",
+      photoroomApiKey: "pr-3",
+    });
+    // Настройка, сохранённая до появления ключа Photoroom, читается с пустым ключом
+    expect(parseSetting("services", { dewatermarkApiKey: "dw-4" })).toEqual({
+      dewatermarkApiKey: "dw-4",
+      photoroomApiKey: "",
+    });
     expect(parseSetting("services", "мусор")).toEqual(DEFAULT_SERVICE_SETTINGS);
-    expect(DEFAULT_SETTINGS.services).toEqual({ dewatermarkApiKey: "" });
+    expect(DEFAULT_SETTINGS.services).toEqual({ dewatermarkApiKey: "", photoroomApiKey: "" });
   });
 });

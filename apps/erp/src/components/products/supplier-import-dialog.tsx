@@ -51,8 +51,9 @@ export function SupplierImportDialog({
         <DialogHeader>
           <DialogTitle>Импорт с сайта поставщика</DialogTitle>
           <DialogDescription>
-            Пока — «Фургон Проект» (vanproject.ru). Скачаются название, описание, варианты с закупками и снимки; водяной
-            знак со снимков снимется. Товар заведётся, когда вы проверите форму и нажмёте «Сохранить».
+            Пока — «Фургон Проект» (vanproject.ru). Скачаются название, описание, варианты с закупками и снимки как у
+            поставщика; знак и фон у нужных снимков убираются в форме товара. Товар заведётся, когда вы проверите форму
+            и нажмёте «Сохранить».
           </DialogDescription>
         </DialogHeader>
         <form
@@ -73,11 +74,7 @@ export function SupplierImportDialog({
             disabled={pending}
             autoFocus
           />
-          {pending ? (
-            <p className="text-muted-foreground text-xs">
-              Скачиваю страницу и снимки, снимаю водяные знаки — это может занять до пары минут…
-            </p>
-          ) : null}
+          {pending ? <p className="text-muted-foreground text-xs">Скачиваю страницу и снимки…</p> : null}
         </form>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>

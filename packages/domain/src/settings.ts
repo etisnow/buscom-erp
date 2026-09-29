@@ -199,17 +199,20 @@ export function mergeCarrierSettings(
 export const serviceSettingsSchema = z.object({
   /** Ключ API dewatermark.ai — снятие водяного знака со снимков при импорте товара поставщика */
   dewatermarkApiKey: z.string().trim().max(200).default(""),
+  /** Ключ API photoroom.com — удаление фона со снимков при импорте товара поставщика */
+  photoroomApiKey: z.string().trim().max(200).default(""),
 });
 
 export type ServiceSettings = z.infer<typeof serviceSettingsSchema>;
 
-export const DEFAULT_SERVICE_SETTINGS: ServiceSettings = { dewatermarkApiKey: "" };
+export const DEFAULT_SERVICE_SETTINGS: ServiceSettings = { dewatermarkApiKey: "", photoroomApiKey: "" };
 
 /** Ключ в браузер не отдаётся, как пароль почты: пустое поле — «оставить сохранённый». */
 export function mergeServiceSettings(current: ServiceSettings, incoming: ServiceSettings): ServiceSettings {
   return {
     ...current,
     dewatermarkApiKey: incoming.dewatermarkApiKey === "" ? current.dewatermarkApiKey : incoming.dewatermarkApiKey,
+    photoroomApiKey: incoming.photoroomApiKey === "" ? current.photoroomApiKey : incoming.photoroomApiKey,
   };
 }
 

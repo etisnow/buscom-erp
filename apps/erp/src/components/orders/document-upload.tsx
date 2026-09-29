@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition, type DragEvent } from "react";
+import { useRef, useState, useTransition, type ClipboardEvent, type DragEvent } from "react";
 import { FileText, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,15 @@ export function DocumentUpload({
 
   const dropHandlers = editable
     ? {
+        // Скриншот или скопированный файл: зона в фокусе (клик по ней) → Ctrl+V
+        onPaste: (event: ClipboardEvent<HTMLDivElement>) => {
+          const file = [...event.clipboardData.files].find(
+            (item) => item.type === "application/pdf" || item.type.startsWith("image/"),
+          );
+          if (!file) return;
+          event.preventDefault();
+          if (!pending) send(file);
+        },
         onDragOver: (event: DragEvent<HTMLDivElement>) => {
           if (!hasFiles(event)) return;
           event.preventDefault();
@@ -87,9 +96,10 @@ export function DocumentUpload({
   return (
     <div
       {...dropHandlers}
+      tabIndex={editable ? 0 : undefined}
       className={cn(
         "flex flex-wrap items-center gap-2 text-sm",
-        editable && "rounded-md border border-dashed p-2 transition-colors",
+        editable && "focus-visible:border-primary rounded-md border border-dashed p-2 transition-colors outline-none",
         dragging && "border-primary bg-primary/5",
       )}
     >
@@ -143,7 +153,11 @@ export function DocumentUpload({
             </Button>
           ) : null}
           <span className="text-muted-foreground text-xs">
-            {pending ? "Загружается…" : dragging ? "Отпустите, чтобы прикрепить" : "или перетащите файл сюда"}
+            {pending
+              ? "Загружается…"
+              : dragging
+                ? "Отпустите, чтобы прикрепить"
+                : "или перетащите файл сюда, или щёлкните здесь и вставьте из буфера (Ctrl+V)"}
           </span>
         </>
       ) : null}

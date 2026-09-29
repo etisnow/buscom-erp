@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { detectImageType } from "@buscom/domain/product/images";
 import { ForbiddenError } from "@/server/errors";
 import {
   fetchSupplierCombos,
@@ -9,8 +10,10 @@ import {
   type SupplierCombosResult,
   type SupplierPriceResult,
 } from "@/server/products/supplier-price";
+import { getDewatermarkKey, removeWatermark } from "@/server/products/dewatermark";
+import { getPhotoroomKey, removeBackground } from "@/server/products/photoroom";
 import { addImages, deleteImage, makeImageMain } from "@/server/products/images";
-import { createProduct, deleteProduct, updateProduct } from "@/server/products/service";
+import { canEditCatalog, createProduct, deleteProduct, updateProduct } from "@/server/products/service";
 import { importFromSupplier, type SupplierImportResult } from "@/server/products/supplier-import";
 import { requireUser } from "@/server/session";
 
@@ -122,6 +125,44 @@ export async function importFromSupplierAction(url: string): Promise<SupplierImp
     if (error instanceof ForbiddenError) return { ok: false, error: error.message };
     throw error;
   }
+}
+
+export type ImageOperation = "watermark" | "background";
+
+export type ProcessImageResult = { ok: true; base64: string; contentType: string } | { ok: false; error: string };
+
+/**
+ * Обработка одного снимка нового товара внешним сервисом: снять водяной знак (dewatermark.ai)
+ * или удалить фон (Photoroom). Ничего не сохраняет — результат уходит в форму, где человек
+ * может вернуть оригинал. Снимки шлём по одному: так запрос укладывается в лимит тела.
+ */
+export async function processImageAction(base64: string, operation: ImageOperation): Promise<ProcessImageResult> {
+  const user = await requireUser();
+  if (!canEditCatalog(user.role)) return { ok: false, error: "Недостаточно прав, чтобы заводить товары" };
+  const parsed = z.string().min(1).max(8_000_000).safeParse(base64);
+  if (!parsed.success || (operation !== "watermark" && operation !== "background")) {
+    return { ok: false, error: "Не удалось прочитать снимок" };
+  }
+  const image = new Uint8Array(Buffer.from(parsed.data, "base64"));
+  if (!detectImageType(image)) return { ok: false, error: "Это не картинка" };
+
+  const key = operation === "watermark" ? await getDewatermarkKey() : await getPhotoroomKey();
+  if (!key) {
+    return {
+      ok: false,
+      error: `Ключ ${operation === "watermark" ? "dewatermark.ai" : "Photoroom"} не задан в «Администрирование → Внешние сервисы»`,
+    };
+  }
+  const result =
+    operation === "watermark"
+      ? await removeWatermark(image, "image", key)
+      : await removeBackground(image, "image", key);
+  if (!result.ok) return result;
+  return {
+    ok: true,
+    base64: Buffer.from(result.data).toString("base64"),
+    contentType: detectImageType(result.data) ?? "image/jpeg",
+  };
 }
 
 export async function updateProductAction(id: string, input: z.input<typeof draftSchema>): Promise<ProductResult> {

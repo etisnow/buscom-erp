@@ -3,7 +3,8 @@
  * прочитанные штрихкоды → поля блока «Доставка». Чистая функция без OCR —
  * распознавание в `src/server/orders/waybill-recognition.ts`.
  *
- * Правила сняты с экспедиторской расписки «Деловых Линий» (№26-01211275323).
+ * Правила сняты с экспедиторской расписки «Деловых Линий» (№26-01211275323)
+ * и с накладной СДЭК (№10327118658, штрихкод с префиксом `[CDK]`).
  * OCR на сканах ошибается в цифрах, поэтому менеджер проверяет подставленное
  * перед сохранением, а номер сверяется со штрихкодом — там он без ошибок.
  */
@@ -38,7 +39,56 @@ const squash = (value: string) =>
 /** Как ТК подписывает себя на бланке, если это не совпадает с названием в справочнике. */
 const CARRIER_ALIASES: Record<string, string[]> = {
   деловыелинии: ["dellin", "деловыхлиний"],
+  сдэк: ["cdek"],
 };
+
+/** Штрихкод СДЭК читается как «[CDK]10327118658». */
+const CDEK_BARCODE = /^\[CDK\](\d{10,11})$/;
+
+/** Накладная СДЭК: штрихкод с префиксом, логотип (OCR путает буквы, но «cdek.ru» иногда читается) или заголовок. */
+export function isCdekWaybill(text: string, barcodes: readonly string[]): boolean {
+  return (
+    barcodes.some((code) => CDEK_BARCODE.test(code)) || /cdek|сдэк/i.test(text) || /Накладная\s+к\s+Заказу/.test(text)
+  );
+}
+
+/**
+ * Номер накладной СДЭК: из штрихкода — он без ошибок; иначе отдельная строка из 10–11
+ * цифр под штрихкодом, если OCR прочитал ровно одну такую.
+ */
+export function findCdekTrackingNumber(text: string, barcodes: readonly string[]): string | null {
+  for (const code of barcodes) {
+    const match = CDEK_BARCODE.exec(code);
+    if (match) return match[1]!;
+  }
+  const lines = text.split("\n").filter((line) => /^\s*\d{10,11}\s*$/.test(line));
+  return lines.length === 1 ? lines[0]!.trim() : null;
+}
+
+/** «Стоимость доставки: 420.00 руб.» — у СДЭК цена доставки подписана так, «Итог» на бланке нет. */
+export function findDeliveryCostKopecks(text: string): Kopecks | null {
+  const match = /Стоимость\s+доставки\s*:?\s*(\d{1,3}(?:[  ]?\d{3})*[.,]\d{2})/i.exec(text);
+  if (!match) return null;
+  try {
+    return rublesToKopecks(match[1]!);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Куда едет посылка СДЭК: город из шапки («Дубна / Московская область / Россия») и пункт
+ * выдачи из строки «ПВЗ: …». OCR иногда рвёт слово на конце («Дубн а») — склеиваем.
+ */
+export function findCdekDestination(text: string): string | null {
+  const city =
+    /((?:[А-ЯЁ][а-яё-]+ )*[А-ЯЁ][а-яё-]+(?: [а-яё])?)\s*\n\s*(?:[а-яё]+ )?[А-ЯЁ][а-яё-]+(?: [А-ЯЁа-яё-]+)*\s(?:область|край|округ)\s*\n\s*Россия/.exec(
+      text,
+    )?.[1];
+  const point = /ПВЗ\s*:\s*(.+?)(?=\s+(?:Особые|Доп\.)|\s*$)/m.exec(text)?.[1]?.trim();
+  const parts = [city?.replace(/ ([а-яё])$/, "$1"), point ? `ПВЗ: ${point}` : null].filter(Boolean);
+  return parts.length > 0 ? parts.join(", ") : null;
+}
 
 /**
  * ТК из справочника, чьё название есть в тексте. Короткие названия («КИТ», «ПЭК»)
@@ -142,7 +192,10 @@ export function findDeliveryDate(text: string, documentDate: string | null = fin
 
 /** Вес «18 кг» / «18,5 кг» → граммы. Первое упоминание. */
 export function findWeightGrams(text: string): number | null {
-  const match = /(\d+(?:[.,]\d{1,3})?)\s*кг(?![а-яё])/i.exec(text);
+  // У СДЭК первым идёт «0.600/1.044 кг» (физический/объёмный) — берём «Вес к оплате»
+  const match =
+    /Вес\s+к\s+оплате\s*:?\s*(\d+(?:[.,]\d{1,3})?)\s*кг(?![а-яё])/i.exec(text) ??
+    /(\d+(?:[.,]\d{1,3})?)\s*кг(?![а-яё])/i.exec(text);
   if (!match) return null;
   const grams = Math.round(Number(match[1].replace(",", ".")) * 1000);
   return grams > 0 && grams <= MAX_CARGO_WEIGHT_GRAMS ? grams : null;
@@ -179,16 +232,18 @@ export function findDestination(text: string): string | null {
 
 export function parseWaybill(text: string, barcodes: readonly string[], carriers: readonly string[]): WaybillFields {
   const sides = findDimensionsCm(text);
+  const cdek = isCdekWaybill(text, barcodes);
   return {
-    carrier: findCarrier(text, carriers),
-    trackingNumber: findTrackingNumber(text, barcodes),
+    // Логотип СДЭК OCR не читает («СЭБК»), а по штрихкоду и заголовку накладная опознаётся
+    carrier: findCarrier(cdek ? `${text} cdek` : text, carriers),
+    trackingNumber: findTrackingNumber(text, barcodes) ?? (cdek ? findCdekTrackingNumber(text, barcodes) : null),
     shippedAt: findDocumentDate(text),
     deliveryDate: findDeliveryDate(text),
     weightGrams: findWeightGrams(text),
     lengthCm: sides?.[0] ?? null,
     widthCm: sides?.[1] ?? null,
     heightCm: sides?.[2] ?? null,
-    priceKopecks: findTotalKopecks(text),
-    destination: findDestination(text),
+    priceKopecks: findTotalKopecks(text) ?? findDeliveryCostKopecks(text),
+    destination: findDestination(text) ?? (cdek ? findCdekDestination(text) : null),
   };
 }

@@ -1,18 +1,42 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SettingsResult } from "@/app/(app)/admin/dictionaries/actions";
-import { clearDewatermarkKeyAction, saveDewatermarkKeyAction } from "@/app/(app)/admin/services/actions";
+import {
+  clearDewatermarkKeyAction,
+  clearPhotoroomKeyAction,
+  saveDewatermarkKeyAction,
+  savePhotoroomKeyAction,
+} from "@/app/(app)/admin/services/actions";
 
 /**
- * Ключ API dewatermark.ai. Сохранённый ключ в браузер не отдаётся: поле приходит
+ * Ключ API внешнего сервиса. Сохранённый ключ в браузер не отдаётся: поле приходит
  * пустым, а `hasKey` говорит, задан ли он. Пустое поле при сохранении — «оставить прежний».
  */
-export function DewatermarkKeyEditor({ hasKey, hasEnvKey }: { hasKey: boolean; hasEnvKey: boolean }) {
+function ServiceKeyEditor({
+  id,
+  title,
+  description,
+  hasKey,
+  envStatus,
+  emptyStatus,
+  onSave,
+  onClear,
+}: {
+  id: string;
+  title: string;
+  description: ReactNode;
+  hasKey: boolean;
+  /** Что сказать, если ключа здесь нет, но он есть в окружении сервера; null — окружения нет */
+  envStatus: string | null;
+  emptyStatus: string;
+  onSave: (value: string) => Promise<SettingsResult>;
+  onClear: () => Promise<SettingsResult>;
+}) {
   const [value, setValue] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -26,32 +50,21 @@ export function DewatermarkKeyEditor({ hasKey, hasEnvKey }: { hasKey: boolean; h
     });
   }
 
-  const status = hasKey
-    ? "Пустое поле оставит сохранённый ключ"
-    : hasEnvKey
-      ? "Здесь ключ не задан — работает ключ из переменной DEWATERMARK_API_KEY на сервере"
-      : "Ключ не задан — снимки импортируются со знаком";
+  const status = hasKey ? "Пустое поле оставит сохранённый ключ" : (envStatus ?? emptyStatus);
 
   return (
     <section className="flex flex-col gap-3 rounded-lg border p-4">
       <div>
-        <h2 className="font-heading font-medium">Снятие водяного знака</h2>
-        <p className="text-muted-foreground text-sm">
-          Ключ API из кабинета{" "}
-          <a href="https://dewatermark.ai/" target="_blank" rel="noreferrer" className="underline">
-            dewatermark.ai
-          </a>
-          . По нему «Импорт с сайта поставщика» в «Товарах» снимает знак поставщика со снимков; в форме импорта у
-          каждого снимка можно вернуть оригинал. Сервис платный: каждый снимок — один кредит.
-        </p>
+        <h2 className="font-heading font-medium">{title}</h2>
+        <p className="text-muted-foreground text-sm">{description}</p>
       </div>
 
       <div className="flex max-w-md flex-col gap-1.5">
-        <Label className="text-xs" htmlFor="dewatermark-key">
+        <Label className="text-xs" htmlFor={id}>
           Ключ API
         </Label>
         <Input
-          id="dewatermark-key"
+          id={id}
           type="password"
           autoComplete="off"
           value={value}
@@ -67,7 +80,7 @@ export function DewatermarkKeyEditor({ hasKey, hasEnvKey }: { hasKey: boolean; h
           size="sm"
           variant="outline"
           disabled={pending || !value.trim()}
-          onClick={() => handle(() => saveDewatermarkKeyAction(value))}
+          onClick={() => handle(() => onSave(value))}
         >
           Сохранить ключ
         </Button>
@@ -77,12 +90,60 @@ export function DewatermarkKeyEditor({ hasKey, hasEnvKey }: { hasKey: boolean; h
             variant="ghost"
             className="text-destructive"
             disabled={pending}
-            onClick={() => handle(clearDewatermarkKeyAction)}
+            onClick={() => handle(onClear)}
           >
             Удалить ключ
           </Button>
         ) : null}
       </div>
     </section>
+  );
+}
+
+export function DewatermarkKeyEditor({ hasKey, hasEnvKey }: { hasKey: boolean; hasEnvKey: boolean }) {
+  return (
+    <ServiceKeyEditor
+      id="dewatermark-key"
+      title="Снятие водяного знака"
+      description={
+        <>
+          Ключ API из кабинета{" "}
+          <a href="https://dewatermark.ai/" target="_blank" rel="noreferrer" className="underline">
+            dewatermark.ai
+          </a>
+          . По нему «Импорт с сайта поставщика» в «Товарах» снимает знак поставщика со снимков; в форме импорта у
+          каждого снимка можно вернуть оригинал. Сервис платный: каждый снимок — один кредит.
+        </>
+      }
+      hasKey={hasKey}
+      envStatus={hasEnvKey ? "Здесь ключ не задан — работает ключ из переменной DEWATERMARK_API_KEY на сервере" : null}
+      emptyStatus="Ключ не задан — снимки импортируются со знаком"
+      onSave={saveDewatermarkKeyAction}
+      onClear={clearDewatermarkKeyAction}
+    />
+  );
+}
+
+export function PhotoroomKeyEditor({ hasKey }: { hasKey: boolean }) {
+  return (
+    <ServiceKeyEditor
+      id="photoroom-key"
+      title="Удаление фона"
+      description={
+        <>
+          Ключ API из кабинета{" "}
+          <a href="https://www.photoroom.com/api" target="_blank" rel="noreferrer" className="underline">
+            photoroom.com
+          </a>
+          . По нему «Импорт с сайта поставщика» в «Товарах» делает фон снимков прозрачным; в форме импорта у каждого
+          снимка можно вернуть оригинал. Сервис платный: каждый снимок — один запрос по тарифу.
+        </>
+      }
+      hasKey={hasKey}
+      envStatus={null}
+      emptyStatus="Ключ не задан — фон со снимков не удаляется"
+      onSave={savePhotoroomKeyAction}
+      onClear={clearPhotoroomKeyAction}
+    />
   );
 }

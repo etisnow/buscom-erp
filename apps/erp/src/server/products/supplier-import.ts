@@ -11,35 +11,28 @@ import {
 } from "@buscom/domain/product/vanproject-product";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
-import { getDewatermarkKey, removeWatermark } from "@/server/products/dewatermark";
 import { canEditCatalog } from "@/server/products/service";
 import { BROWSER_HEADERS, MAX_BYTES, priceCombos, request, statusError } from "@/server/products/supplier-price";
 import type { SessionUser } from "@/server/session";
 
 /**
  * Импорт товара со страницы поставщика (пока «Фургон Проект», vanproject.ru):
- * страница → название, описание, варианты с закупками, снимки без водяного
- * знака → черновик для формы нового товара. Ничего не сохраняет: товар заводит
+ * страница → название, описание, варианты с закупками, снимки → черновик для формы нового товара. Ничего не сохраняет: товар заводит
  * человек кнопкой в форме, сверив и поправив поля (docs/DECISIONS.md, 28.09.2026).
  *
- * Снимки уходят в форму base64 — и оригинал, и очищенный: сервис снятия знака
- * перерисовывает участок, и человек выбирает, что оставить.
+ * Снимки уходят в форму как есть (base64): снять знак или фон человек решает сам
+ * у выбранных снимков в форме (`processImageAction`).
  */
 
 const SOURCE_NAME = "Фургон Проект";
 /** Больше снимков у карточки поставщика не бывает; больше — не качаем */
 const MAX_IMAGES = 12;
 const IMAGE_CONCURRENCY = 3;
-const DEWATERMARK_CONCURRENCY = 2;
 
 export type ImportedImage = {
   sourceUrl: string;
-  /** base64 и тип оригинала со знаком */
+  /** base64 и тип снимка как есть у поставщика */
   original: { base64: string; contentType: string };
-  /** Без знака; null — не сняли (нет ключа или сервис не справился) */
-  cleaned: { base64: string; contentType: string } | null;
-  /** Почему знак не снят */
-  error: string | null;
 };
 
 export type SupplierImportDraft = {
@@ -129,22 +122,6 @@ export async function importFromSupplier(rawUrl: string, user: SessionUser): Pro
     warnings.push(`У товара ${product.imageUrls.length} снимков — взяты первые ${MAX_IMAGES}`);
   }
   const images = await downloadImages(imageUrls, warnings);
-  if (images.length > 0) {
-    const dewatermarkKey = await getDewatermarkKey();
-    if (dewatermarkKey) {
-      await cleanImages(images, dewatermarkKey);
-      const failed = images.filter((image) => !image.cleaned).length;
-      if (failed > 0)
-        warnings.push(
-          `Водяной знак не снят с ${failed} из ${images.length} снимков: ${images.find((image) => image.error)?.error}`,
-        );
-    } else {
-      warnings.push(
-        "Водяной знак не снимался: ключ dewatermark.ai не задан в «Администрирование → Внешние сервисы» — снимки со знаком",
-      );
-      for (const image of images) image.error = "не настроено";
-    }
-  }
 
   return {
     ok: true,
@@ -188,33 +165,10 @@ async function downloadImages(urls: string[], warnings: string[]): Promise<Impor
       results[index] = {
         sourceUrl: url,
         original: { base64: Buffer.from(data).toString("base64"), contentType },
-        cleaned: null,
-        error: null,
       };
     }
   };
   await Promise.all(Array.from({ length: Math.min(IMAGE_CONCURRENCY, urls.length) }, worker));
   if (failed > 0) warnings.push(`Не скачалось снимков: ${failed} из ${urls.length}`);
   return results.filter((image): image is ImportedImage => image !== null);
-}
-
-async function cleanImages(images: ImportedImage[], key: string): Promise<void> {
-  let next = 0;
-  const worker = async () => {
-    while (next < images.length) {
-      const image = images[next++]!;
-      const original = new Uint8Array(Buffer.from(image.original.base64, "base64"));
-      const fileName = image.sourceUrl.split("/").pop() || "image.jpg";
-      const result = await removeWatermark(original, fileName, key);
-      if (result.ok) {
-        image.cleaned = {
-          base64: Buffer.from(result.data).toString("base64"),
-          contentType: detectImageType(result.data) ?? "image/jpeg",
-        };
-      } else {
-        image.error = result.error;
-      }
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(DEWATERMARK_CONCURRENCY, images.length) }, worker));
 }
