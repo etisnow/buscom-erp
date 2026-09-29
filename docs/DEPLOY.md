@@ -145,10 +145,10 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --bui
 **4. Первый администратор**
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production run --rm migrate pnpm db:seed
+docker compose -f docker-compose.prod.yml --env-file .env.production --profile seed run --rm --build seed
 ```
 
-Сид идемпотентен: существующего пользователя не трогает. Он же заводит демо-каталог товаров — для боевой базы это, скорее всего, лишнее, тогда заводите товары через `/products`.
+Образ `seed` собирается прямо на сервере (код ERP без сборки Next, памяти хватает) и в реестр не публикуется; образ `migrate` теперь лёгкий и сида в себе не содержит. Сид идемпотентен: существующего пользователя не трогает. Он же заводит демо-каталог товаров — для боевой базы это, скорее всего, лишнее, тогда заводите товары через `/products`.
 
 **5. Проверить**
 

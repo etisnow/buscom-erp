@@ -10,7 +10,8 @@
 #
 # Цели сборки:
 #   runner   — приложение (по умолчанию)
-#   migrator — тот же код плюс Prisma CLI, чтобы накатывать миграции и сид
+#   migrator — лёгкий образ: Prisma CLI, схема и миграции пакета db
+#   seeder   — код ERP для разового сида первого администратора
 #   site     — сайт bus-com.ru (apps/site)
 #
 # Node 22 — та же мажорная версия, что в CI (.github/workflows/ci.yml).
@@ -57,16 +58,42 @@ ENV DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build" \
 RUN pnpm --filter @buscom/erp build
 
 # ---------------------------------------------------------------------------
-# Миграции и сид. Отдельная цель со всем инструментарием: в рабочем образе
+# Миграции. Лёгкий образ: только Prisma CLI, схема и миграции пакета db — без
+# кода приложений, без next и без результата сборки. Раньше это была вся стадия
+# сборки (~2,5 ГБ), и она уезжала на сервер при каждом выкате. В рабочем образе
 # ни Prisma CLI, ни схемы нет, и это правильно — накат миграций должен быть
 # осознанным шагом, а не побочным эффектом старта контейнера.
 # ---------------------------------------------------------------------------
-FROM builder AS migrator
+FROM base AS migrator
+# Манифесты всех пакетов нужны, чтобы pnpm сверил их с lockfile; ставится только db
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/erp/package.json ./apps/erp/
+COPY packages/db/package.json packages/db/prisma.config.ts ./packages/db/
+COPY packages/domain/package.json ./packages/domain/
+COPY apps/site/package.json ./apps/site/
+COPY packages/db/prisma ./packages/db/prisma
+# postinstall пакета db запускает prisma generate
+RUN pnpm install --frozen-lockfile --filter "@buscom/db..."
+# Проверка прямо в сборке: CLI запускается, схема читается и валидна (без базы)
+RUN cd packages/db && DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build" pnpm exec prisma validate
 ENV NODE_ENV=production
-# Схема и миграции — в packages/db. Рабочий каталог — ERP: сид заводит её
-# администратора (`run --rm migrate pnpm db:seed`, docs/DEPLOY.md)
+WORKDIR /app/packages/db
+CMD ["pnpm", "exec", "prisma", "migrate", "deploy"]
+
+# ---------------------------------------------------------------------------
+# Сид первого администратора — разовая операция при заведении контура
+# (`--profile seed run --rm seed`, docs/DEPLOY.md). Нужен код ERP и все
+# зависимости, но не сборка Next: собирается на сервере за минуту и без пика памяти.
+# ---------------------------------------------------------------------------
+FROM deps AS seeder
+COPY . .
+ENV DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build" \
+    BETTER_AUTH_SECRET="build-only-not-a-real-secret-32-chars" \
+    BETTER_AUTH_URL="http://localhost:3000" \
+    SITE_WEBHOOK_SECRET="build-only-not-a-real-secret-32-chars" \
+    NODE_ENV=production
 WORKDIR /app/apps/erp
-CMD ["pnpm", "--filter", "@buscom/db", "exec", "prisma", "migrate", "deploy"]
+CMD ["pnpm", "db:seed"]
 
 # ---------------------------------------------------------------------------
 # Сайт bus-com.ru (apps/site). Своя сборка: ей не нужны заглушки переменных ERP,

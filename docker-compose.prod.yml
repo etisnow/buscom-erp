@@ -50,8 +50,21 @@ services:
     restart: "no"
     environment:
       DATABASE_URL: ${DATABASE_URL:?переменная обязательна}
-      # Нужны не миграциям, а сиду: этот же контейнер запускают командой
-      # `run --rm migrate pnpm db:seed` при заведении первого администратора.
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Сид первого администратора — разовая операция, по умолчанию не поднимается
+  # (профиль seed): `--profile seed run --rm --build seed` (docs/DEPLOY.md).
+  # Собирается на месте: образ нужен раз в жизни контура и в реестр не публикуется.
+  seed:
+    profiles: ["seed"]
+    build:
+      context: .
+      target: seeder
+    restart: "no"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?переменная обязательна}
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
       SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-Администратор}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
