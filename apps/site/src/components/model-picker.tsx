@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, type MouseEvent } from "react";
 import { MODELS_PATH, type SiteModel } from "@buscom/domain/site/models";
+import { COMPANY } from "@/config/company";
 
 /**
  * «Подбор по модели автомобиля» на главной (макет, экран 01): выбор модели и
@@ -42,12 +43,13 @@ export function ModelPicker({ models }: { models: SiteModel[] }) {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
         <Link
           href={picked ? `${MODELS_PATH}/${picked}` : MODELS_PATH}
-          className="bg-accent hover:bg-accent-hover text-ink flex h-12 items-center justify-center rounded-[10px] px-6 text-[15px] font-semibold"
+          className="bg-accent hover:bg-accent-hover text-ink flex h-12 shrink-0 items-center justify-center rounded-[10px] px-6 text-[15px] font-semibold whitespace-nowrap"
         >
           Подобрать детали
         </Link>
         <span className="text-muted hidden text-sm md:inline">
-          Не нашли модель? Подберём по фото в Max, WhatsApp или Telegram
+          Не нашли модель? Подберём по фото в Max, WhatsApp или Telegram:{" "}
+          <span className="whitespace-nowrap">{COMPANY.max.display}</span>
         </span>
       </div>
     </div>
