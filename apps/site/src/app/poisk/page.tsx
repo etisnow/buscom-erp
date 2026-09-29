@@ -57,7 +57,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/poisk">) 
         </>
       ) : (
         <p className="card text-ink-2 mt-4 p-5">
-          Ничего не нашлось. Проверьте написание или спросите нас: {COMPANY.phone.display}, Max {COMPANY.max.display}.
+          Ничего не нашлось. Проверьте написание или спросите нас в Max, WhatsApp или Telegram: {COMPANY.max.display}.
         </p>
       )}
     </section>

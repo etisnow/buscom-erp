@@ -33,11 +33,11 @@ export function ecommerce(event: Record<string, unknown>) {
 }
 
 export function Metrika() {
-  // Клик по телефону — цель на всём сайте, без правки каждой ссылки
+  // Клик по телефону и по значкам мессенджеров (data-goal) — цель на всём сайте, без правки каждой ссылки
   useEffect(() => {
     function onClick(event: MouseEvent) {
-      const link = (event.target as HTMLElement | null)?.closest("a[href^='tel:']");
-      if (link) reachGoal("phone_click");
+      const link = (event.target as HTMLElement | null)?.closest("a[href^='tel:'], a[data-goal]");
+      if (link) reachGoal(link.getAttribute("data-goal") ?? "phone_click");
     }
     document.addEventListener("click", onClick);
     return () => document.removeEventListener("click", onClick);

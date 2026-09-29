@@ -44,7 +44,7 @@ export function CartView() {
         <p className="text-2xl font-bold">Заказ № {done} принят</p>
         <p className="text-ink-2">
           Менеджер свяжется с вами, подтвердит наличие и сроки и пришлёт счёт или реквизиты для оплаты. Вопросы по
-          заказу — {COMPANY.phone.display}, назовите номер заказа.
+          заказу — напишите в Max, WhatsApp или Telegram {COMPANY.max.display}, назовите номер заказа.
         </p>
         <Link href="/" className="text-brand hover:text-brand-hover font-medium">
           Вернуться в каталог
@@ -73,9 +73,6 @@ export function CartView() {
       <div className="flex flex-col gap-3 md:gap-5">
         <div className="card px-4 md:px-6">
           <CartLines cart={cart} priced={priced} />
-          <p className="border-line text-ink-2 border-t py-4 text-sm">
-            Нужен комплект на весь автопарк? Напишите в Max {COMPANY.max.display} — посчитаем оптовую цену.
-          </p>
         </div>
         {priced.dropped.length > 0 && (
           <ul className="flex flex-col gap-1 rounded-xl bg-orange-50 p-4 text-sm text-orange-900">
@@ -170,7 +167,7 @@ function CartLines({ cart, priced }: { cart: ReturnType<typeof useCart>; priced:
             <button
               type="button"
               onClick={() => cartActions.remove(index)}
-              className="text-subtle hover:text-ink self-start px-1 text-xl leading-none md:order-last md:self-center"
+              className="text-subtle hover:text-ink -m-2 flex size-11 items-center justify-center self-start text-2xl leading-none md:order-last md:self-center"
               aria-label="Удалить из корзины"
             >
               ×
@@ -190,9 +187,9 @@ function CartLines({ cart, priced }: { cart: ReturnType<typeof useCart>; priced:
 
 function Stepper({ value, onChange }: { value: number; onChange: (value: number) => void }) {
   const set = (next: number) => onChange(Math.min(MAX_QUANTITY, Math.max(1, next || 1)));
-  const step = "text-ink-2 hover:text-brand h-full w-9 shrink-0 disabled:opacity-30";
+  const step = "text-ink-2 hover:text-brand h-full w-11 shrink-0 disabled:opacity-30";
   return (
-    <div className="border-line-strong flex h-11 w-[122px] shrink-0 items-center rounded-[10px] border bg-white">
+    <div className="border-line-strong flex h-11 w-[140px] shrink-0 items-center rounded-[10px] border bg-white">
       <button type="button" onClick={() => set(value - 1)} disabled={value <= 1} aria-label="Меньше" className={step}>
         −
       </button>
@@ -380,7 +377,7 @@ function CheckoutForm({
 
       <div className="flex flex-col gap-3">
         <label className="flex items-start gap-2 text-sm">
-          <input name="consent" type="checkbox" className="accent-brand mt-1" />
+          <input name="consent" type="checkbox" className="accent-brand mt-0.5 shrink-0" />
           <span>
             Согласен на обработку персональных данных в соответствии с{" "}
             <Link href="/privacy" target="_blank" className="text-brand underline">

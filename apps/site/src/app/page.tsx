@@ -43,8 +43,7 @@ export default async function HomePage() {
               {page.title}
             </h1>
             <p className="text-ink-2 hidden max-w-[580px] text-[17px] leading-normal md:block">
-              Сиденья, полки, шторки, люки, климат и детали кузова для отечественных и зарубежных моделей. Склад в
-              Нижнем Новгороде.
+              Сиденья, полки, шторки, люки, климат и детали кузова для отечественных и зарубежных моделей.
             </p>
           </div>
           <div className="md:bg-surface flex flex-col gap-3.5 overflow-hidden md:rounded-xl md:p-5">
@@ -53,7 +52,8 @@ export default async function HomePage() {
               <ModelPicker models={models.slice(0, MODELS_ON_HOME)} />
             ) : (
               <p className="text-ink-2 text-sm leading-normal">
-                Напишите модель и пришлите фото в Max {COMPANY.max.display} — подберём детали и назовём цену.
+                Напишите модель и пришлите фото в Max, WhatsApp или Telegram {COMPANY.max.display} — подберём детали и
+                назовём цену.
               </p>
             )}
           </div>
@@ -166,12 +166,6 @@ function WorkshopBanner() {
           >
             Рассчитать стоимость
           </Link>
-          <a
-            href={COMPANY.phone.href}
-            className="hidden h-11 items-center rounded-[9px] border border-white/50 px-[18px] text-sm font-medium md:flex"
-          >
-            Позвонить
-          </a>
         </div>
       </div>
     </section>

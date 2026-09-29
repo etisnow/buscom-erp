@@ -98,10 +98,10 @@ export function CatalogMenu({ tree }: { tree: MenuCategory[] }) {
               <div className="bg-brand-soft flex flex-col justify-between gap-2.5 rounded-xl p-5">
                 <p className="text-[17px] leading-snug font-bold">Не нашли нужную деталь?</p>
                 <p className="text-ink-2 text-sm leading-normal">
-                  Пришлите фото или модель автомобиля в Max — подберём и назовём цену.
+                  Пришлите фото или модель автомобиля в Max, WhatsApp или Telegram — подберём и назовём цену.
                 </p>
                 <p className="bg-brand flex h-10 items-center justify-center rounded-lg text-sm font-semibold text-white">
-                  Max: {COMPANY.max.display}
+                  Max, WhatsApp, Telegram: {COMPANY.max.display}
                 </p>
               </div>
             </div>

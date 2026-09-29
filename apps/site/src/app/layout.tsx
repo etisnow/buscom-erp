@@ -41,7 +41,7 @@ const ORGANIZATION = {
   legalName: COMPANY.legalName,
   url: `${SITE_ORIGIN}/`,
   email: COMPANY.email,
-  telephone: COMPANY.phone.display,
+  telephone: COMPANY.max.display,
   taxID: COMPANY.inn,
   address: {
     "@type": "PostalAddress",

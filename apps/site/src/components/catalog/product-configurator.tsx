@@ -172,13 +172,13 @@ export function ProductConfigurator({
               Положить {seats} шт. в корзину
             </button>
             <p className="text-ink-2 text-[13px]">
-              Для автопарков — оптовая цена, установка в нашем цехе — рассчитаем отдельно: Max {COMPANY.max.display}
+              Для автопарков — оптовая цена, установка в нашем цехе — рассчитаем отдельно: Max, WhatsApp или Telegram{" "}
+              {COMPANY.max.display}
             </p>
           </section>
         )}
         <p className="text-muted text-[13px] leading-normal">
-          Наличие и сроки уточнит менеджер после заказа. Вопросы — {COMPANY.phone.display} или Max {COMPANY.max.display}
-          .
+          Наличие и сроки уточнит менеджер после заказа. Вопросы — Max, WhatsApp или Telegram {COMPANY.max.display}.
         </p>
       </div>
     </div>

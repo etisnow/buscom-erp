@@ -76,7 +76,7 @@ export default async function ModelPage({ params }: PageProps<"/modeli/[slug]">)
       <aside className="bg-brand-soft mt-10 rounded-2xl p-5 md:p-7">
         <p className="font-semibold">Не нашли нужное для {model.name}?</p>
         <p className="text-ink-2 mt-1">
-          Подберём под вашу машину — позвоните {COMPANY.phone.display} или напишите в Max {COMPANY.max.display}.
+          Подберём под вашу машину — напишите в Max, WhatsApp или Telegram {COMPANY.max.display}.
         </p>
       </aside>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />

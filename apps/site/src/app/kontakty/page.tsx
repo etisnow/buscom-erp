@@ -3,6 +3,7 @@ import { pageMetadata } from "@/config/metadata";
 import { getSitePage } from "@/server/pages";
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
 import { LeadForm } from "@/components/lead-form";
+import { Messengers } from "@/components/messengers";
 import { PageText } from "@/components/page-text";
 import { COMPANY } from "@/config/company";
 
@@ -20,8 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ContactsPage() {
   const page = await getSitePage("kontakty");
   const rows = [
-    ["Max", COMPANY.max.display],
-    ["Склад", `${COMPANY.warehouse.city}, ${COMPANY.warehouse.street}`],
+    ["Адрес", `${COMPANY.warehouse.city}, ${COMPANY.warehouse.street}`],
     ["Режим работы", COMPANY.hours],
   ] as const;
   return (
@@ -31,16 +31,15 @@ export default async function ContactsPage() {
       <div className="grid grid-cols-1 gap-3 md:gap-6 lg:grid-cols-[460px_minmax(0,1fr)]">
         <div className="flex flex-col gap-3">
           <div className="card flex flex-col gap-4 p-5 md:p-7">
-            <div>
-              <p className="text-muted text-[13px]">Телефон</p>
-              <a href={COMPANY.phone.href} className="hover:text-brand text-2xl font-bold md:text-[28px]">
-                {COMPANY.phone.display}
-              </a>
+            <div className="flex flex-col gap-2">
+              <p className="text-muted text-[13px]">Max, WhatsApp, Telegram</p>
+              <p className="text-2xl font-bold md:text-[28px]">{COMPANY.max.display}</p>
+              <Messengers size={48} />
             </div>
             {rows.map(([label, value]) => (
               <div key={label}>
                 <p className="text-muted text-[13px]">{label}</p>
-                <p className={label === "Max" ? "text-xl font-semibold" : "text-[17px]"}>{value}</p>
+                <p className="text-[17px]">{value}</p>
               </div>
             ))}
             <div>
@@ -49,12 +48,6 @@ export default async function ContactsPage() {
                 {COMPANY.email}
               </a>
             </div>
-            <a
-              href={COMPANY.phone.href}
-              className="bg-brand hover:bg-brand-hover mt-1 flex h-12 items-center justify-center rounded-[10px] font-semibold text-white"
-            >
-              Позвонить
-            </a>
           </div>
           <div className="card flex flex-col gap-3 p-5 md:p-7">
             <h2 className="text-lg font-bold">Обратный звонок</h2>
@@ -67,7 +60,7 @@ export default async function ContactsPage() {
           </div>
         </div>
         <iframe
-          title="Склад на карте"
+          title="Мы на карте"
           src="https://yandex.ru/map-widget/v1/?um=constructor%3AoVm42xd82asj5D_3UFrv1p6fQ5IN2-Ew&source=constructor"
           loading="lazy"
           className="border-line h-80 w-full rounded-2xl border md:h-[480px] lg:h-full lg:min-h-[640px]"

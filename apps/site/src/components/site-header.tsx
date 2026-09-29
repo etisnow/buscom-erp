@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CartLink } from "@/components/cart/cart-link";
 import { CatalogMenu } from "@/components/catalog-menu";
 import { Logo } from "@/components/logo";
+import { Messengers } from "@/components/messengers";
 import { SearchBox, SearchForm } from "@/components/search-box";
 import { COMPANY } from "@/config/company";
 import { getCategoryTree } from "@/server/catalog";
@@ -46,11 +47,9 @@ export async function SiteHeader() {
           <Suspense fallback={<SearchForm />}>
             <SearchBox />
           </Suspense>
-          <div className="hidden flex-col items-end leading-[1.35] lg:flex">
-            <a href={COMPANY.phone.href} className="hover:text-brand font-semibold whitespace-nowrap">
-              {COMPANY.phone.display}
-            </a>
-            <span className="text-brand text-[13px] font-medium whitespace-nowrap">Max: {COMPANY.max.display}</span>
+          <div className="hidden flex-col items-end gap-1 lg:flex">
+            <Messengers size={36} />
+            <span className="text-ink-2 text-[13px] font-medium whitespace-nowrap">{COMPANY.max.display}</span>
           </div>
           <Link
             href="/kontakty"

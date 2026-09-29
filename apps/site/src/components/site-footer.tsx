@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { Messengers } from "@/components/messengers";
 import { COMPANY } from "@/config/company";
 import { getCategoryTree } from "@/server/catalog";
 
@@ -17,11 +18,9 @@ export async function SiteFooter() {
           <div className="mb-1">
             <Logo inverse tagline={false} />
           </div>
-          <a href={COMPANY.phone.href} className="text-lg font-semibold text-white hover:underline">
-            {COMPANY.phone.display}
-          </a>
-          <p>Max: {COMPANY.max.display}</p>
-          <a href={`mailto:${COMPANY.email}`} className="hover:text-white">
+          <Messengers mono />
+          <p className="text-lg font-semibold text-white">{COMPANY.max.display}</p>
+          <a href={`mailto:${COMPANY.email}`} className="py-1.5 hover:text-white md:py-0">
             {COMPANY.email}
           </a>
           <p>
@@ -29,27 +28,27 @@ export async function SiteFooter() {
           </p>
           <p>{COMPANY.hours}</p>
         </address>
-        <nav aria-label="Каталог" className="flex flex-col gap-2.5">
+        <nav aria-label="Каталог" className="flex flex-col gap-0.5 md:gap-2.5">
           <p className="font-semibold text-white">Каталог</p>
           {tree.map((category) => (
-            <Link key={category.id} href={`/${category.slug}`} className="hover:text-white">
+            <Link key={category.id} href={`/${category.slug}`} className="py-1.5 hover:text-white md:py-0">
               {category.name}
             </Link>
           ))}
         </nav>
-        <nav aria-label="Покупателям" className="flex flex-col gap-2.5">
+        <nav aria-label="Покупателям" className="flex flex-col gap-0.5 md:gap-2.5">
           <p className="font-semibold text-white">Покупателям</p>
-          <Link href="/oplata-dostavka" className="hover:text-white">
+          <Link href="/oplata-dostavka" className="py-1.5 hover:text-white md:py-0">
             Доставка и оплата
           </Link>
-          <Link href="/kontakty" className="hover:text-white">
+          <Link href="/kontakty" className="py-1.5 hover:text-white md:py-0">
             Контакты
           </Link>
-          <Link href="/privacy" className="hover:text-white">
+          <Link href="/privacy" className="py-1.5 hover:text-white md:py-0">
             Политика конфиденциальности
           </Link>
         </nav>
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-0.5 md:gap-2.5">
           <p className="font-semibold text-white">Реквизиты</p>
           <p>{COMPANY.legalName}</p>
           <p>ИНН {COMPANY.inn}</p>

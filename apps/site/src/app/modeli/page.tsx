@@ -24,7 +24,8 @@ export default async function ModelsPage() {
       <h1 className="page-title mb-4 md:mb-6">Подбор по модели</h1>
       {models.length === 0 ? (
         <p className="card text-ink-2 p-5">
-          Подбор по модели скоро появится. Пока спросите нас: {COMPANY.phone.display}.
+          Подбор по модели скоро появится. Пока спросите нас в Max, WhatsApp или Telegram:{" "}
+          <span className="whitespace-nowrap">{COMPANY.max.display}</span>.
         </p>
       ) : (
         <ModelLinks models={models} />

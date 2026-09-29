@@ -46,7 +46,9 @@ export function ModelPicker({ models }: { models: SiteModel[] }) {
         >
           Подобрать детали
         </Link>
-        <span className="text-muted hidden text-sm md:inline">Не нашли модель? Подберём по фото в Max</span>
+        <span className="text-muted hidden text-sm md:inline">
+          Не нашли модель? Подберём по фото в Max, WhatsApp или Telegram
+        </span>
       </div>
     </div>
   );

@@ -23,9 +23,15 @@ export async function sendLead(formInput: unknown, path: string, ip: string | nu
     return { ok: false, error: "Проверьте поля формы", fieldErrors };
   }
   if ((ip && !perIp.take(ip)) || !overall.take("all")) {
-    return { ok: false, error: `Слишком много заявок подряд — позвоните нам: ${COMPANY.phone.display}` };
+    return {
+      ok: false,
+      error: `Слишком много заявок подряд — напишите нам в Max, WhatsApp или Telegram: ${COMPANY.max.display}`,
+    };
   }
-  const failed = { ok: false as const, error: `Не удалось отправить заявку — позвоните нам: ${COMPANY.phone.display}` };
+  const failed = {
+    ok: false as const,
+    error: `Не удалось отправить заявку — напишите нам в Max, WhatsApp или Telegram: ${COMPANY.max.display}`,
+  };
   try {
     const page = new URL(path.startsWith("/") ? path : "/", SITE_ORIGIN).toString();
     const response = await postToErp("/api/integrations/site/lead", { lead: { ...lead.data, consent: true }, page });

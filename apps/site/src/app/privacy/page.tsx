@@ -24,7 +24,7 @@ export default async function PrivacyPage() {
       <div className="card max-w-4xl p-5 text-[15px] leading-relaxed md:p-8">
         <PageText text={page.body} />
         <p className="text-ink-2 mt-6 text-sm">
-          Контакты Оператора: {COMPANY.legalName}, {COMPANY.email}, {COMPANY.phone.display}.
+          Контакты Оператора: {COMPANY.legalName}, {COMPANY.email}.
         </p>
       </div>
     </article>
