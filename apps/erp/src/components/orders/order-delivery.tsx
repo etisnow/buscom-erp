@@ -31,7 +31,17 @@ import {
 const NONE = "__none__";
 
 type FilledField =
-  "method" | "carrier" | "address" | "price" | "tracking" | "shipped" | "weight" | "length" | "width" | "height";
+  | "method"
+  | "carrier"
+  | "address"
+  | "price"
+  | "tracking"
+  | "shipped"
+  | "delivered"
+  | "weight"
+  | "length"
+  | "width"
+  | "height";
 
 const FILLED_CLASS = "ring-2 ring-amber-400";
 
@@ -45,6 +55,7 @@ export function OrderDelivery({
   deliveryPriceKopecks,
   trackingNumber,
   shippedAt,
+  deliveryDate,
   cargo,
   carriers,
   canEdit,
@@ -63,6 +74,8 @@ export function OrderDelivery({
   trackingNumber: string | null;
   /** `2026-09-24` по Москве; пусто — не отгружен */
   shippedAt: string;
+  /** `2026-09-29` по Москве: когда груз будет у получателя; пусто — не задана */
+  deliveryDate: string;
   cargo: Cargo;
   /** Справочник перевозчиков; текущий выбор в нём есть всегда — страница его добавляет */
   carriers: string[];
@@ -78,6 +91,7 @@ export function OrderDelivery({
   const [price, setPrice] = useState((deliveryPriceKopecks / 100).toFixed(2));
   const [tracking, setTracking] = useState(trackingNumber ?? "");
   const [shipped, setShipped] = useState(shippedAt);
+  const [delivered, setDelivered] = useState(deliveryDate);
   const [weight, setWeight] = useState(cargo.weightGrams === null ? "" : formatWeightKg(cargo.weightGrams));
   const [length, setLength] = useState(cargo.lengthCm?.toString() ?? "");
   const [width, setWidth] = useState(cargo.widthCm?.toString() ?? "");
@@ -108,6 +122,7 @@ export function OrderDelivery({
       apply("carrier", found.carrier, carrierValue, setCarrier);
       apply("tracking", found.trackingNumber, tracking, setTracking);
       apply("shipped", found.shippedAt, shipped, setShipped);
+      apply("delivered", found.deliveryDate, delivered, setDelivered);
       apply("weight", found.weightGrams === null ? null : formatWeightKg(found.weightGrams), weight, setWeight);
       apply("length", found.lengthCm?.toString() ?? null, length, setLength);
       apply("width", found.widthCm?.toString() ?? null, width, setWidth);
@@ -157,6 +172,7 @@ export function OrderDelivery({
         deliveryAddress: address,
         trackingNumber: tracking,
         shippedAt: shipped,
+        deliveryDate: delivered,
         cargo: cargoValue,
         ...(priceKopecks === undefined ? {} : { deliveryPriceKopecks: priceKopecks }),
       });
@@ -267,6 +283,20 @@ export function OrderDelivery({
             onChange={(event) => setShipped(event.target.value)}
             disabled={!canEdit}
             className={cn("h-8", mark("shipped"))}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs" htmlFor="delivery-date">
+            Дата доставки
+          </Label>
+          <Input
+            id="delivery-date"
+            type="date"
+            value={delivered}
+            onChange={(event) => setDelivered(event.target.value)}
+            disabled={!canEdit}
+            className={cn("h-8", mark("delivered"))}
           />
         </div>
 

@@ -16,6 +16,8 @@ export type WaybillFields = {
   trackingNumber: string | null;
   /** Дата документа, `2026-09-25` — как у поля даты */
   shippedAt: string | null;
+  /** Дата доставки (у ТК — готовности к выдаче), `2026-09-29` */
+  deliveryDate: string | null;
   weightGrams: number | null;
   lengthCm: number | null;
   widthCm: number | null;
@@ -103,6 +105,41 @@ export function findDocumentDate(text: string): string | null {
   return `${year}-${month}-${day}`;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** Дальше этого от даты документа — уже не срок доставки, а что-то другое (например, срок хранения). */
+const MAX_DELIVERY_DAYS = 60;
+
+/** `25.09.2026` → `2026-09-25`; несуществующая дата — null. */
+function isoDate(day: string, month: string, year: string): string | null {
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  if (date.getUTCFullYear() !== Number(year) || date.getUTCMonth() !== Number(month) - 1) return null;
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Дата доставки. Сначала — дата с подписью («дата доставки», «прибытия»,
+ * «готовности», «плановая», «ориентировочная»). Подписи нет — первая дата после
+ * даты документа, не дальше двух месяцев от неё: на расписке ДЛ срок стоит
+ * отдельной строкой под типом доставки, без подписи (OCR её теряет).
+ * Даты раньше документа (паспорт, договор) не берём.
+ */
+export function findDeliveryDate(text: string, documentDate: string | null = findDocumentDate(text)): string | null {
+  const date = String.raw`(\d{2})\.(\d{2})\.(\d{4})`;
+  const label = String.raw`(?:дат[аы]\s+(?:доставки|прибытия|готовности|выдачи)|планов\S*|ориентировочн\S*|ожидаем\S*)`;
+  const labelled = new RegExp(String.raw`${label}[^\d\n]{0,40}${date}`, "i").exec(text);
+  if (labelled) return isoDate(labelled[1]!, labelled[2]!, labelled[3]!);
+  if (!documentDate) return null;
+
+  const start = Date.parse(documentDate);
+  for (const match of text.matchAll(new RegExp(date, "g"))) {
+    const found = isoDate(match[1]!, match[2]!, match[3]!);
+    if (!found) continue;
+    const days = (Date.parse(found) - start) / DAY_MS;
+    if (days > 0 && days <= MAX_DELIVERY_DAYS) return found;
+  }
+  return null;
+}
+
 /** Вес «18 кг» / «18,5 кг» → граммы. Первое упоминание. */
 export function findWeightGrams(text: string): number | null {
   const match = /(\d+(?:[.,]\d{1,3})?)\s*кг(?![а-яё])/i.exec(text);
@@ -146,6 +183,7 @@ export function parseWaybill(text: string, barcodes: readonly string[], carriers
     carrier: findCarrier(text, carriers),
     trackingNumber: findTrackingNumber(text, barcodes),
     shippedAt: findDocumentDate(text),
+    deliveryDate: findDeliveryDate(text),
     weightGrams: findWeightGrams(text),
     lengthCm: sides?.[0] ?? null,
     widthCm: sides?.[1] ?? null,

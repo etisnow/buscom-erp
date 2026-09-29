@@ -50,6 +50,23 @@ describeDb("доставка: дата отгрузки и груз (живая 
     });
   });
 
+  it("дата доставки сохраняется, прежняя — в журнале; без неё во входе не трогается, null очищает", async () => {
+    const deliveryDate = parseDateInput("2026-09-29")!;
+    const saved = await updateOrderDelivery({ orderId, user: manager, deliveryDate });
+    expect(saved.deliveryDate).toEqual(deliveryDate);
+
+    const untouched = await updateOrderDelivery({ orderId, user: manager, trackingNumber: "TRACK-2" });
+    expect(untouched.deliveryDate).toEqual(deliveryDate);
+
+    const cleared = await updateOrderDelivery({ orderId, user: manager, deliveryDate: null });
+    expect(cleared.deliveryDate).toBeNull();
+    const event = await db.orderEvent.findFirstOrThrow({
+      where: { orderId, type: "UPDATED" },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(event.payload).toMatchObject({ before: { deliveryDate: deliveryDate.toISOString() } });
+  });
+
   it("без груза во входе груз не трогается; null очищает", async () => {
     await updateOrderDelivery({
       orderId,

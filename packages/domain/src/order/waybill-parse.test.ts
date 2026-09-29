@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findCarrier,
+  findDeliveryDate,
   findDestination,
   findDimensionsCm,
   findDocumentDate,
@@ -55,6 +56,8 @@ describe("parseWaybill — расписка «Деловых Линий»", () =
       carrier: "Деловые линии",
       trackingNumber: "26-01211275323",
       shippedAt: "2026-09-25",
+      // Срок под «тип доставки Авто» — без подписи, первая дата после даты документа
+      deliveryDate: "2026-09-29",
       weightGrams: 18_000,
       lengthCm: 153,
       widthCm: 70,
@@ -107,6 +110,22 @@ describe("отдельные поля", () => {
   it("дата документа — первая «от ДД.ММ.ГГГГ», не дата готовности", () => {
     expect(findDocumentDate("Е от 25.09.2026 г.\n29.09.2026 г.")).toBe("2026-09-25");
     expect(findDocumentDate("готово 29.09.2026")).toBeNull();
+  });
+
+  it("дата доставки по подписи — даже если она раньше даты документа в тексте", () => {
+    expect(findDeliveryDate("Дата доставки: 02.10.2026\nНакладная от 25.09.2026")).toBe("2026-10-02");
+    expect(findDeliveryDate("Плановая дата 30.09.2026")).toBe("2026-09-30");
+  });
+
+  it("дата доставки без подписи — первая после документа и не дальше двух месяцев", () => {
+    expect(findDeliveryDate("от 25.09.2026 г.\nпаспорт выдан 01.02.2010\n29.09.2026 г.")).toBe("2026-09-29");
+    expect(findDeliveryDate("от 25.09.2026 г.\nхранение до 25.12.2026")).toBeNull();
+    expect(findDeliveryDate("от 25.09.2026 г. без других дат")).toBeNull();
+    expect(findDeliveryDate("29.09.2026 без даты документа")).toBeNull();
+  });
+
+  it("несуществующую дату не берёт", () => {
+    expect(findDeliveryDate("Дата доставки 31.02.2026")).toBeNull();
   });
 
   it("вес с запятой", () => {

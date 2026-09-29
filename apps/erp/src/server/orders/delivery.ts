@@ -24,12 +24,14 @@ export type UpdateDeliveryInput = {
   trackingNumber?: string | null;
   /** Полночь по Москве дня отгрузки; null — очистить */
   shippedAt?: Date | null;
+  /** Полночь по Москве дня доставки; null — очистить */
+  deliveryDate?: Date | null;
   /** Груз целиком: вес в граммах, стороны в сантиметрах; null в поле — не задано */
   cargo?: Cargo;
   user: SessionUser;
 };
 
-/** Доставка: способ, ТК, адрес, стоимость, трек, дата отгрузки и груз. Всё одной транзакцией с событием заказа. */
+/** Доставка: способ, ТК, адрес, стоимость, трек, даты отгрузки и доставки, груз. Всё одной транзакцией с событием заказа. */
 export async function updateOrderDelivery(input: UpdateDeliveryInput): Promise<OrderWithItems> {
   return db.$transaction(async (tx) => {
     const order = await loadOrder(tx, input.orderId);
@@ -50,6 +52,7 @@ export async function updateOrderDelivery(input: UpdateDeliveryInput): Promise<O
       ...(input.trackingNumber !== undefined ? { trackingNumber: input.trackingNumber } : {}),
       ...(input.deliveryPriceKopecks !== undefined ? { deliveryPriceKopecks: input.deliveryPriceKopecks } : {}),
       ...(input.shippedAt !== undefined ? { shippedAt: input.shippedAt } : {}),
+      ...(input.deliveryDate !== undefined ? { deliveryDate: input.deliveryDate } : {}),
       ...(input.cargo !== undefined
         ? {
             cargoWeightGrams: input.cargo.weightGrams,
@@ -82,6 +85,7 @@ export async function updateOrderDelivery(input: UpdateDeliveryInput): Promise<O
           deliveryPriceKopecks: order.deliveryPriceKopecks,
           trackingNumber: order.trackingNumber,
           shippedAt: order.shippedAt,
+          deliveryDate: order.deliveryDate,
           cargoWeightGrams: order.cargoWeightGrams,
           cargoLengthCm: order.cargoLengthCm,
           cargoWidthCm: order.cargoWidthCm,

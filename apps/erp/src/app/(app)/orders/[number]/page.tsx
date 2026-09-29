@@ -404,6 +404,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
               deliveryPriceKopecks={order.deliveryPriceKopecks}
               trackingNumber={order.trackingNumber}
               shippedAt={order.shippedAt ? toDateInput(order.shippedAt) : ""}
+              deliveryDate={order.deliveryDate ? toDateInput(order.deliveryDate) : ""}
               cargo={{
                 weightGrams: order.cargoWeightGrams,
                 lengthCm: order.cargoLengthCm,

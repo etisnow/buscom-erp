@@ -199,6 +199,8 @@ const deliverySchema = z.object({
   trackingNumber: z.string().optional(),
   /** `2026-09-24` из поля даты; пустая строка — очистить */
   shippedAt: z.string().optional(),
+  /** Так же, как дата отгрузки */
+  deliveryDate: z.string().optional(),
   cargo: z
     .object({
       weightGrams: z.number().int().positive().max(MAX_CARGO_WEIGHT_GRAMS).nullable(),
@@ -214,11 +216,16 @@ export async function updateDeliveryAction(input: z.input<typeof deliverySchema>
   const parsed = deliverySchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   const data = parsed.data;
-  let shippedAt: Date | null | undefined;
-  if (data.shippedAt !== undefined) {
-    shippedAt = data.shippedAt.trim() === "" ? null : parseDateInput(data.shippedAt.trim());
-    if (shippedAt === null && data.shippedAt.trim() !== "") return { ok: false, error: "Некорректная дата отгрузки" };
-  }
+  // undefined — поле не прислано, null — очистить; мусор — ошибка с названием поля
+  const dateField = (value: string | undefined): Date | null | undefined | "invalid" => {
+    if (value === undefined) return undefined;
+    if (value.trim() === "") return null;
+    return parseDateInput(value.trim()) ?? "invalid";
+  };
+  const shippedAt = dateField(data.shippedAt);
+  if (shippedAt === "invalid") return { ok: false, error: "Некорректная дата отгрузки" };
+  const deliveryDate = dateField(data.deliveryDate);
+  if (deliveryDate === "invalid") return { ok: false, error: "Некорректная дата доставки" };
 
   return run(data.orderNumber, () =>
     updateOrderDelivery({
@@ -229,6 +236,7 @@ export async function updateDeliveryAction(input: z.input<typeof deliverySchema>
       deliveryAddress: data.deliveryAddress?.trim() || null,
       trackingNumber: data.trackingNumber?.trim() || null,
       ...(shippedAt === undefined ? {} : { shippedAt }),
+      ...(deliveryDate === undefined ? {} : { deliveryDate }),
       ...(data.cargo === undefined ? {} : { cargo: data.cargo }),
       ...(data.deliveryPriceKopecks === undefined ? {} : { deliveryPriceKopecks: data.deliveryPriceKopecks }),
     }),
