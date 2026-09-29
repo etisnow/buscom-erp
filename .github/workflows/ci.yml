@@ -60,16 +60,33 @@ jobs:
       - run: pnpm --filter @buscom/db exec prisma validate
       - run: pnpm build
 
-  # Образы собираются и при выкате (deploy.yml), но только из main — ошибка в
-  # Dockerfile всплыла бы уже на боевом выкате. Здесь та же сборка на каждом
-  # пуше, без публикации: в образе заодно гоняется проверка распознавания накладной.
+  # Образы собираются на каждом пуше: ошибка в Dockerfile всплывает здесь, а не
+  # на боевом выкате; в образе заодно гоняется проверка распознавания накладной.
+  # Из main образы ещё и публикуются в GHCR под тегом коммита — выкат (deploy.yml)
+  # берёт готовые и не собирает их второй раз. Сборка идёт параллельно проверкам
+  # `check`, которые дольше, так что в общее время CI она почти ничего не добавляет.
+  # В development и pull request публикации нет.
   docker:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE_BASE: ghcr.io/${{ github.repository }}
+      SHA: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v5
       - name: Собрать образы
         run: |
           set -euo pipefail
-          docker build --target runner -t buscom-erp-app:ci .
-          docker build --target migrator -t buscom-erp-migrate:ci .
-          docker build --target site -t buscom-site:ci .
+          docker build --target runner -t "$IMAGE_BASE/app:$SHA" .
+          docker build --target migrator -t "$IMAGE_BASE/migrate:$SHA" .
+          docker build --target site -t "$IMAGE_BASE/site:$SHA" .
+      - name: Опубликовать образы (только main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          for image in app migrate site; do
+            docker push "$IMAGE_BASE/$image:$SHA"
+          done

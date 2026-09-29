@@ -59,11 +59,25 @@ jobs:
       - name: Войти в GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      - name: Собрать и опубликовать
+      - name: Подготовить образы
         env:
           SHA: ${{ steps.meta.outputs.sha }}
         run: |
           set -euo pipefail
+          # Обычный путь: образы этого коммита уже опубликовал CI (job docker, только
+          # main) — остаётся выставить тег latest, без повторной сборки. Ручной
+          # запуск (откат, первый выкат) и любой коммит, которого нет в GHCR,
+          # собираются здесь, как раньше.
+          if docker manifest inspect "$IMAGE_BASE/app:$SHA" > /dev/null 2>&1 \
+            && docker manifest inspect "$IMAGE_BASE/migrate:$SHA" > /dev/null 2>&1 \
+            && docker manifest inspect "$IMAGE_BASE/site:$SHA" > /dev/null 2>&1; then
+            echo "Образы коммита $SHA уже в GHCR — сборка не нужна"
+            for image in app migrate site; do
+              docker buildx imagetools create -t "$IMAGE_BASE/$image:latest" "$IMAGE_BASE/$image:$SHA"
+            done
+            exit 0
+          fi
+          echo "Образов коммита $SHA в GHCR нет — собираем"
           # Оба образа из одного Dockerfile: runner — приложение, migrator —
           # Prisma CLI для миграций и сида.
           docker build --target runner \
