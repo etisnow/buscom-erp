@@ -65,12 +65,12 @@ describe("isCatalogQueryActive", () => {
 });
 
 describe("applyCatalogQuery", () => {
-  it("по умолчанию — хиты первыми, дальше по алфавиту", () => {
+  it("по умолчанию — сначала дешевле, «по запросу» в конце", () => {
     expect(names(applyCatalogQuery(all, DEFAULT_CATALOG_QUERY))).toEqual([
-      "Сиденье Турист",
       "Клей для ткани",
-      "Люк аварийный",
       "Полка багажная",
+      "Сиденье Турист",
+      "Люк аварийный",
     ]);
   });
 
@@ -118,9 +118,9 @@ describe("catalogQueryHref", () => {
   });
 
   it("переносит в адрес всё, кроме значений по умолчанию, и кодирует модель", () => {
-    const query = { sort: "price-asc", minRub: 1000, maxRub: 5000, model: "ГАЗель Next" } as const;
+    const query = { sort: "price-desc", minRub: 1000, maxRub: 5000, model: "ГАЗель Next" } as const;
     expect(catalogQueryHref("/sidenja", query)).toBe(
-      "/sidenja?model=%D0%93%D0%90%D0%97%D0%B5%D0%BB%D1%8C+Next&min=1000&max=5000&sort=price-asc",
+      "/sidenja?model=%D0%93%D0%90%D0%97%D0%B5%D0%BB%D1%8C+Next&min=1000&max=5000&sort=price-desc",
     );
   });
 

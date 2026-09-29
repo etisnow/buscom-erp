@@ -10,11 +10,10 @@ import type { Kopecks } from "../money";
  * фильтров — нет»).
  */
 
-export const CATALOG_SORTS = ["popular", "price-asc", "price-desc", "name"] as const;
+export const CATALOG_SORTS = ["price-asc", "price-desc", "name"] as const;
 export type CatalogSort = (typeof CATALOG_SORTS)[number];
 
 export const CATALOG_SORT_LABELS: Record<CatalogSort, string> = {
-  popular: "Сначала хиты",
   "price-asc": "Сначала дешевле",
   "price-desc": "Сначала дороже",
   name: "По названию",
@@ -29,7 +28,7 @@ export type CatalogQuery = {
   model: string | null;
 };
 
-export const DEFAULT_CATALOG_QUERY: CatalogQuery = { sort: "popular", minRub: null, maxRub: null, model: null };
+export const DEFAULT_CATALOG_QUERY: CatalogQuery = { sort: "price-asc", minRub: null, maxRub: null, model: null };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -50,7 +49,7 @@ export function parseCatalogQuery(params: SearchParams): CatalogQuery {
   // Перепутанные границы понимаем так, как их явно имели в виду
   if (minRub !== null && maxRub !== null && minRub > maxRub) [minRub, maxRub] = [maxRub, minRub];
   return {
-    sort: CATALOG_SORTS.includes(sort as CatalogSort) ? (sort as CatalogSort) : "popular",
+    sort: CATALOG_SORTS.includes(sort as CatalogSort) ? (sort as CatalogSort) : "price-asc",
     minRub: minRub || null,
     maxRub,
     model: first(params.model)?.slice(0, 100) ?? null,
@@ -97,7 +96,6 @@ export function applyCatalogQuery<T extends FilterableProduct>(products: readonl
     return (a.priceKopecks - b.priceKopecks) * direction || byName(a, b);
   };
   const compare: Record<CatalogSort, (a: T, b: T) => number> = {
-    popular: (a, b) => Number(b.isHit) - Number(a.isHit) || byName(a, b),
     "price-asc": byPrice(1),
     "price-desc": byPrice(-1),
     name: byName,

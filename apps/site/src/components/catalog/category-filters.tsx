@@ -3,10 +3,10 @@ import {
   CATALOG_SORT_LABELS,
   CATALOG_SORTS,
   catalogQueryHref,
+  DEFAULT_CATALOG_QUERY,
   isCatalogQueryActive,
   type CatalogQuery,
 } from "@buscom/domain/site/catalog-query";
-import { COMPANY } from "@/config/company";
 import { FiltersToggle } from "./filters-toggle";
 
 /** Сколько фильтров включено — число на кнопке «Фильтры» на телефоне */
@@ -15,7 +15,7 @@ function activeFilters(query: CatalogQuery): number {
 }
 
 /**
- * Колонка фильтров категории (макет, экран 02): цена, модель, плашка для автопарков.
+ * Колонка фильтров категории (макет, экран 02): цена и модель.
  * Обычная GET-форма — работает без JavaScript, результат живёт в адресе.
  * «Тип» из макета — это подкатегории, они плашками над списком. «Только в наличии» —
  * когда у товара появится признак наличия (docs/SITE-PRD.md).
@@ -36,7 +36,7 @@ export function CategoryFilters({
   return (
     <FiltersToggle active={activeFilters(query)}>
       <form action={`/${slug}`} className="card mt-3 flex flex-col gap-6 p-5 lg:mt-0">
-        {query.sort !== "popular" && <input type="hidden" name="sort" value={query.sort} />}
+        {query.sort !== DEFAULT_CATALOG_QUERY.sort && <input type="hidden" name="sort" value={query.sort} />}
         <fieldset className="flex flex-col gap-3">
           <legend className="mb-3 text-[15px] font-semibold">Цена, ₽</legend>
           <div className="grid grid-cols-2 gap-2">
@@ -102,16 +102,14 @@ export function CategoryFilters({
             </Link>
           )}
         </div>
-        <p className="bg-accent-soft rounded-[10px] p-3.5 text-[13px] leading-normal">
-          Нужно много мест на автопарк?{" "}
-          <strong className="font-semibold">Напишите в Max {COMPANY.max.display} — дадим оптовую цену.</strong>
-        </p>
       </form>
     </FiltersToggle>
   );
 }
 
-/** Вкладки сортировки над списком (макет, экран 02): ссылки, фильтры в адресе сохраняются. */
+/**
+ * Вкладки сортировки над списком (макет, экран 02): ссылки, фильтры в адресе сохраняются.
+ */
 export function SortTabs({ slug, query }: { slug: string; query: CatalogQuery }) {
   return (
     <nav aria-label="Сортировка" className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
@@ -125,7 +123,7 @@ export function SortTabs({ slug, query }: { slug: string; query: CatalogQuery })
                 query.sort === sort ? "bg-ink font-semibold text-white" : "text-ink-2 hover:text-brand"
               }`}
             >
-              {sort === "popular" ? "По популярности" : CATALOG_SORT_LABELS[sort]}
+              {CATALOG_SORT_LABELS[sort]}
             </Link>
           </li>
         ))}
