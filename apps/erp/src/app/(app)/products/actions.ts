@@ -11,7 +11,7 @@ import {
   type SupplierPriceResult,
 } from "@/server/products/supplier-price";
 import { getDewatermarkKey, removeWatermark } from "@/server/products/dewatermark";
-import { getPhotoroomKey, removeBackground } from "@/server/products/photoroom";
+import { getCarveKey, removeBackground } from "@/server/products/carve";
 import { addImages, deleteImage, makeImageMain } from "@/server/products/images";
 import { canEditCatalog, createProduct, deleteProduct, updateProduct } from "@/server/products/service";
 import { importFromSupplier, type SupplierImportResult } from "@/server/products/supplier-import";
@@ -133,7 +133,7 @@ export type ProcessImageResult = { ok: true; base64: string; contentType: string
 
 /**
  * Обработка одного снимка нового товара внешним сервисом: снять водяной знак (dewatermark.ai)
- * или удалить фон (Photoroom). Ничего не сохраняет — результат уходит в форму, где человек
+ * или удалить фон (carve.photos). Ничего не сохраняет — результат уходит в форму, где человек
  * может вернуть оригинал. Снимки шлём по одному: так запрос укладывается в лимит тела.
  */
 export async function processImageAction(base64: string, operation: ImageOperation): Promise<ProcessImageResult> {
@@ -146,11 +146,11 @@ export async function processImageAction(base64: string, operation: ImageOperati
   const image = new Uint8Array(Buffer.from(parsed.data, "base64"));
   if (!detectImageType(image)) return { ok: false, error: "Это не картинка" };
 
-  const key = operation === "watermark" ? await getDewatermarkKey() : await getPhotoroomKey();
+  const key = operation === "watermark" ? await getDewatermarkKey() : await getCarveKey();
   if (!key) {
     return {
       ok: false,
-      error: `Ключ ${operation === "watermark" ? "dewatermark.ai" : "Photoroom"} не задан в «Администрирование → Внешние сервисы»`,
+      error: `Ключ ${operation === "watermark" ? "dewatermark.ai" : "Carve"} не задан в «Администрирование → Внешние сервисы»`,
     };
   }
   const result =

@@ -10,7 +10,7 @@ import type { SettingsResult } from "@/app/(app)/admin/dictionaries/actions";
 
 /** «Администрирование → Внешние сервисы»: ключи API сторонних сервисов. */
 
-type KeyField = "dewatermarkApiKey" | "photoroomApiKey";
+type KeyField = "dewatermarkApiKey" | "carveApiKey";
 
 /** Ключ в форму не отдаётся и приходит пустым, если его не меняли, — тогда остаётся сохранённый. */
 async function saveKey(field: KeyField, value: string, message: string): Promise<SettingsResult> {
@@ -45,10 +45,10 @@ export async function clearDewatermarkKeyAction(): Promise<SettingsResult> {
   return clearKey("dewatermarkApiKey", "Ключ dewatermark.ai удалён");
 }
 
-export async function savePhotoroomKeyAction(key: string): Promise<SettingsResult> {
-  return saveKey("photoroomApiKey", key, "Ключ Photoroom сохранён");
+export async function saveCarveKeyAction(key: string): Promise<SettingsResult> {
+  return saveKey("carveApiKey", key, "Ключ Carve сохранён");
 }
 
-export async function clearPhotoroomKeyAction(): Promise<SettingsResult> {
-  return clearKey("photoroomApiKey", "Ключ Photoroom удалён");
+export async function clearCarveKeyAction(): Promise<SettingsResult> {
+  return clearKey("carveApiKey", "Ключ Carve удалён");
 }

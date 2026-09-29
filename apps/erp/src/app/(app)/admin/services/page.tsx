@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DewatermarkKeyEditor, PhotoroomKeyEditor } from "@/components/admin/service-keys";
+import { DewatermarkKeyEditor, CarveKeyEditor } from "@/components/admin/service-keys";
 import { ADMIN_ROLES } from "@buscom/domain/user/role";
 import { env } from "@/server/env";
 import { getSettings } from "@/server/settings/service";
@@ -21,7 +21,7 @@ export default async function AdminServicesPage() {
         hasKey={settings.services.dewatermarkApiKey.length > 0}
         hasEnvKey={Boolean(env.DEWATERMARK_API_KEY)}
       />
-      <PhotoroomKeyEditor hasKey={settings.services.photoroomApiKey.length > 0} />
+      <CarveKeyEditor hasKey={settings.services.carveApiKey.length > 0} />
     </main>
   );
 }

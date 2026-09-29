@@ -8,9 +8,9 @@ import { Label } from "@/components/ui/label";
 import type { SettingsResult } from "@/app/(app)/admin/dictionaries/actions";
 import {
   clearDewatermarkKeyAction,
-  clearPhotoroomKeyAction,
+  clearCarveKeyAction,
   saveDewatermarkKeyAction,
-  savePhotoroomKeyAction,
+  saveCarveKeyAction,
 } from "@/app/(app)/admin/services/actions";
 
 /**
@@ -124,16 +124,16 @@ export function DewatermarkKeyEditor({ hasKey, hasEnvKey }: { hasKey: boolean; h
   );
 }
 
-export function PhotoroomKeyEditor({ hasKey }: { hasKey: boolean }) {
+export function CarveKeyEditor({ hasKey }: { hasKey: boolean }) {
   return (
     <ServiceKeyEditor
-      id="photoroom-key"
+      id="carve-key"
       title="Удаление фона"
       description={
         <>
           Ключ API из кабинета{" "}
-          <a href="https://www.photoroom.com/api" target="_blank" rel="noreferrer" className="underline">
-            photoroom.com
+          <a href="https://www.carve.photos/profile" target="_blank" rel="noreferrer" className="underline">
+            carve.photos
           </a>
           . По нему «Импорт с сайта поставщика» в «Товарах» делает фон снимков прозрачным; в форме импорта у каждого
           снимка можно вернуть оригинал. Сервис платный: каждый снимок — один запрос по тарифу.
@@ -142,8 +142,8 @@ export function PhotoroomKeyEditor({ hasKey }: { hasKey: boolean }) {
       hasKey={hasKey}
       envStatus={null}
       emptyStatus="Ключ не задан — фон со снимков не удаляется"
-      onSave={savePhotoroomKeyAction}
-      onClear={clearPhotoroomKeyAction}
+      onSave={saveCarveKeyAction}
+      onClear={clearCarveKeyAction}
     />
   );
 }
