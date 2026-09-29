@@ -11,6 +11,7 @@ import {
   type CarrierSettings,
   type ImapSettings,
   type SellerRequisites,
+  type ServiceSettings,
   type SmtpSettings,
 } from "@buscom/domain/settings";
 import type { Prisma } from "@buscom/db/client";
@@ -43,6 +44,9 @@ export async function readSettings(): Promise<AppSettings> {
     carriers: stored.has(SETTING_KEYS.carriers)
       ? parseSetting("carriers", stored.get(SETTING_KEYS.carriers))
       : DEFAULT_SETTINGS.carriers,
+    services: stored.has(SETTING_KEYS.services)
+      ? parseSetting("services", stored.get(SETTING_KEYS.services))
+      : DEFAULT_SETTINGS.services,
   };
 }
 
@@ -82,6 +86,10 @@ export async function saveEmailTemplates(templates: EmailTemplates, userId: stri
 
 export async function saveCarrierSettings(settings: CarrierSettings, userId: string): Promise<void> {
   await writeSetting(SETTING_KEYS.carriers, settings, userId);
+}
+
+export async function saveServiceSettings(settings: ServiceSettings, userId: string): Promise<void> {
+  await writeSetting(SETTING_KEYS.services, settings, userId);
 }
 
 export async function saveSellerRequisites(requisites: SellerRequisites, userId: string): Promise<void> {

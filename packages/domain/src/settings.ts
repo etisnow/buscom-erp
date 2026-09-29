@@ -17,6 +17,7 @@ export const SETTING_KEYS = {
   emailTemplates: "emailTemplates",
   imap: "imap",
   carriers: "carriers",
+  services: "services",
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
@@ -190,6 +191,28 @@ export function mergeCarrierSettings(
   return { ...current, dellinAppKey: incoming.dellinAppKey === "" ? current.dellinAppKey : incoming.dellinAppKey };
 }
 
+/**
+ * Ключи внешних сервисов, которые не относятся к почте и перевозчикам.
+ * Задаются в «Администрирование → Внешние сервисы»; пустой ключ — сервис выключен
+ * (или берётся переменная окружения, где она есть).
+ */
+export const serviceSettingsSchema = z.object({
+  /** Ключ API dewatermark.ai — снятие водяного знака со снимков при импорте товара поставщика */
+  dewatermarkApiKey: z.string().trim().max(200).default(""),
+});
+
+export type ServiceSettings = z.infer<typeof serviceSettingsSchema>;
+
+export const DEFAULT_SERVICE_SETTINGS: ServiceSettings = { dewatermarkApiKey: "" };
+
+/** Ключ в браузер не отдаётся, как пароль почты: пустое поле — «оставить сохранённый». */
+export function mergeServiceSettings(current: ServiceSettings, incoming: ServiceSettings): ServiceSettings {
+  return {
+    ...current,
+    dewatermarkApiKey: incoming.dewatermarkApiKey === "" ? current.dewatermarkApiKey : incoming.dewatermarkApiKey,
+  };
+}
+
 export type AppSettings = {
   discountLimitPercent: number;
   slaMinutes: Record<OrderStatus, number | null>;
@@ -198,6 +221,7 @@ export type AppSettings = {
   emailTemplates: EmailTemplates;
   imap: ImapSettings;
   carriers: CarrierSettings;
+  services: ServiceSettings;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -208,6 +232,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   emailTemplates: DEFAULT_EMAIL_TEMPLATES,
   imap: DEFAULT_IMAP_SETTINGS,
   carriers: DEFAULT_CARRIER_SETTINGS,
+  services: DEFAULT_SERVICE_SETTINGS,
 };
 
 /** Разбор значения из БД: негодное значение не роняет систему, а откатывается к умолчанию. */
@@ -240,6 +265,10 @@ export function parseSetting<K extends keyof AppSettings>(key: K, raw: unknown):
     case "carriers": {
       const parsed = carrierSettingsSchema.safeParse(raw);
       return (parsed.success ? parsed.data : DEFAULT_CARRIER_SETTINGS) as AppSettings[K];
+    }
+    case "services": {
+      const parsed = serviceSettingsSchema.safeParse(raw);
+      return (parsed.success ? parsed.data : DEFAULT_SERVICE_SETTINGS) as AppSettings[K];
     }
     default:
       return DEFAULT_SETTINGS[key];

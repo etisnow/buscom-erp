@@ -3,6 +3,8 @@ import {
   DEFAULT_CARRIER_SETTINGS,
   mergeCarrierSettings,
   mergePecSettings,
+  mergeServiceSettings,
+  DEFAULT_SERVICE_SETTINGS,
   DEFAULT_SELLER_REQUISITES,
   DEFAULT_SETTINGS,
   DEFAULT_IMAP_SETTINGS,
@@ -225,5 +227,19 @@ describe("ключи API транспортных компаний", () => {
   it("негодное значение из БД — умолчания, по умолчанию ключей нет", () => {
     expect(parseSetting("carriers", "мусор")).toEqual(DEFAULT_CARRIER_SETTINGS);
     expect(DEFAULT_SETTINGS.carriers).toEqual({ dellinAppKey: "", yandexMapsApiKey: "", pecLogin: "", pecApiKey: "" });
+  });
+});
+
+describe("ключи внешних сервисов", () => {
+  it("пустое поле ключа dewatermark оставляет сохранённый, новый — заменяет", () => {
+    const saved = { dewatermarkApiKey: "dw-1" };
+    expect(mergeServiceSettings(saved, { dewatermarkApiKey: "" })).toEqual(saved);
+    expect(mergeServiceSettings(saved, { dewatermarkApiKey: "dw-2" })).toEqual({ dewatermarkApiKey: "dw-2" });
+  });
+
+  it("пробелы обрезаются; негодное значение из БД — умолчания, по умолчанию ключа нет", () => {
+    expect(parseSetting("services", { dewatermarkApiKey: "  dw-3 " })).toEqual({ dewatermarkApiKey: "dw-3" });
+    expect(parseSetting("services", "мусор")).toEqual(DEFAULT_SERVICE_SETTINGS);
+    expect(DEFAULT_SETTINGS.services).toEqual({ dewatermarkApiKey: "" });
   });
 });

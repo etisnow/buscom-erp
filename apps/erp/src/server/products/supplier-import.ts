@@ -11,7 +11,7 @@ import {
 } from "@buscom/domain/product/vanproject-product";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
-import { isDewatermarkConfigured, removeWatermark } from "@/server/products/dewatermark";
+import { getDewatermarkKey, removeWatermark } from "@/server/products/dewatermark";
 import { canEditCatalog } from "@/server/products/service";
 import { BROWSER_HEADERS, MAX_BYTES, priceCombos, request, statusError } from "@/server/products/supplier-price";
 import type { SessionUser } from "@/server/session";
@@ -130,15 +130,18 @@ export async function importFromSupplier(rawUrl: string, user: SessionUser): Pro
   }
   const images = await downloadImages(imageUrls, warnings);
   if (images.length > 0) {
-    if (isDewatermarkConfigured()) {
-      await cleanImages(images);
+    const dewatermarkKey = await getDewatermarkKey();
+    if (dewatermarkKey) {
+      await cleanImages(images, dewatermarkKey);
       const failed = images.filter((image) => !image.cleaned).length;
       if (failed > 0)
         warnings.push(
           `Водяной знак не снят с ${failed} из ${images.length} снимков: ${images.find((image) => image.error)?.error}`,
         );
     } else {
-      warnings.push("Водяной знак не снимался: не задан ключ DEWATERMARK_API_KEY — снимки со знаком");
+      warnings.push(
+        "Водяной знак не снимался: ключ dewatermark.ai не задан в «Администрирование → Внешние сервисы» — снимки со знаком",
+      );
       for (const image of images) image.error = "не настроено";
     }
   }
@@ -195,14 +198,14 @@ async function downloadImages(urls: string[], warnings: string[]): Promise<Impor
   return results.filter((image): image is ImportedImage => image !== null);
 }
 
-async function cleanImages(images: ImportedImage[]): Promise<void> {
+async function cleanImages(images: ImportedImage[], key: string): Promise<void> {
   let next = 0;
   const worker = async () => {
     while (next < images.length) {
       const image = images[next++]!;
       const original = new Uint8Array(Buffer.from(image.original.base64, "base64"));
       const fileName = image.sourceUrl.split("/").pop() || "image.jpg";
-      const result = await removeWatermark(original, fileName);
+      const result = await removeWatermark(original, fileName, key);
       if (result.ok) {
         image.cleaned = {
           base64: Buffer.from(result.data).toString("base64"),

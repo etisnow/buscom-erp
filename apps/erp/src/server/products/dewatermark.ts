@@ -1,6 +1,7 @@
 import "server-only";
 import { detectImageType } from "@buscom/domain/product/images";
 import { env } from "@/server/env";
+import { readSettings } from "@/server/settings/service";
 
 /**
  * Снятие водяного знака со снимка через платный API dewatermark.ai — для импорта
@@ -9,20 +10,26 @@ import { env } from "@/server/env";
  * Сервис перерисовывает участок под знаком нейросетью, поэтому результат всегда
  * смотрит человек: в форме импорта у каждого снимка можно вернуть оригинал.
  * Любая неудача — понятный текст, а не исключение: снимок тогда идёт как есть.
+ *
+ * Ключ задаёт администратор в «Администрирование → Внешние сервисы»; не задан там —
+ * берётся переменная окружения `DEWATERMARK_API_KEY`.
  */
 const ENDPOINT = "https://platform.dewatermark.ai/api/object_removal/v2/erase_watermark";
 const TIMEOUT_MS = 90_000;
 
 export type DewatermarkResult = { ok: true; data: Uint8Array<ArrayBuffer> } | { ok: false; error: string };
 
-export function isDewatermarkConfigured(): boolean {
-  return Boolean(env.DEWATERMARK_API_KEY);
+/** Ключ из настроек ERP, иначе из окружения; null — снятие знака выключено. */
+export async function getDewatermarkKey(): Promise<string | null> {
+  const { services } = await readSettings();
+  return services.dewatermarkApiKey || env.DEWATERMARK_API_KEY || null;
 }
 
-export async function removeWatermark(image: Uint8Array<ArrayBuffer>, fileName: string): Promise<DewatermarkResult> {
-  const key = env.DEWATERMARK_API_KEY;
-  if (!key) return { ok: false, error: "Снятие водяного знака не настроено: нужен ключ DEWATERMARK_API_KEY" };
-
+export async function removeWatermark(
+  image: Uint8Array<ArrayBuffer>,
+  fileName: string,
+  key: string,
+): Promise<DewatermarkResult> {
   const form = new FormData();
   form.append("original_preview_image", new Blob([image], { type: detectImageType(image) ?? "image/jpeg" }), fileName);
 
@@ -40,7 +47,10 @@ export async function removeWatermark(image: Uint8Array<ArrayBuffer>, fileName: 
     return { ok: false, error: `Сервис снятия знака ${reason}` };
   }
   if (response.status === 401 || response.status === 403) {
-    return { ok: false, error: "Сервис снятия знака не принял ключ — проверьте DEWATERMARK_API_KEY" };
+    return {
+      ok: false,
+      error: "Сервис снятия знака не принял ключ — проверьте его в «Администрирование → Внешние сервисы»",
+    };
   }
   if (response.status === 402 || response.status === 429) {
     return { ok: false, error: "У сервиса снятия знака кончился лимит или баланс" };
