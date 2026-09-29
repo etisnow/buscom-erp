@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AnalyticsTabs } from "@/components/analytics/analytics-tabs";
 import { PeriodPicker } from "@/components/analytics/period-picker";
 import { RevenueChart } from "@/components/analytics/revenue-chart";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
 import { lastDayInclusive, resolvePeriod, type Period } from "@buscom/domain/analytics/period";
 import { toDateInput } from "@buscom/domain/datetime";
 import { formatRub } from "@buscom/domain/money";
+import { pluralize } from "@buscom/domain/money-words";
 import { formatPercent } from "@buscom/domain/supplier/price-economics";
 import { ANALYTICS_ROLES } from "@buscom/domain/user/role";
 import type { OrderStatus } from "@buscom/db/enums";
@@ -51,9 +53,10 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/analyt
   return (
     <main className="flex flex-col gap-4">
       <h1 className="font-heading text-xl font-semibold">Аналитика</h1>
+      <AnalyticsTabs current="summary" />
       <PeriodPicker period={period} />
 
-      <section className="grid grid-cols-1 gap-3 *:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-1 gap-3 *:min-w-0 sm:grid-cols-2 xl:grid-cols-3">
         <Tile
           label="Выручка"
           value={formatRub(completed.revenueKopecks)}
@@ -78,6 +81,26 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/analyt
           value={formatRub(dashboard.payments.amountKopecks)}
           hint={`${dashboard.payments.count} платежей, по дате платежа`}
         />
+        <Tile
+          label="Расходы"
+          value={formatRub(dashboard.expenses.totalKopecks)}
+          hint={
+            dashboard.expenses.lines.length === 0
+              ? "расходов в периоде нет"
+              : `${dashboard.expenses.lines.length} ${pluralize(dashboard.expenses.lines.length, ["статья", "статьи", "статей"])}, разбивка ниже`
+          }
+        />
+        <Tile
+          label="Прибыль"
+          value={dashboard.profitKopecks === null ? "—" : formatRub(dashboard.profitKopecks)}
+          hint={
+            dashboard.profitKopecks === null
+              ? "маржа неизвестна — вычитать расходы не из чего"
+              : margin.knownOrders < completed.orders
+                ? `маржа − расходы; маржа по ${margin.knownOrders} из ${completed.orders} заказов`
+                : "маржа − расходы"
+          }
+        />
       </section>
 
       {margin.knownOrders < completed.orders ? (
@@ -93,6 +116,51 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/analyt
           <span className="text-muted-foreground ml-2 text-sm font-normal">выполненные заказы</span>
         </h2>
         <RevenueChart series={dashboard.series} />
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-lg border p-4">
+        <h2 className="font-heading font-medium">
+          Расходы за период
+          <Link href="/analytics/expenses" className="text-primary ml-3 text-sm font-normal hover:underline">
+            Завести или изменить
+          </Link>
+        </h2>
+        {dashboard.expenses.lines.length === 0 ? (
+          <p className="text-muted-foreground text-sm">В этом периоде расходов нет.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="text-muted-foreground text-xs">
+              <tr>
+                <th className="py-1 text-left font-normal">Расход</th>
+                <th className="py-1 pl-3 text-left font-normal">Размер</th>
+                <th className="py-1 pl-3 text-right font-normal">За период</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dashboard.expenses.lines.map((line) => (
+                <tr key={line.id} className="border-t">
+                  <td className="py-1.5 pr-2">{line.name}</td>
+                  <td className="text-muted-foreground py-1.5 pl-3">{line.description}</td>
+                  <td className="py-1.5 pl-3 text-right whitespace-nowrap tabular-nums">
+                    {formatRub(line.periodKopecks)}
+                  </td>
+                </tr>
+              ))}
+              <tr className="border-t font-medium">
+                <td className="py-1.5 pr-2" colSpan={2}>
+                  Итого
+                </td>
+                <td className="py-1.5 pl-3 text-right whitespace-nowrap tabular-nums">
+                  {formatRub(dashboard.expenses.totalKopecks)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+        <p className="text-muted-foreground text-xs">
+          Регулярные суммы разложены равномерно: годовая — по 1/12 в месяц, внутри месяца — по дням. Процент — от
+          выручки, маржи или оплат за дни периода, когда расход действует.
+        </p>
       </section>
 
       <div className="grid grid-cols-1 gap-4 *:min-w-0 lg:grid-cols-2">

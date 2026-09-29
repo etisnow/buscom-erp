@@ -1,4 +1,5 @@
 import "server-only";
+import { summarizeExpenses, type ExpensesSummary, type ExpenseRule } from "@buscom/domain/analytics/expenses";
 import type { Period } from "@buscom/domain/analytics/period";
 import {
   revenueSeries,
@@ -10,6 +11,7 @@ import {
   type TopProduct,
 } from "@buscom/domain/analytics/summary";
 import type { Kopecks } from "@buscom/domain/money";
+import { calculateOrderMargin } from "@buscom/domain/order/margin";
 import { ORDER_STATUSES } from "@buscom/domain/order/status";
 import { ANALYTICS_ROLES, hasRole } from "@buscom/domain/user/role";
 import type { OrderStatus } from "@buscom/db/enums";
@@ -25,7 +27,9 @@ import type { SessionUser } from "@/server/session";
  *   выполнения. «Выполнен» конечный, поэтому время последней смены статуса у
  *   такого заказа и есть время выполнения (у архивных — дата заказа);
  * - поступившие оплаты — по дате платежа;
- * - заказы по статусам — созданные в периоде, по текущему статусу.
+ * - заказы по статусам — созданные в периоде, по текущему статусу;
+ * - расходы — доля каждого расхода, действующего в периоде (`analytics/expenses`);
+ *   процент берёт базу из тех же выручки, маржи и оплат по их датам.
  *
  * Считается в приложении, а не SQL-агрегатами: маржа заказа — доменная функция с
  * округлениями комиссии, её нельзя повторить в запросе, не разойдясь с карточкой.
@@ -42,6 +46,9 @@ export type Dashboard = {
   /** Все четыре статуса по порядку, в том числе нулевые */
   byStatus: StatusCount[];
   createdOrders: number;
+  expenses: ExpensesSummary<ExpenseRule & { id: string; name: string }>;
+  /** Маржа минус расходы; null — маржа не известна ни по одному заказу */
+  profitKopecks: Kopecks | null;
 };
 
 function range(period: Period) {
@@ -53,7 +60,7 @@ export async function getDashboard(period: Period, user: SessionUser): Promise<D
     throw new ForbiddenError("Аналитику видят руководитель и администратор");
   }
 
-  const [completedRows, payments, statusGroups] = await Promise.all([
+  const [completedRows, paymentRows, statusGroups, expenseRows] = await Promise.all([
     db.order.findMany({
       where: { deletedAt: null, status: "COMPLETED", statusChangedAt: range(period) },
       select: {
@@ -83,16 +90,28 @@ export async function getDashboard(period: Period, user: SessionUser): Promise<D
         },
       },
     }),
-    db.payment.aggregate({
+    db.payment.findMany({
       where: { paidAt: range(period), order: { deletedAt: null } },
-      _count: { _all: true },
-      _sum: { amountKopecks: true },
+      select: { paidAt: true, amountKopecks: true },
     }),
     db.order.groupBy({
       by: ["status"],
       where: { deletedAt: null, createdAt: range(period) },
       _count: { _all: true },
       _sum: { totalKopecks: true },
+    }),
+    // Расходов десятки — отбор по периоду делает домен, у разового и регулярного он разный
+    db.expense.findMany({
+      select: {
+        id: true,
+        name: true,
+        recurrence: true,
+        amountKopecks: true,
+        percentHundredths: true,
+        base: true,
+        startsOn: true,
+        endsOn: true,
+      },
     }),
   ]);
 
@@ -124,12 +143,27 @@ export async function getDashboard(period: Period, user: SessionUser): Promise<D
     return { status, orders: group?._count._all ?? 0, totalKopecks: group?._sum.totalKopecks ?? 0 };
   });
 
+  const summary = summarizeCompleted(completed);
+  const expenses = summarizeExpenses(expenseRows, period, {
+    REVENUE: completed.map((order) => ({ at: order.completedAt, kopecks: order.totalKopecks })),
+    MARGIN: completed.flatMap((order) => {
+      const margin = calculateOrderMargin(order);
+      return margin.known ? [{ at: order.completedAt, kopecks: margin.marginKopecks }] : [];
+    }),
+    PAYMENTS: paymentRows.map((payment) => ({ at: payment.paidAt, kopecks: payment.amountKopecks })),
+  });
+
   return {
-    completed: summarizeCompleted(completed),
+    completed: summary,
     series: revenueSeries(completed, period),
     topProducts: topProducts(completed),
-    payments: { count: payments._count._all, amountKopecks: payments._sum.amountKopecks ?? 0 },
+    payments: {
+      count: paymentRows.length,
+      amountKopecks: paymentRows.reduce((sum, payment) => sum + payment.amountKopecks, 0),
+    },
     byStatus,
     createdOrders: byStatus.reduce((sum, row) => sum + row.orders, 0),
+    expenses,
+    profitKopecks: summary.margin.knownOrders > 0 ? summary.margin.marginKopecks - expenses.totalKopecks : null,
   };
 }

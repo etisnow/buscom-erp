@@ -1,7 +1,9 @@
 import { beforeEach, expect, it } from "vitest";
 import { resolvePeriod } from "@buscom/domain/analytics/period";
 import type { OrderStatus } from "@buscom/db/enums";
+import { expenseInputSchema } from "@buscom/domain/analytics/expenses";
 import { getDashboard } from "@/server/analytics/dashboard";
+import { createExpense, listExpenses } from "@/server/analytics/expenses";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import { describeDb, resetDb } from "@/test/db";
@@ -138,6 +140,63 @@ describeDb("аналитика (живая БД)", () => {
     const dashboard = await getDashboard(SEPTEMBER, head);
 
     expect(dashboard.payments).toEqual({ count: 1, amountKopecks: 7 });
+  });
+
+  it("расходы за период и прибыль — маржа минус расходы", async () => {
+    await makeOrder(customerId, {
+      status: "COMPLETED",
+      createdAt: "2026-09-02T10:00:00Z",
+      priceKopecks: 100_000,
+      costKopecks: 70_000,
+    });
+    await createExpense(
+      expenseInputSchema.parse({
+        kind: "AMOUNT",
+        name: "Аренда",
+        comment: "",
+        recurrence: "YEARLY",
+        amountKopecks: 120_000,
+        startsOn: "2026-01-01",
+      }),
+      head,
+    );
+    await createExpense(
+      expenseInputSchema.parse({
+        kind: "PERCENT",
+        name: "Налог",
+        comment: "",
+        base: "REVENUE",
+        percentHundredths: 600,
+        startsOn: "2026-01-01",
+      }),
+      head,
+    );
+    // Разовый в августе — в сентябрь не попадает
+    await createExpense(
+      expenseInputSchema.parse({
+        kind: "AMOUNT",
+        name: "Выставка",
+        comment: "",
+        recurrence: "ONCE",
+        amountKopecks: 999_999,
+        startsOn: "2026-08-15",
+      }),
+      head,
+    );
+
+    const dashboard = await getDashboard(SEPTEMBER, head);
+
+    expect(dashboard.expenses.lines.map((line) => [line.name, line.periodKopecks])).toEqual([
+      ["Аренда", 10_000],
+      ["Налог", 6_000],
+    ]);
+    expect(dashboard.expenses.totalKopecks).toBe(16_000);
+    expect(dashboard.profitKopecks).toBe(30_000 - 16_000);
+  });
+
+  it("менеджеру расходы закрыты", async () => {
+    const manager = await makeUser("MANAGER");
+    await expect(listExpenses(manager)).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it("менеджеру аналитика закрыта", async () => {

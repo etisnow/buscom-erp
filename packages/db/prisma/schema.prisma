@@ -57,6 +57,7 @@ model User {
   chatMessages  ChatMessage[]
   pushDevices   PushSubscription[]
   sitePages     SitePage[]
+  expenses      Expense[]
 
   @@map("user")
 }
@@ -970,4 +971,56 @@ model PushSubscription {
   lastSentAt DateTime?
 
   @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Аналитика: расходы
+// ---------------------------------------------------------------------------
+
+/// Как часто повторяется расход с фиксированной суммой
+enum ExpenseRecurrence {
+  /// Разовый: вся сумма — в день `startsOn`
+  ONCE
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+/// От какой величины аналитики считается расход-процент
+enum ExpenseBase {
+  /// Выручка: итоги выполненных заказов по дате выполнения
+  REVENUE
+  /// Маржа выполненных заказов, где она известна
+  MARGIN
+  /// Поступившие оплаты по дате платежа
+  PAYMENTS
+}
+
+/// Расход компании для экрана «Аналитика»: сумма или процент от величины аналитики.
+/// Регулярная сумма раскладывается равномерно (годовой — по 1/12 в месяц, внутри
+/// месяца — по дням), процент берётся от величины за те дни периода, когда расход
+/// действует. Как считается — packages/domain/src/analytics/expenses.ts.
+///
+/// Ровно один вид: сумма (`amountKopecks` + `recurrence`) или процент
+/// (`percentHundredths` + `base`, без `recurrence`) — проверяется в миграции.
+model Expense {
+  id                String             @id @default(cuid())
+  name              String
+  comment           String?
+  /// null — процент: он начисляется за каждый день действия, периодичности у него нет
+  recurrence        ExpenseRecurrence?
+  amountKopecks     Int?
+  /// Сотые доли процента: 550 — 5,5%
+  percentHundredths Int?
+  base              ExpenseBase?
+  /// Полночь по Москве. У разового — дата расхода, у остальных — первый день действия
+  startsOn          DateTime
+  /// Последний день действия включительно (полночь по Москве); null — бессрочно
+  endsOn            DateTime?
+  createdById       String?
+  createdBy         User?              @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([startsOn])
 }
