@@ -523,6 +523,8 @@ model Order {
   cargoLengthCm    Int?
   cargoWidthCm     Int?
   cargoHeightCm    Int?
+  /// Объём груза в см³ (0,556 м³ = 556000)
+  cargoVolumeCm3   Int?
 
   customerComment String?
   cancelReason    String?

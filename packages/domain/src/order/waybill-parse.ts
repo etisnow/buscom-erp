@@ -4,12 +4,13 @@
  * распознавание в `src/server/orders/waybill-recognition.ts`.
  *
  * Правила сняты с экспедиторской расписки «Деловых Линий» (№26-01211275323)
- * и с накладной СДЭК (№10327118658, штрихкод с префиксом `[CDK]`).
+ * с накладной СДЭК (№10327118658, штрихкод с префиксом `[CDK]`)
+ * и с поручения экспедитору КИТ (№НОВЕКБ0123850991).
  * OCR на сканах ошибается в цифрах, поэтому менеджер проверяет подставленное
  * перед сохранением, а номер сверяется со штрихкодом — там он без ошибок.
  */
 import { rublesToKopecks, type Kopecks } from "../money";
-import { MAX_CARGO_SIDE_CM, MAX_CARGO_WEIGHT_GRAMS } from "./delivery";
+import { MAX_CARGO_SIDE_CM, MAX_CARGO_VOLUME_CM3, MAX_CARGO_WEIGHT_GRAMS } from "./delivery";
 
 export type WaybillFields = {
   /** Название из справочника ТК — только то, что в нём есть */
@@ -20,6 +21,8 @@ export type WaybillFields = {
   /** Дата доставки (у ТК — готовности к выдаче), `2026-09-29` */
   deliveryDate: string | null;
   weightGrams: number | null;
+  /** Объём груза в см³: «0,556 м3» → 556000 */
+  volumeCm3: number | null;
   lengthCm: number | null;
   widthCm: number | null;
   heightCm: number | null;
@@ -90,6 +93,56 @@ export function findCdekDestination(text: string): string | null {
   return parts.length > 0 ? parts.join(", ") : null;
 }
 
+/** Номер поручения КИТ: буквы направления и цифры, «НОВЕКБ0123850991». */
+const KIT_NUMBER = /^[А-ЯЁA-Z]{4,8}\d{10,}$/;
+
+/** Поручение экспедитору КИТ: «ООО КИТ.ТК» в шапке или номер с буквенным префиксом после «№». */
+export function isKitWaybill(text: string): boolean {
+  return /КИТ\s*[.,]?\s*ТК/i.test(text) || /расписка\s*№\s*[А-ЯЁA-Z]{4,8}\d{6}/.test(text);
+}
+
+/**
+ * Номер поручения КИТ: из штрихкода, если он такого вида, иначе после «№».
+ * В цифровой части OCR путает O/0 и l/1 — исправляем.
+ */
+export function findKitTrackingNumber(text: string, barcodes: readonly string[]): string | null {
+  const barcode = barcodes.find((code) => KIT_NUMBER.test(code));
+  if (barcode) return barcode;
+  const match = /№\s*([А-ЯЁA-Z]{4,8})\s*([0-9OОoоlI|]{10,})/.exec(text);
+  if (!match) return null;
+  return `${match[1]}${match[2]!.replace(/[OОoо]/g, "0").replace(/[lI|]/g, "1")}`;
+}
+
+/** «Итого (Справочно: Сумма с НДС 22% 3782.00 Сумма без НДС 60.00) 3 842,00» — к оплате последняя сумма строки. */
+export function findKitTotalKopecks(text: string): Kopecks | null {
+  const line = /Итого\s*\(\s*Справочно[^\n]*/i.exec(text)?.[0];
+  if (!line) return null;
+  const last = [...line.matchAll(/(\d{1,3}(?:[\s  ]?\d{3})*[.,]\d{2})(?!\d)/g)].at(-1);
+  if (!last) return null;
+  try {
+    return rublesToKopecks(last[1]!.replace(/[\s  ]/g, ""));
+  } catch {
+    return null;
+  }
+}
+
+/** «Перевозка груза: Нижний Новгород - Екатеринбург» → «Екатеринбург». */
+export function findKitDestination(text: string): string | null {
+  const match =
+    /Перевозка\s+груза\s*:\s*[А-ЯЁ][а-яё]+(?:[ -][А-ЯЁ][а-яё]+)*\s+[-–—]\s+([А-ЯЁ][а-яё]+(?:[ -][А-ЯЁ][а-яё]+)*)/.exec(
+      text,
+    );
+  return match ? match[1]! : null;
+}
+
+/** У КИТ один размер: «габарит 95 см» — берём его как длину. */
+export function findSingleSideCm(text: string): number | null {
+  const match = /габарит\S*\s*(\d+(?:[.,]\d+)?)\s*см/i.exec(text);
+  if (!match) return null;
+  const side = Math.round(Number(match[1]!.replace(",", ".")));
+  return side > 0 && side <= MAX_CARGO_SIDE_CM ? side : null;
+}
+
 /**
  * ТК из справочника, чьё название есть в тексте. Короткие названия («КИТ», «ПЭК»)
  * ищем только отдельным словом — склеенными они найдутся внутри чего угодно.
@@ -146,13 +199,36 @@ export function findTrackingNumber(text: string, barcodes: readonly string[]): s
   return /^\d+$/.test(body) ? `${prefix}-${body}` : null;
 }
 
-/** Первая дата «от 25.09.2026» — дата документа. */
+const MONTHS_GENITIVE = [
+  "января",
+  "февраля",
+  "марта",
+  "апреля",
+  "мая",
+  "июня",
+  "июля",
+  "августа",
+  "сентября",
+  "октября",
+  "ноября",
+  "декабря",
+];
+
+/** Первая дата «от 25.09.2026» (у КИТ — «от 29 сентября 2026 г.») — дата документа. */
 export function findDocumentDate(text: string): string | null {
-  const match = /(?:^|[^а-яё])от\s+(\d{2})\.(\d{2})\.(\d{4})/i.exec(text);
-  if (!match) return null;
-  const [, day, month, year] = match;
-  if (Number(month) < 1 || Number(month) > 12 || Number(day) < 1 || Number(day) > 31) return null;
-  return `${year}-${month}-${day}`;
+  const numeric = /(?:^|[^а-яё])от\s+(\d{2})\.(\d{2})\.(\d{4})/i.exec(text);
+  if (numeric) {
+    const [, day, month, year] = numeric;
+    if (Number(month) < 1 || Number(month) > 12 || Number(day) < 1 || Number(day) > 31) return null;
+    return `${year}-${month}-${day}`;
+  }
+  const words = new RegExp(
+    String.raw`(?:^|[^а-яё])от\s+(\d{1,2})\s+(${MONTHS_GENITIVE.join("|")})\s+(\d{4})`,
+    "i",
+  ).exec(text);
+  if (!words) return null;
+  const month = String(MONTHS_GENITIVE.indexOf(words[2]!.toLowerCase()) + 1).padStart(2, "0");
+  return isoDate(words[1]!.padStart(2, "0"), month, words[3]!);
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -190,15 +266,30 @@ export function findDeliveryDate(text: string, documentDate: string | null = fin
   return null;
 }
 
-/** Вес «18 кг» / «18,5 кг» → граммы. Первое упоминание. */
+/**
+ * Вес «18 кг» / «18,5 кг» → граммы. Сначала по подписи («Вес к оплате», «масса 25 кг» у КИТ) —
+ * единицу OCR может исказить, — иначе первое число с «кг».
+ */
 export function findWeightGrams(text: string): number | null {
   // У СДЭК первым идёт «0.600/1.044 кг» (физический/объёмный) — берём «Вес к оплате»
   const match =
     /Вес\s+к\s+оплате\s*:?\s*(\d+(?:[.,]\d{1,3})?)\s*кг(?![а-яё])/i.exec(text) ??
+    /(?:масса|вес)(?![а-яё])[^\d\n]{0,15}(\d+(?:[.,]\d{1,3})?)/i.exec(text) ??
     /(\d+(?:[.,]\d{1,3})?)\s*кг(?![а-яё])/i.exec(text);
   if (!match) return null;
   const grams = Math.round(Number(match[1].replace(",", ".")) * 1000);
   return grams > 0 && grams <= MAX_CARGO_WEIGHT_GRAMS ? grams : null;
+}
+
+/**
+ * Объём «0,556 м3» → см³. У ДЛ OCR читает запятую двоеточием («0:32 м3»); тройку — цифрой,
+ * «³» или «З».
+ */
+export function findVolumeCm3(text: string): number | null {
+  const match = /(\d+(?:[.,:]\d{1,6})?)\s*м\s*[3³З](?![а-яё\d])/i.exec(text);
+  if (!match) return null;
+  const cm3 = Math.round(Number(match[1]!.replace(/[,:]/, ".")) * 1_000_000);
+  return cm3 > 0 && cm3 <= MAX_CARGO_VOLUME_CM3 ? cm3 : null;
 }
 
 /** «1,53 × 0,7 × 0,3 м» → сантиметры. OCR пишет знак умножения как «х», «x» или «*». */
@@ -233,17 +324,24 @@ export function findDestination(text: string): string | null {
 export function parseWaybill(text: string, barcodes: readonly string[], carriers: readonly string[]): WaybillFields {
   const sides = findDimensionsCm(text);
   const cdek = isCdekWaybill(text, barcodes);
+  const kit = isKitWaybill(text);
   return {
     // Логотип СДЭК OCR не читает («СЭБК»), а по штрихкоду и заголовку накладная опознаётся
-    carrier: findCarrier(cdek ? `${text} cdek` : text, carriers),
-    trackingNumber: findTrackingNumber(text, barcodes) ?? (cdek ? findCdekTrackingNumber(text, barcodes) : null),
+    carrier: findCarrier(cdek ? `${text} cdek` : kit ? `${text} кит` : text, carriers),
+    trackingNumber:
+      findTrackingNumber(text, barcodes) ??
+      (cdek ? findCdekTrackingNumber(text, barcodes) : null) ??
+      (kit ? findKitTrackingNumber(text, barcodes) : null),
     shippedAt: findDocumentDate(text),
     deliveryDate: findDeliveryDate(text),
     weightGrams: findWeightGrams(text),
-    lengthCm: sides?.[0] ?? null,
+    // Объёма на бланке нет (СДЭК) — считаем по трём сторонам, если они есть
+    volumeCm3: findVolumeCm3(text) ?? (sides ? sides[0] * sides[1] * sides[2] : null),
+    lengthCm: sides?.[0] ?? (kit ? findSingleSideCm(text) : null),
     widthCm: sides?.[1] ?? null,
     heightCm: sides?.[2] ?? null,
-    priceKopecks: findTotalKopecks(text) ?? findDeliveryCostKopecks(text),
-    destination: findDestination(text) ?? (cdek ? findCdekDestination(text) : null),
+    priceKopecks: findTotalKopecks(text) ?? findKitTotalKopecks(text) ?? findDeliveryCostKopecks(text),
+    destination:
+      findDestination(text) ?? (cdek ? findCdekDestination(text) : null) ?? (kit ? findKitDestination(text) : null),
   };
 }

@@ -30,7 +30,7 @@ describeDb("доставка: дата отгрузки и груз (живая 
       orderId,
       user: manager,
       shippedAt,
-      cargo: { weightGrams: 12_500, lengthCm: 120, widthCm: 60, heightCm: 40 },
+      cargo: { weightGrams: 12_500, lengthCm: 120, widthCm: 60, heightCm: 40, volumeCm3: null },
     });
 
     expect(order).toMatchObject({
@@ -71,7 +71,7 @@ describeDb("доставка: дата отгрузки и груз (живая 
     await updateOrderDelivery({
       orderId,
       user: manager,
-      cargo: { weightGrams: 1000, lengthCm: null, widthCm: null, heightCm: null },
+      cargo: { weightGrams: 1000, lengthCm: null, widthCm: null, heightCm: null, volumeCm3: null },
     });
     const untouched = await updateOrderDelivery({ orderId, user: manager, trackingNumber: "TRACK-1" });
     expect(untouched.cargoWeightGrams).toBe(1000);
@@ -80,7 +80,7 @@ describeDb("доставка: дата отгрузки и груз (живая 
       orderId,
       user: manager,
       shippedAt: null,
-      cargo: { weightGrams: null, lengthCm: null, widthCm: null, heightCm: null },
+      cargo: { weightGrams: null, lengthCm: null, widthCm: null, heightCm: null, volumeCm3: null },
     });
     expect(cleared.cargoWeightGrams).toBeNull();
     expect(cleared.shippedAt).toBeNull();
@@ -92,7 +92,7 @@ describeDb("доставка: дата отгрузки и груз (живая 
       updateOrderDelivery({
         orderId,
         user: manager,
-        cargo: { weightGrams: 1000, lengthCm: null, widthCm: null, heightCm: null },
+        cargo: { weightGrams: 1000, lengthCm: null, widthCm: null, heightCm: null, volumeCm3: null },
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
   });

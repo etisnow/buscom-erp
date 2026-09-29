@@ -59,6 +59,7 @@ export async function updateOrderDelivery(input: UpdateDeliveryInput): Promise<O
             cargoLengthCm: input.cargo.lengthCm,
             cargoWidthCm: input.cargo.widthCm,
             cargoHeightCm: input.cargo.heightCm,
+            cargoVolumeCm3: input.cargo.volumeCm3,
           }
         : {}),
     };
@@ -90,6 +91,7 @@ export async function updateOrderDelivery(input: UpdateDeliveryInput): Promise<O
           cargoLengthCm: order.cargoLengthCm,
           cargoWidthCm: order.cargoWidthCm,
           cargoHeightCm: order.cargoHeightCm,
+          cargoVolumeCm3: order.cargoVolumeCm3,
         },
         after: { ...data, ...(terminalChanged ? { deliveryTerminal: null } : {}) },
       },

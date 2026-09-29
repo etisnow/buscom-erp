@@ -25,11 +25,15 @@ export type Cargo = {
   lengthCm: number | null;
   widthCm: number | null;
   heightCm: number | null;
+  /** Объём в см³ (целыми, как стороны): 0,556 м³ = 556 000 см³ */
+  volumeCm3: number | null;
 };
 
 /** Потолки против опечаток: 50 т и 50 м — заведомо больше любого груза компании. */
 export const MAX_CARGO_WEIGHT_GRAMS = 50_000_000;
 export const MAX_CARGO_SIDE_CM = 5_000;
+/** 1 000 м³ — заведомо больше любого груза; в см³ помещается в Int базы */
+export const MAX_CARGO_VOLUME_CM3 = 1_000_000_000;
 
 export class CargoInputError extends Error {
   constructor(message: string) {
@@ -66,11 +70,29 @@ export function parseSideCm(input: string, label: string): number | null {
   return cm;
 }
 
-/** «12,5 кг · 120 × 60 × 40 см»; незаполненные стороны — «?»; ничего не задано — null. */
+/** «0,556» или «0.556» м³ → 556 000 см³; пусто — null. До кубических сантиметров, больше шести знаков — ошибка. */
+export function parseVolumeM3(input: string): number | null {
+  const value = input.trim().replace(/\s/g, "").replace(",", ".");
+  if (value === "") return null;
+  const match = /^(\d+)(?:\.(\d{1,6}))?$/.exec(value);
+  if (!match) throw new CargoInputError("Объём — число в кубометрах: например, 0,556");
+  const cm3 = Number(match[1]) * 1_000_000 + Number((match[2] ?? "").padEnd(6, "0"));
+  if (cm3 <= 0) throw new CargoInputError("Объём должен быть больше нуля");
+  if (cm3 > MAX_CARGO_VOLUME_CM3) throw new CargoInputError("Объём больше 1000 м³ — проверьте, нет ли опечатки");
+  return cm3;
+}
+
+/** 556 000 см³ → «0,556». Для поля ввода и для текста. */
+export function formatVolumeM3(cm3: number): string {
+  return (cm3 / 1_000_000).toLocaleString("ru-RU", { maximumFractionDigits: 6, useGrouping: false });
+}
+
+/** «12,5 кг · 120 × 60 × 40 см · 0,288 м³»; незаполненные стороны — «?»; ничего не задано — null. */
 export function formatCargo(cargo: Cargo): string | null {
   const sides = [cargo.lengthCm, cargo.widthCm, cargo.heightCm];
   const parts: string[] = [];
   if (cargo.weightGrams !== null) parts.push(`${formatWeightKg(cargo.weightGrams)} кг`);
   if (sides.some((side) => side !== null)) parts.push(`${sides.map((side) => side ?? "?").join(" × ")} см`);
+  if (cargo.volumeCm3 !== null) parts.push(`${formatVolumeM3(cargo.volumeCm3)} м³`);
   return parts.length > 0 ? parts.join(" · ") : null;
 }

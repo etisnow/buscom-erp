@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { parseDateInput } from "@buscom/domain/datetime";
-import { MAX_CARGO_SIDE_CM, MAX_CARGO_WEIGHT_GRAMS } from "@buscom/domain/order/delivery";
+import { MAX_CARGO_SIDE_CM, MAX_CARGO_VOLUME_CM3, MAX_CARGO_WEIGHT_GRAMS } from "@buscom/domain/order/delivery";
 import { DiscountLimitError } from "@buscom/domain/order/discount";
 import { OrderEditError } from "@buscom/domain/order/editing";
 import { OrderTransitionError } from "@buscom/domain/order/status";
@@ -207,6 +207,7 @@ const deliverySchema = z.object({
       lengthCm: z.number().int().positive().max(MAX_CARGO_SIDE_CM).nullable(),
       widthCm: z.number().int().positive().max(MAX_CARGO_SIDE_CM).nullable(),
       heightCm: z.number().int().positive().max(MAX_CARGO_SIDE_CM).nullable(),
+      volumeCm3: z.number().int().positive().max(MAX_CARGO_VOLUME_CM3).nullable(),
     })
     .optional(),
 });

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { CargoInputError, formatCargo, formatWeightKg, parseSideCm, parseWeightKg } from "./delivery";
+import {
+  CargoInputError,
+  formatCargo,
+  formatVolumeM3,
+  formatWeightKg,
+  parseSideCm,
+  parseVolumeM3,
+  parseWeightKg,
+} from "./delivery";
 
 describe("parseWeightKg", () => {
   it("килограммы с запятой или точкой — в граммы", () => {
@@ -35,18 +43,40 @@ describe("parseSideCm", () => {
 
 describe("formatCargo", () => {
   it("вес и габариты одной строкой", () => {
-    expect(formatCargo({ weightGrams: 12_500, lengthCm: 120, widthCm: 60, heightCm: 40 })).toBe(
+    expect(formatCargo({ weightGrams: 12_500, lengthCm: 120, widthCm: 60, heightCm: 40, volumeCm3: null })).toBe(
       "12,5 кг · 120 × 60 × 40 см",
     );
   });
 
   it("незаполненная сторона — знак вопроса; ничего нет — null", () => {
-    expect(formatCargo({ weightGrams: null, lengthCm: 120, widthCm: null, heightCm: 40 })).toBe("120 × ? × 40 см");
-    expect(formatCargo({ weightGrams: null, lengthCm: null, widthCm: null, heightCm: null })).toBeNull();
+    expect(formatCargo({ weightGrams: null, lengthCm: 120, widthCm: null, heightCm: 40, volumeCm3: null })).toBe(
+      "120 × ? × 40 см",
+    );
+    expect(
+      formatCargo({ weightGrams: null, lengthCm: null, widthCm: null, heightCm: null, volumeCm3: null }),
+    ).toBeNull();
   });
 
   it("вес без лишних нулей", () => {
     expect(formatWeightKg(3000)).toBe("3");
     expect(formatWeightKg(75)).toBe("0,075");
+  });
+});
+
+describe("объём груза", () => {
+  it("кубометры с запятой → см³ и обратно", () => {
+    expect(parseVolumeM3("0,556")).toBe(556_000);
+    expect(parseVolumeM3(" 2 ")).toBe(2_000_000);
+    expect(parseVolumeM3("")).toBeNull();
+    expect(formatVolumeM3(556_000)).toBe("0,556");
+    expect(formatCargo({ weightGrams: null, lengthCm: null, widthCm: null, heightCm: null, volumeCm3: 556_000 })).toBe(
+      "0,556 м³",
+    );
+  });
+
+  it("мусор, ноль и опечатку не принимает", () => {
+    expect(() => parseVolumeM3("abc")).toThrow(CargoInputError);
+    expect(() => parseVolumeM3("0")).toThrow(CargoInputError);
+    expect(() => parseVolumeM3("1001")).toThrow(CargoInputError);
   });
 });

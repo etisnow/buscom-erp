@@ -5,7 +5,10 @@ import {
   findDestination,
   findDimensionsCm,
   findDocumentDate,
+  findKitTotalKopecks,
+  findKitTrackingNumber,
   findTotalKopecks,
+  findVolumeCm3,
   findTrackingNumber,
   findWeightGrams,
   parseWaybill,
@@ -59,6 +62,8 @@ describe("parseWaybill — расписка «Деловых Линий»", () =
       // Срок под «тип доставки Авто» — без подписи, первая дата после даты документа
       deliveryDate: "2026-09-29",
       weightGrams: 18_000,
+      // OCR прочитал «0,32 м3» как «0:32 м3» — объём с бланка, а не произведение сторон
+      volumeCm3: 320_000,
       lengthCm: 153,
       widthCm: 70,
       // Ошибка OCR — 0,3 м прочитано как 0,5; такое ловит только менеджер при проверке
@@ -183,6 +188,7 @@ describe("parseWaybill — накладная СДЭК", () => {
       shippedAt: "2026-09-28",
       deliveryDate: null,
       weightGrams: 1044,
+      volumeCm3: null,
       lengthCm: null,
       widthCm: null,
       heightCm: null,
@@ -197,5 +203,85 @@ describe("parseWaybill — накладная СДЭК", () => {
 
   it("не путает с «Деловыми линиями»: у расписки ДЛ штрихкод без префикса", () => {
     expect(parseWaybill(DELLIN_OCR, [DELLIN_BARCODE], CARRIERS).carrier).toBe("Деловые линии");
+  });
+});
+
+/**
+ * Текст поручения экспедитору КИТ по фото накладной (текст набран по снимку, не вывод Tesseract:
+ * реальный прогон OCR нужен на боевом скане). ФИО, телефоны и адреса заменены выдуманными.
+ */
+const KIT_TEXT = `ООО "КИТ.ТК"
+НОВЕКБ0123850991
+1144066545
+Поручение экспедитору/экспедиторская расписка № НОВЕКБ0123850991 от 29 сентября 2026 г.
+А: Грузоотправитель
+наименование ПЕТРОВ ПЁТР ПЕТРОВИЧ
+В: сведения о грузе
+количество мест 1/0 объём 0,556 м3
+габарит 95 см ценность груза 20 000 RUB
+масса 25 кг
+Запчасти
+D: отметки экспедитора
+дата: 29.09.2026 время: 18:39:30
+1 Перевозка груза: Нижний Новгород - Екатеринбург 1 3 762,00
+2 Возмещение страхования груза по объяв.ст 1 60,00
+Итого (Справочно: Сумма с НДС 22% 3782.00 Сумма без НДС 60.00) 3 842,00
+В т.ч. НДС 22% 681,99
+Всего услуг на сумму: Три тысячи восемьсот сорок два рубля 00 копеек`;
+
+describe("parseWaybill — поручение экспедитору КИТ", () => {
+  it("достаёт номер, дату «от 29 сентября 2026», массу, габарит, итог и город назначения", () => {
+    expect(parseWaybill(KIT_TEXT, [], CARRIERS)).toEqual({
+      carrier: "КИТ (GTD)",
+      trackingNumber: "НОВЕКБ0123850991",
+      shippedAt: "2026-09-29",
+      deliveryDate: null,
+      weightGrams: 25_000,
+      volumeCm3: 556_000,
+      lengthCm: 95,
+      widthCm: null,
+      heightCm: null,
+      priceKopecks: 384_200,
+      destination: "Екатеринбург",
+    });
+  });
+
+  it("номер берёт из штрихкода того же вида", () => {
+    expect(parseWaybill(KIT_TEXT, ["НОВЕКБ0123850991"], CARRIERS).trackingNumber).toBe("НОВЕКБ0123850991");
+  });
+
+  it("путаницу O/0 в цифрах номера исправляет", () => {
+    expect(findKitTrackingNumber("расписка № НОВЕКБО123850991", [])).toBe("НОВЕКБ0123850991");
+  });
+
+  it("сумма — последняя в строке «Итого (Справочно…)», а не справочные", () => {
+    expect(findKitTotalKopecks("Итого (Справочно: Сумма с НДС 22% 3782.00 Сумма без НДС 60.00) 3 842,00")).toBe(
+      384_200,
+    );
+    expect(findKitTotalKopecks("Итого 3 842,00")).toBeNull();
+  });
+
+  it("дата документа со словом-месяцем", () => {
+    expect(findDocumentDate("от 5 марта 2026 г.")).toBe("2026-03-05");
+    expect(findDocumentDate("от 31 февраля 2026")).toBeNull();
+  });
+});
+
+describe("вес и объём", () => {
+  it("вес по подписи «масса», даже если единицу OCR исказил", () => {
+    expect(findWeightGrams("масса 25 кг")).toBe(25_000);
+    expect(findWeightGrams("масса 25 Kr")).toBe(25_000);
+    expect(findWeightGrams("Вес груза: 18,5")).toBe(18_500);
+  });
+
+  it("объём: м3, м³, «мЗ» и двоеточие вместо запятой", () => {
+    expect(findVolumeCm3("объём 0,556 м3")).toBe(556_000);
+    expect(findVolumeCm3("0.32 м³")).toBe(320_000);
+    expect(findVolumeCm3("объём 0:32 мЗ")).toBe(320_000);
+    expect(findVolumeCm3("1,53 х 0,7 х 0,3 м")).toBeNull();
+  });
+
+  it("без объёма на бланке считает по трём сторонам", () => {
+    expect(parseWaybill("Вес 5 кг\n1,2 х 0,5 х 0,4 м", [], CARRIERS).volumeCm3).toBe(240_000);
   });
 });

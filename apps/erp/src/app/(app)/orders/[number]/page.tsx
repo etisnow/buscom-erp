@@ -410,6 +410,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
                 lengthCm: order.cargoLengthCm,
                 widthCm: order.cargoWidthCm,
                 heightCm: order.cargoHeightCm,
+                volumeCm3: order.cargoVolumeCm3,
               }}
               carriers={carrierOptions}
               canEdit={!isClosed}

@@ -13,8 +13,10 @@ import { rublesToKopecks } from "@buscom/domain/money";
 import {
   CargoInputError,
   DELIVERY_METHOD_LABELS as METHOD_LABELS,
+  formatVolumeM3,
   formatWeightKg,
   parseSideCm,
+  parseVolumeM3,
   parseWeightKg,
   type Cargo,
 } from "@buscom/domain/order/delivery";
@@ -41,7 +43,8 @@ type FilledField =
   | "weight"
   | "length"
   | "width"
-  | "height";
+  | "height"
+  | "volume";
 
 const FILLED_CLASS = "ring-2 ring-amber-400";
 
@@ -96,6 +99,7 @@ export function OrderDelivery({
   const [length, setLength] = useState(cargo.lengthCm?.toString() ?? "");
   const [width, setWidth] = useState(cargo.widthCm?.toString() ?? "");
   const [height, setHeight] = useState(cargo.heightCm?.toString() ?? "");
+  const [volume, setVolume] = useState(cargo.volumeCm3 === null ? "" : formatVolumeM3(cargo.volumeCm3));
   const [pending, startTransition] = useTransition();
   const [recognizing, startRecognition] = useTransition();
   /** Поля, которые подставила накладная и которые ещё не сохранены, — подсвечены */
@@ -127,6 +131,7 @@ export function OrderDelivery({
       apply("length", found.lengthCm?.toString() ?? null, length, setLength);
       apply("width", found.widthCm?.toString() ?? null, width, setWidth);
       apply("height", found.heightCm?.toString() ?? null, height, setHeight);
+      apply("volume", found.volumeCm3 === null ? null : formatVolumeM3(found.volumeCm3), volume, setVolume);
       if (canEditPrice) {
         apply("price", found.priceKopecks === null ? null : (found.priceKopecks / 100).toFixed(2), price, setPrice);
       }
@@ -157,9 +162,10 @@ export function OrderDelivery({
         lengthCm: parseSideCm(length, "Длина"),
         widthCm: parseSideCm(width, "Ширина"),
         heightCm: parseSideCm(height, "Высота"),
+        volumeCm3: parseVolumeM3(volume),
       };
     } catch (error) {
-      toast.error(error instanceof CargoInputError ? error.message : "Некорректные вес или габариты");
+      toast.error(error instanceof CargoInputError ? error.message : "Некорректные вес, габариты или объём");
       return;
     }
 
@@ -311,6 +317,20 @@ export function OrderDelivery({
             onChange={(event) => setWeight(event.target.value)}
             disabled={!canEdit}
             className={cn("h-8 text-right", mark("weight"))}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs" htmlFor="delivery-volume">
+            Объём, м³
+          </Label>
+          <Input
+            id="delivery-volume"
+            inputMode="decimal"
+            value={volume}
+            onChange={(event) => setVolume(event.target.value)}
+            disabled={!canEdit}
+            className={cn("h-8 text-right", mark("volume"))}
           />
         </div>
 
