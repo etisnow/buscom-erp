@@ -62,3 +62,20 @@ html {
     font-size: 40px;
   }
 }
+
+/*
+ * Телефон: поля крупнее 16px — иначе iOS Safari приближает страницу при фокусе.
+ * Чекбоксы согласия — 20px, чтобы попадать пальцем. Правило вне слоёв, поэтому
+ * перебивает text-[15px] у полей.
+ */
+@media (width < 48rem) {
+  input:not([type="checkbox"], [type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+}

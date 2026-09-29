@@ -79,7 +79,7 @@ export function QuickOrder({
     });
   }
 
-  const input = "border-line w-full rounded-md border bg-white px-3 py-2";
+  const input = "border-line w-full rounded-md border bg-white px-3 py-3";
   const field = (key: string) => (errors[key] ? <p className="mt-1 text-sm text-red-700">{errors[key]}</p> : null);
 
   return (
@@ -105,7 +105,7 @@ export function QuickOrder({
       {/* Поле-ловушка для ботов: скрыто от людей и от программ чтения экрана */}
       <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" />
       <label className="flex items-start gap-2 text-sm">
-        <input name="consent" type="checkbox" className="mt-1" />
+        <input name="consent" type="checkbox" className="accent-brand mt-0.5 shrink-0" />
         <span>
           Согласен на обработку персональных данных в соответствии с{" "}
           <Link href="/privacy" target="_blank" className="text-brand underline">
@@ -119,11 +119,11 @@ export function QuickOrder({
         <button
           type="submit"
           disabled={pending}
-          className="bg-brand hover:bg-brand-hover rounded-md px-5 py-2 font-semibold text-white disabled:opacity-50"
+          className="bg-brand hover:bg-brand-hover h-12 rounded-md px-6 font-semibold text-white disabled:opacity-50"
         >
           {pending ? "Отправляем…" : "Отправить"}
         </button>
-        <button type="button" onClick={() => setOpen(false)} className="text-muted hover:text-ink text-sm">
+        <button type="button" onClick={() => setOpen(false)} className="text-muted hover:text-ink h-12 px-2 text-sm">
           Отмена
         </button>
       </div>

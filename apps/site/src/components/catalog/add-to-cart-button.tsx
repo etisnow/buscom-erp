@@ -12,7 +12,7 @@ import type { ProductCard } from "@/server/catalog";
  */
 export function AddToCartButton({ product, wide }: { product: ProductCard; wide?: boolean }) {
   const [added, setAdded] = useState(false);
-  const base = `flex h-9 shrink-0 items-center justify-center rounded-lg px-3 text-[13px] font-semibold ${wide ? "w-full md:w-auto" : ""}`;
+  const base = `flex h-11 shrink-0 md:h-9 items-center justify-center rounded-lg px-3 text-[13px] font-semibold ${wide ? "w-full md:w-auto" : ""}`;
   if (product.needsChoice || product.priceKopecks <= 0) {
     return (
       <Link href={`/${product.slug}`} className={`${base} border-accent text-ink hover:bg-accent-soft border`}>

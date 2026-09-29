@@ -84,7 +84,7 @@ export function LeadForm({ kind, submitLabel }: { kind: LeadKind; submitLabel: s
       {/* Поле-ловушка для ботов: скрыто от людей и от программ чтения экрана */}
       <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" />
       <label className="text-muted flex items-start gap-2 text-xs leading-snug">
-        <input name="consent" type="checkbox" className="accent-brand mt-0.5" />
+        <input name="consent" type="checkbox" className="accent-brand mt-0.5 shrink-0" />
         <span>
           Согласен на обработку персональных данных в соответствии с{" "}
           <Link href="/privacy" target="_blank" className="text-brand underline">

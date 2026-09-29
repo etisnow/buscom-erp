@@ -31,7 +31,7 @@ export function ProductCard({ product, eager, priority }: { product: Card; eager
         )}
         {product.isHit && <HitBadge className="absolute top-0 left-0 z-10" />}
       </Link>
-      <span className="text-subtle font-mono text-[11px]">{product.sku}</span>
+      <span className="text-subtle font-mono text-xs">{product.sku}</span>
       <Link
         href={`/${product.slug}`}
         className="group-hover:text-brand line-clamp-2 min-h-[2.7em] text-sm leading-[1.35]"

@@ -13,7 +13,7 @@ import { CatalogToggle } from "@/components/catalog-menu";
 export function MobileTabBar() {
   const pathname = usePathname();
   const count = useCartCount();
-  const item = "flex flex-1 flex-col items-center gap-1 pt-2 text-[11px]";
+  const item = "flex flex-1 flex-col items-center gap-1 pt-2 text-xs";
   const tone = (active: boolean) => (active ? "text-brand" : "text-muted");
   return (
     <nav
