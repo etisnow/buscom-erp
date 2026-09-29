@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { chatChangesSince, listChatMessages } from "@/server/chat/service";
+import { chatChangesSince, listChatMessages, othersChatReadAt } from "@/server/chat/service";
 import { getSessionUser } from "@/server/session";
 
 /**
@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
 
   // Курсор следующего опроса — время сервера до запроса: часы браузера могут врать.
   const serverTime = new Date().toISOString();
-  const messages = await chatChangesSince(since);
-  return NextResponse.json({ messages, serverTime }, { headers: NO_STORE });
+  const [messages, othersReadAt] = await Promise.all([chatChangesSince(since), othersChatReadAt(user.id)]);
+  return NextResponse.json({ messages, serverTime, othersReadAt }, { headers: NO_STORE });
 }
 
 const NO_STORE = { "Cache-Control": "no-store" };

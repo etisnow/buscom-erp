@@ -79,6 +79,7 @@ function Attachment({ file }: { file: ChatAttachmentView }) {
 export function ChatMessage({
   message,
   showAuthor,
+  unread,
   canEdit,
   canDelete,
   onEdit,
@@ -89,6 +90,8 @@ export function ChatMessage({
   message: ChatMessageView;
   /** Имя над сообщением — если предыдущее от другого человека или давно */
   showAuthor: boolean;
+  /** Своё сообщение, которое пока никто не прочитал — слегка затемнено */
+  unread: boolean;
   canEdit: boolean;
   canDelete: boolean;
   onEdit: (text: string) => Promise<ChatActionResult>;
@@ -116,6 +119,7 @@ export function ChatMessage({
       id={`msg-${message.id}`}
       className={cn(
         "group hover:bg-muted/50 relative scroll-mt-2 rounded-md px-2 py-1 transition-colors",
+        unread && "bg-muted/60 hover:bg-muted/80",
         !message.deleted && "pointer-coarse:pr-11",
         showAuthor && "mt-2",
       )}

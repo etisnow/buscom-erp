@@ -59,6 +59,7 @@ export function ChatRoom({
   initialMessages,
   initialHasMore,
   initialCursor,
+  initialOthersReadAt,
   user,
   initialDraft = "",
 }: {
@@ -66,6 +67,8 @@ export function ChatRoom({
   initialHasMore: boolean;
   /** Время сервера на момент загрузки страницы — с него начинается опрос */
   initialCursor: string;
+  /** До какого момента чат прочитал кто-то из других сотрудников (null — никто) */
+  initialOthersReadAt: string | null;
   user: { id: string; role: UserRole };
   /** Заготовка сообщения — например, ссылка на заказ из его карточки */
   initialDraft?: string;
@@ -84,6 +87,7 @@ export function ChatRoom({
   const touch = useCoarsePointer();
 
   const cursor = useRef(initialCursor);
+  const [othersReadAt, setOthersReadAt] = useState(initialOthersReadAt);
   const scroller = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -134,8 +138,13 @@ export function ChatRoom({
         cache: "no-store",
       });
       if (!response.ok) return;
-      const data = (await response.json()) as { messages: ChatMessageView[]; serverTime: string };
+      const data = (await response.json()) as {
+        messages: ChatMessageView[];
+        serverTime: string;
+        othersReadAt: string | null;
+      };
       cursor.current = data.serverTime;
+      setOthersReadAt(data.othersReadAt);
       stickToBottom.current = nearBottom();
       setMessages((current) => merge(current, data.messages));
       markRead(data.messages);
@@ -286,6 +295,11 @@ export function ChatRoom({
               key={message.id}
               message={message}
               showAuthor={showAuthor}
+              unread={
+                message.author.id === user.id &&
+                !message.deleted &&
+                (othersReadAt === null || new Date(message.createdAt) > new Date(othersReadAt))
+              }
               canEdit={canEditMessage(owner, user)}
               canDelete={canDeleteMessage(owner, user)}
               onEdit={(draft) => edit(message.id, draft)}

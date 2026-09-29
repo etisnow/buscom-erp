@@ -296,3 +296,16 @@ export async function purgeExpiredChatAttachments(now: Date = new Date()): Promi
   });
   return count;
 }
+
+/**
+ * До какого момента чат прочитал хоть кто-то из других сотрудников — самая поздняя отметка
+ * «прочитано» среди действующих. Своё сообщение старше этого момента кто-то уже видел;
+ * новее — его пока не читал никто, и лента подсвечивает такие сообщения.
+ */
+export async function othersChatReadAt(userId: string): Promise<string | null> {
+  const row = await db.user.aggregate({
+    where: { id: { not: userId }, isActive: true },
+    _max: { chatReadAt: true },
+  });
+  return row._max.chatReadAt?.toISOString() ?? null;
+}

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ChatRoom } from "@/components/chat/chat-room";
-import { listChatMessages } from "@/server/chat/service";
+import { listChatMessages, othersChatReadAt } from "@/server/chat/service";
 import { requirePageUser } from "@/server/session";
 
 export const metadata: Metadata = {
@@ -18,7 +18,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
   const orderNumber = typeof order === "string" && /^\d{1,9}$/.test(order) ? order : null;
   // Курсор опроса берём до выборки: что изменится между ними, придёт с первым опросом.
   const cursor = new Date().toISOString();
-  const { messages, hasMore } = await listChatMessages();
+  const [{ messages, hasMore }, othersReadAt] = await Promise.all([listChatMessages(), othersChatReadAt(user.id)]);
 
   return (
     // Высота — экран минус шапка и отступы; на телефоне ещё минус нижнее меню (3.5rem + зазор 1rem)
@@ -28,6 +28,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
         initialMessages={messages}
         initialHasMore={hasMore}
         initialCursor={cursor}
+        initialOthersReadAt={othersReadAt}
         user={{ id: user.id, role: user.role }}
         initialDraft={orderNumber ? `Заказ №${orderNumber}: ` : ""}
       />
