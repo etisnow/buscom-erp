@@ -112,6 +112,8 @@ export type ProductPage = {
   slug: string;
   isActive: boolean;
   isHit: boolean;
+  /** Настройка блока «Комплект на салон»: true/false — как задано в ERP, null — автоматически */
+  salonKit: boolean | null;
   description: string | null;
   metaTitle: string | null;
   metaDescription: string | null;
@@ -172,6 +174,7 @@ export const getPageBySlug = cached(async (slug: string): Promise<ProductPage | 
     select: {
       ...cardSelect,
       isActive: true,
+      salonKit: true,
       description: true,
       metaTitle: true,
       metaDescription: true,
@@ -207,6 +210,7 @@ export const getPageBySlug = cached(async (slug: string): Promise<ProductPage | 
       slug,
       isActive: product.isActive,
       isHit: product.isHit,
+      salonKit: product.salonKit,
       description: product.description,
       metaTitle: product.metaTitle,
       metaDescription: product.metaDescription,

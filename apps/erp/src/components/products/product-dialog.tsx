@@ -128,6 +128,10 @@ export function ProductDialog({
     toSiteSeoValue(product ?? { slug: null, metaTitle: null, metaDescription: null }),
   );
   const [isHit, setIsHit] = useState(product?.isHit ?? false);
+  // Блок «Комплект на салон»: "auto" — автоматически (пассажирские сиденья), "on" / "off" — вручную
+  const [salonKit, setSalonKit] = useState<"auto" | "on" | "off">(
+    product?.salonKit === true ? "on" : product?.salonKit === false ? "off" : "auto",
+  );
   const [categoryId, setCategoryId] = useState<string | null>(product?.categoryId ?? draft?.categoryId ?? null);
   // Цену продажи у импорта ставит человек: у поставщика — закупка, наценку решаем мы
   const [price, setPrice] = useState(draft ? "" : ((product?.priceKopecks ?? 0) / 100).toFixed(2));
@@ -375,6 +379,7 @@ export function ProductDialog({
       priceKopecks,
       compatibility,
       isHit,
+      salonKit: salonKit === "auto" ? null : salonKit === "on",
       suppliers: supplierLinks,
       options,
       // У нового товара без введённого адреса его выберет сервер — из названия
@@ -575,6 +580,19 @@ export function ProductDialog({
             Хит продаж
             <span className="text-muted-foreground text-xs">— метка на сайте, блок хитов на главной</span>
           </label>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs">Блок «Комплект на салон» в карточке на сайте</Label>
+            <Select value={salonKit} onValueChange={(value) => setSalonKit(value as "auto" | "on" | "off")}>
+              <SelectTrigger size="sm" className="w-full max-w-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Автоматически (у пассажирских сидений)</SelectItem>
+                <SelectItem value="on">Показывать</SelectItem>
+                <SelectItem value="off">Не показывать</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="flex flex-col gap-2 border-t pt-3">

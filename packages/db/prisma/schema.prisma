@@ -205,6 +205,9 @@ model Product {
   metaDescription String?
   /// Метка «Хит» на сайте: блок «Хиты продаж» на главной, первые места в категории
   isHit           Boolean          @default(false)
+  /// Блок «Комплект на салон» в карточке на сайте: true — показывать, false — скрыть,
+  /// null — автоматически (пассажирские сиденья, packages/domain/src/site/seats.ts)
+  salonKit        Boolean?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 

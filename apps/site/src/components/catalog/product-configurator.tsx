@@ -38,7 +38,7 @@ export function ProductConfigurator({
   basePriceKopecks: number;
   groups: Group[];
   isActive: boolean;
-  /** Блок «Комплект на салон» — у пассажирских сидений (isPassengerSeat) */
+  /** Блок «Комплект на салон» — по настройке товара в ERP (showSalonKit) */
   kit?: boolean;
 }) {
   const [quantity, setQuantity] = useState(1);

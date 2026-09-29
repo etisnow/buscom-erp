@@ -48,6 +48,8 @@ export type ProductDraft = {
   isActive?: boolean;
   /** Метка «Хит» на сайте */
   isHit?: boolean;
+  /** Блок «Комплект на салон» на сайте: true/false — задано вручную, null — автоматически; не задан — не трогаем */
+  salonKit?: boolean | null;
   /** Полный список поставщиков товара; не задан — привязки не трогаем */
   suppliers?: ProductSupplierDraft[];
   /** Полный список групп опций; не задан — опции не трогаем */
@@ -86,6 +88,7 @@ export async function createProduct(
           compatibility: await checkCompatibility(tx, draft.compatibility ?? []),
           isActive: draft.isActive ?? true,
           isHit: draft.isHit ?? false,
+          salonKit: draft.salonKit ?? null,
         },
         select: { id: true },
       });
@@ -130,6 +133,7 @@ export async function updateProduct(id: string, draft: Partial<ProductDraft>, us
           : {}),
         ...(draft.isActive !== undefined ? { isActive: draft.isActive } : {}),
         ...(draft.isHit !== undefined ? { isHit: draft.isHit } : {}),
+        ...(draft.salonKit !== undefined ? { salonKit: draft.salonKit } : {}),
       },
     });
     if (draft.suppliers) await replaceProductSuppliers(tx, id, draft.suppliers);

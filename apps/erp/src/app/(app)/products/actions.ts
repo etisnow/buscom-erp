@@ -42,6 +42,8 @@ const draftSchema = z.object({
   isActive: z.boolean().optional(),
   /** Метка «Хит» на сайте */
   isHit: z.boolean().optional(),
+  /** Блок «Комплект на салон» на сайте: true/false или null — автоматически */
+  salonKit: z.boolean().nullable().optional(),
   suppliers: z
     .array(
       z.object({

@@ -5,7 +5,7 @@ import { formatRubPlain } from "@buscom/domain/money";
 import { pluralize } from "@buscom/domain/money-words";
 import { defaultCategoryDescription, defaultTitle, descriptionSnippet } from "@buscom/domain/site/meta";
 import { modelPath } from "@buscom/domain/site/models";
-import { isPassengerSeat } from "@buscom/domain/site/seats";
+import { showSalonKit } from "@buscom/domain/site/seats";
 import {
   applyCatalogQuery,
   catalogModels,
@@ -103,7 +103,7 @@ function ProductView({ product }: { product: ProductPage }) {
             basePriceKopecks={product.basePriceKopecks}
             groups={product.options}
             isActive={product.isActive}
-            kit={isPassengerSeat({
+            kit={showSalonKit(product.salonKit, {
               name: product.name,
               categorySlugs: product.breadcrumbs.map((crumb) => crumb.slug),
             })}
