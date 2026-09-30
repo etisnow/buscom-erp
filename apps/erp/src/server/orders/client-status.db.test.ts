@@ -14,6 +14,9 @@ describeDb("статус заказа для клиента (живая БД)", 
   let orderId: string;
   let orderNumber: number;
 
+  /** Заказ, заведённый менеджером, сразу «в работе»; для проверок «Принят» возвращаем «создан» */
+  const makeNew = () => db.order.update({ where: { id: orderId }, data: { status: "NEW" } });
+
   beforeEach(async () => {
     await resetDb();
     manager = await makeUser("MANAGER");
@@ -28,6 +31,7 @@ describeDb("статус заказа для клиента (живая БД)", 
   });
 
   it("находит заказ по номеру и телефону в любом написании; у нового заказа — «Принят»", async () => {
+    await makeNew();
     const found = await findClientOrderStatus(orderNumber, "+7 (916) 123-45-67");
     expect(found.ok).toBe(true);
     if (!found.ok) return;
@@ -61,12 +65,14 @@ describeDb("статус заказа для клиента (живая БД)", 
   });
 
   it("таблица «статус ERP → клиентский» из настроек: «создан» — «Подтверждён»", async () => {
+    await makeNew();
     await saveClientStatusMapping({ orderStatuses: { NEW: "CONFIRMED" }, supplierStages: {} }, manager.id);
     const found = await findClientOrderStatus(orderNumber, "8 916 123-45-67");
     expect(found.ok && found.status.current).toBe("CONFIRMED");
   });
 
   it("оплата показывает правду даже у неподтверждённого заказа: полная — «Оплачен», часть — «Оплачен частично»", async () => {
+    await makeNew();
     const paid = (amountKopecks: number) =>
       addPayment({ orderId, method: "INVOICE", amountKopecks, paidAt: new Date(), reference: null, user: manager });
     const paidStep = async () => {
