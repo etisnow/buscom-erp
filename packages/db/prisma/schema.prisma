@@ -55,9 +55,12 @@ model User {
   payments      Payment[]
   sentEmails    Email[]
   chatMessages  ChatMessage[]
+  chatReactions ChatReaction[]
   pushDevices   PushSubscription[]
   sitePages     SitePage[]
   expenses      Expense[]
+  platformNews  PlatformNews[]
+  newsReads     PlatformNewsRead[]
 
   @@map("user")
 }
@@ -297,6 +300,10 @@ model ProductImage {
   thumbContentType String?
   /// Откуда взята (адрес на bus-com.ru) — ключ повторного импорта; у загруженных руками пусто
   sourceUrl        String?
+  /// Что было до обработки («Удалить знак / фон» в карточке товара) — чтобы вернуть.
+  /// Пусто — картинку не обрабатывали. Хранится самый первый оригинал, а не промежуточные
+  originalData        Bytes?
+  originalContentType String?
   createdAt        DateTime @default(now())
 
   @@index([productId, sortOrder])
@@ -767,6 +774,31 @@ model DictionaryItem {
   @@index([type, isActive])
 }
 
+/// Схемы салона (справочник «Схемы салонов», как в окне «Посчитать комплект» на сайте).
+/// Из числа мест и подлокотников/откидных спинок считается цена комплекта пассажирского сиденья.
+/// Как и у `DictionaryItem`, схему не удаляют, а гасят `isActive` — на неё будут ссылаться расчёты
+model SalonLayout {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  /// Сколько пассажирских мест в схеме
+  seats         Int
+  /// Сколько сидений в схеме идёт с подлокотником
+  armrests      Int      @default(0)
+  /// Сколько сидений в схеме идёт с откидной спинкой
+  reclinerBacks Int      @default(0)
+  /// Чертёж схемы; лежит в базе, как картинки товаров. Нет — схема показывается без картинки
+  imageData        Bytes?
+  imageContentType String?
+  /// Откуда взята (адрес на bus-com.ru) — по нему скрипт докачивает картинку
+  imageSourceUrl   String?
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
 /// Перевозчики, у которых терминалы загружаются по API (docs/SITE-PLAN.md, этап 5а)
 enum TerminalCarrier {
   DELLIN
@@ -940,9 +972,55 @@ model ChatMessage {
   replies   ChatMessage[] @relation("ChatReply")
 
   attachments ChatAttachment[]
+  reactions   ChatReaction[]
 
   @@index([createdAt])
   @@index([updatedAt])
+}
+
+/// Новости платформы: журнал новых возможностей ERP и сайта. Читают все сотрудники, пишет администратор
+model PlatformNews {
+  id          String   @id @default(cuid())
+  title       String
+  /// Обычный текст: абзацы — пустой строкой, адреса становятся ссылками
+  body        String
+  publishedAt DateTime @default(now())
+  /// Кто написал; у записей, засеянных миграцией, пусто
+  authorId    String?
+  author      User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reads PlatformNewsRead[]
+
+  @@index([publishedAt])
+}
+
+/// Отметка «прочитано»: сотрудник видел запись. Нет строки — для него запись новая
+model PlatformNewsRead {
+  newsId String
+  news   PlatformNews @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  userId String
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt DateTime     @default(now())
+
+  @@id([newsId, userId])
+  @@index([userId])
+}
+
+/// Реакция сотрудника на сообщение чата (эмодзи). Повторное нажатие её снимает — строка удаляется.
+/// При постановке и снятии `ChatMessage.updatedAt` обновляется: по нему лента опрашивает изменения
+model ChatReaction {
+  id        String      @id @default(cuid())
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime    @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
 }
 
 /// Файл в сообщении чата. Через год байты стираются (`data` = null, `expiredAt`),
