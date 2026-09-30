@@ -53,6 +53,7 @@ function Attachment({ file }: { file: ChatAttachmentView }) {
   if (file.contentType.startsWith("image/")) {
     return (
   const [viewing, setViewing] = useState<number | null>(null);
+  const [viewing, setViewing] = useState<number | null>(null);
       <>
         <button type="button" onClick={() => setViewing(0)} title="Открыть на весь экран" className="block">
           {/* eslint-disable-next-line @next/next/no-img-element -- файл из нашего API, оптимизатор тут не нужен */}
