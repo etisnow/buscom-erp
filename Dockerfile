@@ -72,10 +72,11 @@ COPY packages/db/package.json packages/db/prisma.config.ts ./packages/db/
 COPY packages/domain/package.json ./packages/domain/
 COPY apps/site/package.json ./apps/site/
 COPY packages/db/prisma ./packages/db/prisma
-# postinstall пакета db запускает prisma generate. Хранилище pnpm стираем в том же
-# слое: пакеты уже разложены по node_modules, а его копия весит столько же (слой
-# установки был 971 МБ) и в образе миграций никому не нужна.
-RUN pnpm install --frozen-lockfile --filter "@buscom/db..." && rm -rf "$(pnpm store path)"
+# postinstall пакета db запускает prisma generate. Кэш pnpm (/root/.cache/pnpm, ~460 МБ:
+# метаданные и скачанное при установке) стираем в том же
+# слое: пакеты уже лежат в node_modules, а кэш в образе миграций никому не нужен (слой
+# установки был 971 МБ: ~360 МБ node_modules + ~460 МБ этого кэша).
+RUN pnpm install --frozen-lockfile --filter "@buscom/db..." && rm -rf /root/.cache/pnpm
 # Проверка прямо в сборке: CLI запускается, схема читается и валидна (без базы)
 RUN cd packages/db && DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build" pnpm exec prisma validate
 ENV NODE_ENV=production
