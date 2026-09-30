@@ -1,6 +1,7 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { siteModels, type SiteModel } from "@buscom/domain/site/models";
+import { parseSeatType, resolveSeatType, type SeatType } from "@buscom/domain/site/seats";
 import { startingPrice } from "@buscom/domain/site/pricing";
 import { db } from "@/server/db";
 
@@ -60,6 +61,7 @@ const cardSelect = {
   priceKopecks: true,
   isHit: true,
   compatibility: true,
+  seatType: true,
   images: { orderBy: { sortOrder: "asc" }, take: 1, select: { id: true } },
   options: { select: { required: true, values: { select: { priceDeltaKopecks: true } } } },
 } as const;
@@ -76,19 +78,25 @@ export type ProductCard = {
   imageId: string | null;
   isHit: boolean;
   compatibility: string[];
+  /** Тип сиденья — для фильтра в категории сидений; null — не сиденье */
+  seatType: SeatType | null;
 };
 
-function toCard(product: {
-  id: string;
-  name: string;
-  sku: string;
-  slug: string | null;
-  priceKopecks: number;
-  isHit: boolean;
-  compatibility: string[];
-  images: { id: string }[];
-  options: { required: boolean; values: { priceDeltaKopecks: number }[] }[];
-}): ProductCard {
+function toCard(
+  product: {
+    id: string;
+    name: string;
+    sku: string;
+    slug: string | null;
+    priceKopecks: number;
+    isHit: boolean;
+    compatibility: string[];
+    seatType: string | null;
+    images: { id: string }[];
+    options: { required: boolean; values: { priceDeltaKopecks: number }[] }[];
+  },
+  categorySlugs: readonly string[] = [],
+): ProductCard {
   const price = startingPrice(product.priceKopecks, product.options);
   return {
     id: product.id,
@@ -101,6 +109,7 @@ function toCard(product: {
     imageId: product.images[0]?.id ?? null,
     isHit: product.isHit,
     compatibility: product.compatibility,
+    seatType: resolveSeatType(parseSeatType(product.seatType), { name: product.name, categorySlugs }),
   };
 }
 
@@ -114,6 +123,8 @@ export type ProductPage = {
   isHit: boolean;
   /** Настройка блока «Комплект на салон»: true/false — как задано в ERP, null — автоматически */
   salonKit: boolean | null;
+  /** Тип сиденья, заданный в ERP; null — автоматически */
+  seatType: SeatType | null;
   description: string | null;
   metaTitle: string | null;
   metaDescription: string | null;
@@ -211,6 +222,7 @@ export const getPageBySlug = cached(async (slug: string): Promise<ProductPage | 
       isActive: product.isActive,
       isHit: product.isHit,
       salonKit: product.salonKit,
+      seatType: parseSeatType(product.seatType),
       description: product.description,
       metaTitle: product.metaTitle,
       metaDescription: product.metaDescription,
@@ -221,7 +233,7 @@ export const getPageBySlug = cached(async (slug: string): Promise<ProductPage | 
       imageIds: product.images.map((image) => image.id),
       options: product.options,
       breadcrumbs: crumbs(await categoryChain(product.categoryId)),
-      related: related.map(toCard),
+      related: related.map((item) => toCard(item)),
     };
   }
 
@@ -241,6 +253,8 @@ export const getPageBySlug = cached(async (slug: string): Promise<ProductPage | 
     orderBy: { name: "asc" },
     select: cardSelect,
   });
+  const breadcrumbs = crumbs(await categoryChain(category.parentId));
+  const categorySlugs = [slug, ...breadcrumbs.map((crumb) => crumb.slug)];
   return {
     kind: "category",
     id: category.id,
@@ -248,7 +262,7 @@ export const getPageBySlug = cached(async (slug: string): Promise<ProductPage | 
     slug,
     metaTitle: category.metaTitle,
     metaDescription: category.metaDescription,
-    breadcrumbs: crumbs(await categoryChain(category.parentId)),
+    breadcrumbs,
     children: (node?.children ?? []).map((child) => ({
       name: child.name,
       slug: child.slug,
@@ -259,7 +273,7 @@ export const getPageBySlug = cached(async (slug: string): Promise<ProductPage | 
       slug: sibling.slug,
       productCount: sibling.productCount,
     })),
-    products: products.map(toCard),
+    products: products.map((product) => toCard(product, categorySlugs)),
   };
 }, "page-by-slug");
 
@@ -271,7 +285,7 @@ export const getHits = cached(async (): Promise<ProductCard[]> => {
     take: 12,
     select: cardSelect,
   });
-  return products.map(toCard);
+  return products.map((item) => toCard(item));
 }, "hits");
 
 export type PopularCategory = { id: string; name: string; slug: string; productCount: number; imageId: string | null };
@@ -366,7 +380,7 @@ export const getSearchIndex = cached(async (): Promise<ProductCard[]> => {
     where: { isActive: true, slug: { not: null } },
     select: cardSelect,
   });
-  return products.map(toCard);
+  return products.map((item) => toCard(item));
 }, "search-index");
 
 /** Адреса для sitemap.xml: товары в продаже и непустые категории. */

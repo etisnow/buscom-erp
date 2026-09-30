@@ -7,11 +7,16 @@ import {
   isCatalogQueryActive,
   type CatalogQuery,
 } from "@buscom/domain/site/catalog-query";
+import { SEAT_TYPE_LABELS, type SeatType } from "@buscom/domain/site/seats";
 import { FiltersToggle } from "./filters-toggle";
 
 /** Сколько фильтров включено — число на кнопке «Фильтры» на телефоне */
 function activeFilters(query: CatalogQuery): number {
-  return (query.model !== null ? 1 : 0) + (query.minRub !== null || query.maxRub !== null ? 1 : 0);
+  return (
+    (query.model !== null ? 1 : 0) +
+    (query.minRub !== null || query.maxRub !== null ? 1 : 0) +
+    (query.seat !== null ? 1 : 0)
+  );
 }
 
 /**
@@ -24,10 +29,13 @@ export function CategoryFilters({
   slug,
   query,
   models,
+  seatTypes,
 }: {
   slug: string;
   query: CatalogQuery;
   models: { model: string; count: number }[];
+  /** Типы сидений категории с числом товаров; пусто — фильтра нет */
+  seatTypes: { type: SeatType; count: number }[];
 }) {
   const field =
     "border-line-strong focus:border-brand h-11 w-full min-w-0 rounded-[9px] border bg-white px-3 text-sm outline-none";
@@ -37,6 +45,38 @@ export function CategoryFilters({
     <FiltersToggle active={activeFilters(query)}>
       <form action={`/${slug}`} className="card mt-3 flex flex-col gap-6 p-5 lg:mt-0">
         {query.sort !== DEFAULT_CATALOG_QUERY.sort && <input type="hidden" name="sort" value={query.sort} />}
+        {seatTypes.length > 0 && (
+          <fieldset>
+            <legend className="mb-3 text-[15px] font-semibold">Тип</legend>
+            <div className="flex flex-wrap gap-1.5">
+              <label>
+                <input
+                  type="radio"
+                  name="seat"
+                  value=""
+                  defaultChecked={query.seat === null}
+                  className="peer sr-only"
+                />
+                <span className={chip}>Все</span>
+              </label>
+              {seatTypes.map(({ type, count }) => (
+                <label key={type} className="max-w-full">
+                  <input
+                    type="radio"
+                    name="seat"
+                    value={type}
+                    defaultChecked={query.seat === type}
+                    className="peer sr-only"
+                  />
+                  <span className={chip}>
+                    <span>{SEAT_TYPE_LABELS[type]}</span>
+                    <span className="shrink-0 opacity-60">{count}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
         <fieldset className="flex flex-col gap-3">
           <legend className="mb-3 text-[15px] font-semibold">Цена, ₽</legend>
           <div className="grid grid-cols-2 gap-2">

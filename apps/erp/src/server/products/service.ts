@@ -3,6 +3,7 @@ import type { Kopecks } from "@buscom/domain/money";
 import { normalizeCompatibility, unknownModels } from "@buscom/domain/product/compatibility";
 import { assertProductImage } from "@buscom/domain/product/images";
 import { normalizeOptionGroups, type OptionGroupDraft } from "@buscom/domain/product/options";
+import type { SeatType } from "@buscom/domain/site/seats";
 import { hasRole, PRODUCT_DELETE_ROLES } from "@buscom/domain/user/role";
 import { Prisma } from "@buscom/db/client";
 import { db } from "@/server/db";
@@ -50,6 +51,8 @@ export type ProductDraft = {
   isHit?: boolean;
   /** Блок «Комплект на салон» на сайте: true/false — задано вручную, null — автоматически; не задан — не трогаем */
   salonKit?: boolean | null;
+  /** Тип сиденья (фильтр на сайте): задан вручную или null — автоматически; не задан — не трогаем */
+  seatType?: SeatType | null;
   /** Полный список поставщиков товара; не задан — привязки не трогаем */
   suppliers?: ProductSupplierDraft[];
   /** Полный список групп опций; не задан — опции не трогаем */
@@ -89,6 +92,7 @@ export async function createProduct(
           isActive: draft.isActive ?? true,
           isHit: draft.isHit ?? false,
           salonKit: draft.salonKit ?? null,
+          seatType: draft.seatType ?? null,
         },
         select: { id: true },
       });
@@ -134,6 +138,7 @@ export async function updateProduct(id: string, draft: Partial<ProductDraft>, us
         ...(draft.isActive !== undefined ? { isActive: draft.isActive } : {}),
         ...(draft.isHit !== undefined ? { isHit: draft.isHit } : {}),
         ...(draft.salonKit !== undefined ? { salonKit: draft.salonKit } : {}),
+        ...(draft.seatType !== undefined ? { seatType: draft.seatType } : {}),
       },
     });
     if (draft.suppliers) await replaceProductSuppliers(tx, id, draft.suppliers);

@@ -9,6 +9,7 @@ import { showSalonKit } from "@buscom/domain/site/seats";
 import {
   applyCatalogQuery,
   catalogModels,
+  catalogSeatTypes,
   isCatalogQueryActive,
   parseCatalogQuery,
   type CatalogQuery,
@@ -53,6 +54,7 @@ export default async function SlugPage({ params, searchParams }: PageProps<"/[sl
   if (page.kind === "product") {
     const kit = showSalonKit(page.salonKit, {
       name: page.name,
+      seatType: page.seatType,
       categorySlugs: page.breadcrumbs.map((crumb) => crumb.slug),
     });
     // Схемы — из справочника ERP; блок «Комплект на салон» показываем, только если они есть
@@ -228,7 +230,12 @@ function CategoryView({ category, query }: { category: CategoryPage; query: Cata
       <div className="mt-5 grid grid-cols-1 gap-4 md:mt-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-6">
         <aside>
           {category.products.length > 1 && (
-            <CategoryFilters slug={category.slug} query={query} models={catalogModels(category.products)} />
+            <CategoryFilters
+              slug={category.slug}
+              query={query}
+              models={catalogModels(category.products)}
+              seatTypes={catalogSeatTypes(category.products)}
+            />
           )}
         </aside>
         <div className="flex flex-col gap-4">

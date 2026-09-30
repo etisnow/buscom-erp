@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { detectImageType } from "@buscom/domain/product/images";
+import { SEAT_TYPES } from "@buscom/domain/site/seats";
 import { ForbiddenError } from "@/server/errors";
 import {
   fetchSupplierCombos,
@@ -45,6 +46,8 @@ const draftSchema = z.object({
   isHit: z.boolean().optional(),
   /** Блок «Комплект на салон» на сайте: true/false или null — автоматически */
   salonKit: z.boolean().nullable().optional(),
+  /** Тип сиденья (фильтр на сайте) или null — автоматически */
+  seatType: z.enum(SEAT_TYPES).nullable().optional(),
   suppliers: z
     .array(
       z.object({

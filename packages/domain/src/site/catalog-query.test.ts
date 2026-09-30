@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyCatalogQuery,
   catalogModels,
+  catalogSeatTypes,
   catalogQueryHref,
   DEFAULT_CATALOG_QUERY,
   isCatalogQueryActive,
@@ -36,6 +37,7 @@ describe("parseCatalogQuery", () => {
       minRub: 1000,
       maxRub: 2500,
       model: "ГАЗель Next",
+      seat: null,
     });
   });
 
@@ -118,15 +120,46 @@ describe("catalogQueryHref", () => {
   });
 
   it("переносит в адрес всё, кроме значений по умолчанию, и кодирует модель", () => {
-    const query = { sort: "price-desc", minRub: 1000, maxRub: 5000, model: "ГАЗель Next" } as const;
+    const query = { sort: "price-desc", minRub: 1000, maxRub: 5000, model: "ГАЗель Next", seat: null } as const;
     expect(catalogQueryHref("/sidenja", query)).toBe(
       "/sidenja?model=%D0%93%D0%90%D0%97%D0%B5%D0%BB%D1%8C+Next&min=1000&max=5000&sort=price-desc",
     );
   });
 
   it("читается обратно тем же набором фильтров", () => {
-    const query = { sort: "price-desc", minRub: null, maxRub: 20000, model: "Ford Transit" } as const;
+    const query = { sort: "price-desc", minRub: null, maxRub: 20000, model: "Ford Transit", seat: "driver" } as const;
     const params = Object.fromEntries(new URL(catalogQueryHref("/x", query), "https://bus-com.ru").searchParams);
     expect(parseCatalogQuery(params)).toEqual(query);
+  });
+});
+
+describe("тип сиденья", () => {
+  const passenger = product("Сиденье Турист", 1_000, { seatType: "passenger" });
+  const driver = product("Сиденье водителя", 1_000, { seatType: "driver" });
+  const universal = product("Сиденье Универсал", 1_000, { seatType: "universal" });
+
+  it("seat=… включает фильтр, постороннее значение — нет", () => {
+    expect(parseCatalogQuery({ seat: "driver" }).seat).toBe("driver");
+    expect(parseCatalogQuery({ seat: "hack" }).seat).toBeNull();
+    expect(isCatalogQueryActive({ ...DEFAULT_CATALOG_QUERY, seat: "universal" })).toBe(true);
+  });
+
+  it("оставляет сиденья выбранного типа", () => {
+    const items = [passenger, driver, universal, glue];
+    expect(names(applyCatalogQuery(items, { ...DEFAULT_CATALOG_QUERY, seat: "driver" }))).toEqual(["Сиденье водителя"]);
+    expect(names(applyCatalogQuery(items, DEFAULT_CATALOG_QUERY))).toHaveLength(4);
+  });
+
+  it("считает типы в порядке пассажирские, водительские, универсальные и пропускает пустые", () => {
+    expect(catalogSeatTypes([universal, passenger, passenger, glue])).toEqual([
+      { type: "passenger", count: 2 },
+      { type: "universal", count: 1 },
+    ]);
+  });
+
+  it("попадает в адрес", () => {
+    expect(catalogQueryHref("/sidenja", { ...DEFAULT_CATALOG_QUERY, seat: "passenger" })).toBe(
+      "/sidenja?seat=passenger",
+    );
   });
 });

@@ -211,6 +211,9 @@ model Product {
   /// Блок «Комплект на салон» в карточке на сайте: true — показывать, false — скрыть,
   /// null — автоматически (пассажирские сиденья, packages/domain/src/site/seats.ts)
   salonKit        Boolean?
+  /// Тип сиденья (фильтр в каталоге сайта): passenger / driver / universal — задан вручную,
+  /// null — автоматически (по разделу и названию, packages/domain/src/site/seats.ts)
+  seatType        String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 

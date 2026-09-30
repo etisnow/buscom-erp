@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { pluralize } from "@buscom/domain/money-words";
 import Image from "next/image";
 import Link from "next/link";
+import salonSeats from "@/assets/salon-seats.png";
+import { catalogQueryHref, DEFAULT_CATALOG_QUERY } from "@buscom/domain/site/catalog-query";
+import { PASSENGER_SEATS_CATEGORY } from "@buscom/domain/site/seats";
 import { pageMetadata } from "@/config/metadata";
 import { NoPhoto, ProductCard } from "@/components/catalog/product-card";
 import { CatalogToggle } from "@/components/catalog-menu";
@@ -58,7 +61,7 @@ export default async function HomePage() {
             )}
           </div>
         </section>
-        <WorkshopBanner />
+        <SeatCalculatorBanner />
       </div>
 
       {categories.length > 0 && (
@@ -145,23 +148,32 @@ export default async function HomePage() {
 }
 
 /**
- * Баннер цеха (макет, экран 01). Страницы переоборудования в MVP нет — кнопка ведёт
- * к заявке на главной. Фото цеха в макете — со старого сайта; своё пришлёт владелец.
+ * Баннер калькулятора сидений для салона (решение владельца 30.09.2026, вместо баннера цеха).
+ * Страницы калькулятора пока нет — кнопка ведёт к заявке на главной.
  */
-function WorkshopBanner() {
+function SeatCalculatorBanner() {
   return (
-    <section className="relative flex min-h-[210px] flex-col justify-end overflow-hidden rounded-2xl bg-[#2a2f2b] bg-[radial-gradient(circle_at_85%_15%,rgba(0,130,68,.55),transparent_55%),repeating-linear-gradient(135deg,rgba(255,255,255,.03)_0_14px,transparent_14px_28px)] p-4 text-white md:min-h-[440px] md:p-7">
-      <div className="flex flex-col gap-2 md:gap-3">
+    <section className="relative flex min-h-[210px] flex-col justify-end overflow-hidden rounded-2xl bg-[#2a2f2b] p-4 text-white md:min-h-[440px] md:p-7">
+      <Image
+        src={salonSeats}
+        alt=""
+        fill
+        sizes="(min-width: 1024px) 540px, 100vw"
+        className="object-cover object-[35%_50%]"
+        priority
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-black/35" />
+      <div className="relative flex flex-col gap-2 md:gap-3">
         <span className="bg-accent text-ink flex h-[26px] items-center self-start rounded-md px-2.5 text-xs font-bold tracking-[.04em]">
-          СОБСТВЕННЫЙ ЦЕХ
+          КАЛЬКУЛЯТОР
         </span>
-        <h2 className="text-xl leading-[1.15] font-bold md:text-[28px]">Переоборудование микроавтобусов</h2>
+        <h2 className="text-xl leading-[1.15] font-bold md:text-[28px]">Калькулятор сидений для салона</h2>
         <p className="hidden text-[15px] leading-[1.45] text-[#e6ebe7] md:block">
-          Установка сидений и вентиляции, перетяжка обшивки салона
+          Подберите сиденья под ваш салон и узнайте стоимость комплекта
         </p>
         <div className="mt-1 flex gap-2.5">
           <Link
-            href="#zayavka"
+            href={catalogQueryHref(`/${PASSENGER_SEATS_CATEGORY}`, { ...DEFAULT_CATALOG_QUERY, seat: "passenger" })}
             className="text-ink flex h-11 items-center rounded-[9px] bg-white px-[18px] text-sm font-semibold"
           >
             Рассчитать стоимость

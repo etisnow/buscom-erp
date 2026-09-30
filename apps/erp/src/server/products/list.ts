@@ -27,6 +27,7 @@ const listSelect = {
   metaDescription: true,
   isHit: true,
   salonKit: true,
+  seatType: true,
   updatedAt: true,
   suppliers: {
     orderBy: { purchasePriceKopecks: "asc" },

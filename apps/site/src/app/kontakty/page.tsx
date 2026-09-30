@@ -54,9 +54,7 @@ export default async function ContactsPage() {
             <LeadForm kind="callback" submitLabel="Перезвоните мне" />
           </div>
           <div className="card text-ink-2 p-5 text-sm md:p-7">
-            <p className="text-ink font-semibold">{COMPANY.legalName}</p>
-            <p>ИНН {COMPANY.inn}</p>
-            <p>ОГРН {COMPANY.ogrn}</p>
+            <p className="text-ink font-semibold">Компания «{COMPANY.brand}»</p>
           </div>
         </div>
         <iframe

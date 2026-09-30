@@ -1,4 +1,5 @@
 import type { Kopecks } from "../money";
+import { parseSeatType, SEAT_TYPES, type SeatType } from "./seats";
 
 /**
  * Фильтры и сортировка в категории сайта (docs/SITE-PRD.md, «02 · Категория»).
@@ -26,9 +27,17 @@ export type CatalogQuery = {
   maxRub: number | null;
   /** Модель авто из совместимости товара */
   model: string | null;
+  /** Тип сиденья (`seat=passenger|driver|universal`), см. seats.ts */
+  seat: SeatType | null;
 };
 
-export const DEFAULT_CATALOG_QUERY: CatalogQuery = { sort: "price-asc", minRub: null, maxRub: null, model: null };
+export const DEFAULT_CATALOG_QUERY: CatalogQuery = {
+  sort: "price-asc",
+  minRub: null,
+  maxRub: null,
+  model: null,
+  seat: null,
+};
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -53,13 +62,18 @@ export function parseCatalogQuery(params: SearchParams): CatalogQuery {
     minRub: minRub || null,
     maxRub,
     model: first(params.model)?.slice(0, 100) ?? null,
+    seat: parseSeatType(first(params.seat)),
   };
 }
 
 /** Есть ли в адресе что-то, кроме самой категории: такую страницу не индексируем. */
 export function isCatalogQueryActive(query: CatalogQuery): boolean {
   return (
-    query.sort !== DEFAULT_CATALOG_QUERY.sort || query.minRub !== null || query.maxRub !== null || query.model !== null
+    query.sort !== DEFAULT_CATALOG_QUERY.sort ||
+    query.minRub !== null ||
+    query.maxRub !== null ||
+    query.model !== null ||
+    query.seat !== null
   );
 }
 
@@ -69,6 +83,8 @@ export type FilterableProduct = {
   priceKopecks: Kopecks;
   isHit: boolean;
   compatibility: readonly string[];
+  /** Тип сиденья (resolveSeatType); не задан — не сиденье */
+  seatType?: SeatType | null;
 };
 
 const byName = (a: FilterableProduct, b: FilterableProduct) => a.name.localeCompare(b.name, "ru");
@@ -85,6 +101,7 @@ export function applyCatalogQuery<T extends FilterableProduct>(products: readonl
   const selected = products.filter(
     (product) =>
       (!query.model || product.compatibility.includes(query.model)) &&
+      (!query.seat || product.seatType === query.seat) &&
       (!priced ||
         (product.priceKopecks > 0 &&
           (min === null || product.priceKopecks >= min) &&
@@ -120,10 +137,20 @@ export function catalogModels(products: readonly FilterableProduct[]): { model: 
  */
 export function catalogQueryHref(path: string, query: CatalogQuery): string {
   const params = new URLSearchParams();
+  if (query.seat !== null) params.set("seat", query.seat);
   if (query.model !== null) params.set("model", query.model);
   if (query.minRub !== null) params.set("min", String(query.minRub));
   if (query.maxRub !== null) params.set("max", String(query.maxRub));
   if (query.sort !== DEFAULT_CATALOG_QUERY.sort) params.set("sort", query.sort);
   const search = params.toString();
   return search ? `${path}?${search}` : path;
+}
+
+/** Типы сидений для фильтра: сколько товаров каждого типа; типы без товаров не попадают. */
+export function catalogSeatTypes(products: readonly FilterableProduct[]): { type: SeatType; count: number }[] {
+  const counts = new Map<SeatType, number>();
+  for (const product of products) {
+    if (product.seatType) counts.set(product.seatType, (counts.get(product.seatType) ?? 0) + 1);
+  }
+  return SEAT_TYPES.filter((type) => counts.has(type)).map((type) => ({ type, count: counts.get(type) as number }));
 }

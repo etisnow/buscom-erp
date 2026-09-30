@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { stripInline } from "@buscom/domain/site/rich-text";
+import { parseSeatType, SEAT_TYPE_LABELS, SEAT_TYPES, type SeatType } from "@buscom/domain/site/seats";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatRub, rublesToKopecks } from "@buscom/domain/money";
@@ -156,6 +157,8 @@ export function ProductDialog({
   const [salonKit, setSalonKit] = useState<"auto" | "on" | "off">(
     product?.salonKit === true ? "on" : product?.salonKit === false ? "off" : "auto",
   );
+  // Тип сиденья (фильтр на сайте): "auto" — по разделу и названию, иначе задан вручную
+  const [seatType, setSeatType] = useState<SeatType | "auto">(parseSeatType(product?.seatType) ?? "auto");
   const [categoryId, setCategoryId] = useState<string | null>(product?.categoryId ?? draft?.categoryId ?? null);
   // Цену продажи у импорта ставит человек: у поставщика — закупка, наценку решаем мы
   const [price, setPrice] = useState(draft ? "" : ((product?.priceKopecks ?? 0) / 100).toFixed(2));
@@ -406,6 +409,7 @@ export function ProductDialog({
       compatibility,
       isHit,
       salonKit: salonKit === "auto" ? null : salonKit === "on",
+      seatType: seatType === "auto" ? null : seatType,
       suppliers: supplierLinks,
       options,
       // У нового товара без введённого адреса его выберет сервер — из названия
@@ -581,6 +585,25 @@ export function ProductDialog({
                 ) : null}
               </div>
             ) : null}
+          </div>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label className="text-xs">Тип сиденья</Label>
+            <Select value={seatType} onValueChange={(value) => setSeatType(value as SeatType | "auto")}>
+              <SelectTrigger size="sm" className="w-full max-w-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Автоматически (по разделу и названию)</SelectItem>
+                {SEAT_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {SEAT_TYPE_LABELS[type]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-muted-foreground text-xs">
+              Фильтр «Тип» в каталоге сайта; у пассажирских по умолчанию показывается и блок «Комплект на салон».
+            </span>
           </div>
           <div className="flex flex-col gap-1.5 sm:col-span-2">
             <Label className="text-xs" htmlFor="product-description">

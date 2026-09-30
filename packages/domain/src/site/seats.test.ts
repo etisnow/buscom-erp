@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { isPassengerSeat, PASSENGER_SEATS_CATEGORY, showSalonKit } from "./seats";
+import {
+  autoSeatType,
+  isPassengerSeat,
+  parseSeatType,
+  PASSENGER_SEATS_CATEGORY,
+  resolveSeatType,
+  showSalonKit,
+} from "./seats";
 
 const seat = (name: string, categorySlugs: string[] = ["sidenja", PASSENGER_SEATS_CATEGORY]) => ({
   name,
@@ -40,5 +47,31 @@ describe("showSalonKit", () => {
   it("не задана — автоматически, как у пассажирских сидений", () => {
     expect(showSalonKit(null, seat("Сиденье Интурист - Люкс"))).toBe(true);
     expect(showSalonKit(undefined, seat("Сиденье водителя City"))).toBe(false);
+  });
+});
+
+describe("тип сиденья", () => {
+  it("автоматически: пассажирское, водительское, не сиденье", () => {
+    expect(autoSeatType(seat("Сиденье Интурист - Люкс"))).toBe("passenger");
+    expect(autoSeatType(seat("Сиденье водителя City"))).toBe("driver");
+    expect(autoSeatType(seat("Сиденье Гида"))).toBeNull();
+    expect(autoSeatType(seat("Шторка", ["shtorki"]))).toBeNull();
+  });
+
+  it("ручная настройка главнее правила", () => {
+    expect(resolveSeatType("universal", seat("Сиденье водителя City"))).toBe("universal");
+    expect(resolveSeatType("driver", seat("Шторка", ["shtorki"]))).toBe("driver");
+    expect(resolveSeatType(null, seat("Сиденье Интурист - Люкс"))).toBe("passenger");
+  });
+
+  it("разбирает значение из адреса", () => {
+    expect(parseSeatType("universal")).toBe("universal");
+    expect(parseSeatType("x")).toBeNull();
+    expect(parseSeatType(undefined)).toBeNull();
+  });
+
+  it("комплект на салон: тип вручную влияет, если блок не настроен", () => {
+    expect(showSalonKit(null, { ...seat("Сиденье водителя City"), seatType: "passenger" })).toBe(true);
+    expect(showSalonKit(null, { ...seat("Сиденье Интурист - Люкс"), seatType: "universal" })).toBe(false);
   });
 });

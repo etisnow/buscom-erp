@@ -17,7 +17,7 @@ const NAV = [
 /**
  * Шапка по макету: служебная строка, строка с логотипом, каталогом, поиском,
  * телефоном и корзиной, под ней — разделы каталога. На телефоне — логотип,
- * Max и корзина, поиск строкой ниже; каталог открывается из нижней панели.
+ * значки мессенджеров и корзина, поиск строкой ниже; каталог открывается из нижней панели.
  */
 export async function SiteHeader() {
   const tree = await getCategoryTree();
@@ -51,12 +51,7 @@ export async function SiteHeader() {
             <Messengers size={36} />
             <span className="text-ink-2 text-[13px] font-medium whitespace-nowrap">{COMPANY.max.display}</span>
           </div>
-          <Link
-            href="/kontakty"
-            className="bg-brand-soft text-brand flex size-11 items-center justify-center rounded-[10px] text-xs font-bold lg:hidden"
-          >
-            Max
-          </Link>
+          <Messengers size={32} className="lg:hidden" />
           <CartLink />
         </div>
       </div>

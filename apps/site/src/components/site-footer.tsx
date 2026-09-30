@@ -50,9 +50,7 @@ export async function SiteFooter() {
         </nav>
         <div className="flex flex-col gap-0.5 md:gap-2.5">
           <p className="font-semibold text-white">Реквизиты</p>
-          <p>{COMPANY.legalName}</p>
-          <p>ИНН {COMPANY.inn}</p>
-          <p>ОГРН {COMPANY.ogrn}</p>
+          <p>Компания «{COMPANY.brand}»</p>
         </div>
         <p className="border-t border-[#2b3130] pt-5 text-xs leading-normal text-[#8d948f] md:col-span-full">
           Информация на сайте носит справочный характер и не является публичной офертой (ст. 437 ГК РФ). ©{" "}

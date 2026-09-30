@@ -37,10 +37,13 @@ export function ProductGallery({ imageIds, name, badges }: { imageIds: string[];
     }
   }, [active]);
 
+  // Одно фото — без колонки превью: иначе оно окажется в её узкой ячейке
   const arrow =
     "text-ink-2 hover:text-brand absolute top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-line bg-white/90 text-lg shadow-sm";
   return (
-    <div className="card grid grid-cols-1 gap-3 p-3 md:p-5 lg:grid-cols-[84px_minmax(0,1fr)] lg:gap-5">
+    <div
+      className={`card grid grid-cols-1 gap-3 p-3 md:p-5 lg:gap-5 ${count > 1 ? "lg:grid-cols-[84px_minmax(0,1fr)]" : ""}`}
+    >
       <div className="relative aspect-square lg:order-last">
         {count > 0 ? (
           <Image
