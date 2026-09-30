@@ -1,6 +1,23 @@
 import "server-only";
 import type { Kopecks } from "@buscom/domain/money";
+import { IMPORT_SITES } from "@buscom/domain/product/import-sites";
 import { detectImageType, MAX_IMAGE_BYTES } from "@buscom/domain/product/images";
+import {
+  isBuskomplektUrl,
+  parseBuskomplektProduct,
+  suggestBuskomplektSku,
+} from "@buscom/domain/product/buskomplekt-product";
+import {
+  isGruppaDetaleyUrl,
+  parseGruppaDetaleyProduct,
+  suggestGruppaDetaleySku,
+} from "@buscom/domain/product/gruppa-detaley-product";
+import {
+  isTehprestigeUrl,
+  parseTehprestigeProduct,
+  suggestTehprestigeSku,
+} from "@buscom/domain/product/tehprestige-product";
+import { isEvrosidUrl, parseEvrosidProduct, suggestEvrosidSku } from "@buscom/domain/product/evrosid-product";
 import { isVanprojectUrl, type VariantOption, type VariantSelection } from "@buscom/domain/product/vanproject";
 import {
   matchCategory,
@@ -16,7 +33,7 @@ import { BROWSER_HEADERS, MAX_BYTES, priceCombos, request, statusError } from "@
 import type { SessionUser } from "@/server/session";
 
 /**
- * Импорт товара со страницы поставщика (пока «Фургон Проект», vanproject.ru):
+ * Импорт товара со страницы поставщика (сайты — в `SOURCES` ниже):
  * страница → название, описание, варианты с закупками, снимки → черновик для формы нового товара. Ничего не сохраняет: товар заводит
  * человек кнопкой в форме, сверив и поправив поля (docs/DECISIONS.md, 28.09.2026).
  *
@@ -24,7 +41,45 @@ import type { SessionUser } from "@/server/session";
  * у выбранных снимков в форме (`processImageAction`).
  */
 
-const SOURCE_NAME = "Фургон Проект";
+/** Сайты, с которых умеем импортировать. Новый — парсер в domain + строка здесь + подпись в форме импорта. */
+const SOURCES = [
+  {
+    name: "Фургон Проект",
+    matches: isVanprojectUrl,
+    parse: parseVanprojectProduct,
+    suggestSku: suggestVanprojectSku,
+    /** Поставщик в справочнике ищется по части названия (любой из вариантов) */
+    supplierNameParts: ["Фургон"],
+  },
+  {
+    name: "ЕвроСид",
+    matches: isEvrosidUrl,
+    parse: parseEvrosidProduct,
+    suggestSku: suggestEvrosidSku,
+    supplierNameParts: ["Евросид", "Eurosid", "Evrosid"],
+  },
+  {
+    name: "Нижбаскомплект",
+    matches: isBuskomplektUrl,
+    parse: parseBuskomplektProduct,
+    suggestSku: suggestBuskomplektSku,
+    supplierNameParts: ["Нижбас", "Буском", "Buskomplekt"],
+  },
+  {
+    name: "Техпрестиж",
+    matches: isTehprestigeUrl,
+    parse: parseTehprestigeProduct,
+    suggestSku: suggestTehprestigeSku,
+    supplierNameParts: ["Техпрестиж", "Tehprestige"],
+  },
+  {
+    name: "Группа деталей",
+    matches: isGruppaDetaleyUrl,
+    parse: parseGruppaDetaleyProduct,
+    suggestSku: suggestGruppaDetaleySku,
+    supplierNameParts: ["Группа деталей", "Gruppa"],
+  },
+];
 /** Больше снимков у карточки поставщика не бывает; больше — не качаем */
 const MAX_IMAGES = 12;
 const IMAGE_CONCURRENCY = 3;
@@ -43,7 +98,7 @@ export type SupplierImportDraft = {
   categoryId: string | null;
   /** Путь раздела у поставщика — подсказка, если категорию не подобрали */
   categoryPath: string[];
-  /** Поставщик «Фургон Проект» в справочнике; null — такого нет, выберет человек */
+  /** Поставщик этого сайта в справочнике; null — такого нет, выберет человек */
   supplierId: string | null;
   purchaseKopecks: Kopecks | null;
   variant: VariantSelection;
@@ -58,20 +113,24 @@ export type SupplierImportResult = { ok: true; draft: SupplierImportDraft } | { 
 
 export async function importFromSupplier(rawUrl: string, user: SessionUser): Promise<SupplierImportResult> {
   if (!canEditCatalog(user.role)) throw new ForbiddenError("Недостаточно прав, чтобы заводить товары");
-  const url = rawUrl.trim();
-  if (!isVanprojectUrl(url)) {
-    return { ok: false, error: "Пока умею импортировать только с сайта «Фургон Проект» (vanproject.ru)" };
+  const typed = rawUrl.trim();
+  // Ссылку часто вставляют без «https://»
+  const url = /^[a-z][a-z0-9+.-]*:\/\//i.test(typed) ? typed : `https://${typed}`;
+  const source = SOURCES.find((candidate) => candidate.matches(url));
+  if (!source) {
+    const sites = IMPORT_SITES.map((site) => `«${site.name}» (${site.host})`).join(", ");
+    return { ok: false, error: `Пока умею импортировать только с сайтов ${sites}` };
   }
 
   const page = await request(
     url,
     { headers: { ...BROWSER_HEADERS, accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" } },
-    SOURCE_NAME,
+    source.name,
   );
   if (!page.ok) return page;
-  const pageError = statusError(page.response, SOURCE_NAME);
+  const pageError = statusError(page.response, source.name);
   if (pageError) return { ok: false, error: pageError };
-  const product = parseVanprojectProduct((await page.response.text()).slice(0, MAX_BYTES));
+  const product = source.parse((await page.response.text()).slice(0, MAX_BYTES));
   if (!product)
     return { ok: false, error: "По ссылке не карточка товара — откройте товар на сайте и скопируйте адрес" };
 
@@ -88,7 +147,7 @@ export async function importFromSupplier(rawUrl: string, user: SessionUser): Pro
     );
   }
   if (product.form && variantOptions.length > 0) {
-    const combos = await priceCombos(product.form, url, SOURCE_NAME);
+    const combos = await priceCombos(product.form, url, source.name);
     if (combos.ok) {
       const pricing = pricingFromCombos(variantOptions, combos.combos);
       purchaseKopecks = pricing.basePurchaseKopecks ?? purchaseKopecks;
@@ -103,7 +162,9 @@ export async function importFromSupplier(rawUrl: string, user: SessionUser): Pro
   const [categories, supplier, existing] = await Promise.all([
     db.productCategory.findMany({ select: { id: true, name: true, parentId: true } }),
     db.supplier.findFirst({
-      where: { name: { contains: "Фургон", mode: "insensitive" } },
+      where: {
+        OR: source.supplierNameParts.map((part) => ({ name: { contains: part, mode: "insensitive" as const } })),
+      },
       select: { id: true },
     }),
     db.productSupplier.findFirst({ where: { url }, select: { product: { select: { sku: true, name: true } } } }),
@@ -111,7 +172,7 @@ export async function importFromSupplier(rawUrl: string, user: SessionUser): Pro
   if (existing) {
     warnings.push(`Этот товар уже заведён: ${existing.product.sku} «${existing.product.name}»`);
   }
-  if (!supplier) warnings.push(`Поставщика «${SOURCE_NAME}» нет в справочнике — выберите поставщика вручную`);
+  if (!supplier) warnings.push(`Поставщика «${source.name}» нет в справочнике — выберите поставщика вручную`);
   const categoryId = matchCategory(product.categoryPath, categories);
   if (!categoryId && product.categoryPath.length > 0) {
     warnings.push(`Категорию не подобрал — у поставщика раздел «${product.categoryPath.join(" / ")}»`);
@@ -121,13 +182,13 @@ export async function importFromSupplier(rawUrl: string, user: SessionUser): Pro
   if (product.imageUrls.length > MAX_IMAGES) {
     warnings.push(`У товара ${product.imageUrls.length} снимков — взяты первые ${MAX_IMAGES}`);
   }
-  const images = await downloadImages(imageUrls, warnings);
+  const images = await downloadImages(imageUrls, warnings, source.name);
 
   return {
     ok: true,
     draft: {
       url,
-      sku: suggestVanprojectSku(product.productId),
+      sku: source.suggestSku(product.productId),
       name: product.name,
       description: product.description ?? "",
       categoryId,
@@ -143,7 +204,7 @@ export async function importFromSupplier(rawUrl: string, user: SessionUser): Pro
   };
 }
 
-async function downloadImages(urls: string[], warnings: string[]): Promise<ImportedImage[]> {
+async function downloadImages(urls: string[], warnings: string[], sourceName: string): Promise<ImportedImage[]> {
   const results: (ImportedImage | null)[] = new Array(urls.length).fill(null);
   let next = 0;
   let failed = 0;
@@ -151,7 +212,7 @@ async function downloadImages(urls: string[], warnings: string[]): Promise<Impor
     while (next < urls.length) {
       const index = next++;
       const url = urls[index]!;
-      const fetched = await request(url, { headers: BROWSER_HEADERS }, SOURCE_NAME);
+      const fetched = await request(url, { headers: BROWSER_HEADERS }, sourceName);
       if (!fetched.ok || !fetched.response.ok) {
         failed++;
         continue;

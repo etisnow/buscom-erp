@@ -1,6 +1,10 @@
 import "server-only";
 import type { Kopecks } from "@buscom/domain/money";
 import { isAvitoUrl, parseAvitoPrice } from "@buscom/domain/product/avito";
+import { isBuskomplektUrl, parseBuskomplektPrice } from "@buscom/domain/product/buskomplekt-product";
+import { isGruppaDetaleyUrl, parseGruppaDetaleyPrice } from "@buscom/domain/product/gruppa-detaley-product";
+import { isTehprestigeUrl, parseTehprestigePrice } from "@buscom/domain/product/tehprestige-product";
+import { isEvrosidUrl, parseEvrosidPrice } from "@buscom/domain/product/evrosid-product";
 import { comboLabel, enumerateCombos, type SupplierCombo } from "@buscom/domain/product/option-matching";
 import {
   checkSelection,
@@ -53,6 +57,10 @@ const SOURCES: {
     parse: parseVanprojectPrice,
     variants: true,
   },
+  { name: "ЕвроСид", host: "evrosid.ru", matches: isEvrosidUrl, parse: parseEvrosidPrice },
+  { name: "Нижбаскомплект", host: "buskomplektnn.ru", matches: isBuskomplektUrl, parse: parseBuskomplektPrice },
+  { name: "Техпрестиж", host: "tehprestige.ru", matches: isTehprestigeUrl, parse: parseTehprestigePrice },
+  { name: "Группа деталей", host: "gruppa-detaley.ru", matches: isGruppaDetaleyUrl, parse: parseGruppaDetaleyPrice },
 ];
 
 /** Списки вариантов на странице и то, что из них выбрано, — для выбора в карточке товара. */
