@@ -12,9 +12,6 @@ export function isPassengerSeat(product: { name: string; categorySlugs: readonly
   return product.categorySlugs.includes(PASSENGER_SEATS_CATEGORY) && !NOT_PASSENGER.test(product.name);
 }
 
-/** Сколько мест предлагаем для комплекта: типовые салоны микроавтобусов */
-export const KIT_SEAT_COUNTS = [14, 15, 16, 17] as const;
-
 /**
  * Показывать ли «Комплект на салон» у товара. Настройка товара главнее: true — показать,
  * false — скрыть; не задана (null) — автоматически, по правилу пассажирских сидений.

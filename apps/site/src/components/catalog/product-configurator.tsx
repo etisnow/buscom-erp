@@ -5,11 +5,14 @@ import { useState } from "react";
 import { formatRub } from "@buscom/domain/money";
 import { MAX_QUANTITY } from "@buscom/domain/site/cart";
 import { isNoneOptionValue } from "@buscom/domain/site/pricing";
-import { KIT_SEAT_COUNTS } from "@buscom/domain/site/seats";
+import { kitCount, kitFeatureOf, kitLines, kitTotal, type KitLayout } from "@buscom/domain/site/kit";
 import { ecommerce, reachGoal } from "@/components/analytics/metrika";
 import { cartActions } from "@/components/cart/cart-store";
 import { COMPANY } from "@/config/company";
 import { QuickOrder } from "./quick-order";
+
+/** Схема салона из справочника ERP; `imageVersion` — часть адреса чертежа */
+type KitScheme = KitLayout & { hasImage: boolean; imageVersion: number };
 
 type Group = {
   id: string;
@@ -30,7 +33,7 @@ export function ProductConfigurator({
   basePriceKopecks,
   groups,
   isActive,
-  kit = false,
+  kitLayouts = [],
 }: {
   productId: string;
   sku: string;
@@ -38,12 +41,15 @@ export function ProductConfigurator({
   basePriceKopecks: number;
   groups: Group[];
   isActive: boolean;
-  /** Блок «Комплект на салон» — по настройке товара в ERP (showSalonKit) */
-  kit?: boolean;
+  /**
+   * Схемы для блока «Комплект на салон»; пусто — блока нет (товар не для салона по настройке в ERP
+   * или в справочнике нет включённых схем)
+   */
+  kitLayouts?: KitScheme[];
 }) {
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
-  const [seats, setSeats] = useState<number>(KIT_SEAT_COUNTS[1]);
+  const [layoutId, setLayoutId] = useState<string | null>(kitLayouts[0]?.id ?? null);
   const [selected, setSelected] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       groups.filter((group) => group.required && group.values[0]).map((group) => [group.id, group.values[0].id]),
@@ -54,6 +60,31 @@ export function ProductConfigurator({
     setAdded(true);
     reachGoal("add_to_cart");
     ecommerce({ add: { products: [{ id: sku, name, price: price / 100, quantity: count }] } });
+  }
+
+  const layout = kitLayouts.find((item) => item.id === layoutId) ?? kitLayouts[0] ?? null;
+
+  /**
+   * Комплект — несколько позиций корзины: подлокотники и откидные спинки ставятся не на все места,
+   * а на их число в схеме (`kit.ts`). Итог позиций равен цене комплекта.
+   */
+  function addKitToCart() {
+    if (!layout) return;
+    const lines = kitLines(groups, selected, layout);
+    for (const line of lines) cartActions.add({ productId, valueIds: line.valueIds, quantity: line.quantity });
+    setAdded(true);
+    reachGoal("add_to_cart");
+    const unit = (valueIds: string[]) =>
+      basePriceKopecks +
+      groups.reduce((sum, group) => {
+        const value = group.values.find((item) => valueIds.includes(item.id));
+        return sum + (value?.priceDeltaKopecks ?? 0);
+      }, 0);
+    ecommerce({
+      add: {
+        products: lines.map((line) => ({ id: sku, name, price: unit(line.valueIds) / 100, quantity: line.quantity })),
+      },
+    });
   }
 
   const price =
@@ -139,37 +170,50 @@ export function ProductConfigurator({
             )}
           </div>
         )}
-        {kit && isActive && price > 0 && (
+        {layout && isActive && price > 0 && (
           <section className="bg-brand-soft flex flex-col gap-3.5 rounded-2xl p-5 md:p-6">
             <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
               <h2 className="text-lg font-bold">Комплект на салон</h2>
               <span className="text-ink-2 text-[13px]">с выбранными опциями</span>
             </div>
-            <div className="flex gap-1.5" role="group" aria-label="Мест в салоне">
-              {KIT_SEAT_COUNTS.map((count) => (
+            <div className="grid grid-cols-2 gap-2" role="group" aria-label="Схема салона">
+              {kitLayouts.map((scheme) => (
                 <button
-                  key={count}
+                  key={scheme.id}
                   type="button"
-                  aria-pressed={seats === count}
-                  onClick={() => setSeats(count)}
-                  className={`h-10 flex-1 rounded-[9px] text-sm font-semibold ${
-                    seats === count ? "bg-brand text-white" : "hover:text-brand bg-white"
+                  aria-pressed={layout.id === scheme.id}
+                  onClick={() => setLayoutId(scheme.id)}
+                  className={`flex flex-col gap-1 rounded-[10px] border-[1.5px] bg-white p-2 text-left text-[13px] font-semibold ${
+                    layout.id === scheme.id ? "border-brand" : "hover:border-brand/50 border-transparent"
                   }`}
                 >
-                  {count} мест
+                  {scheme.hasImage && (
+                    // Чертёж отдаёт наш маршрут /img/salon/…: оптимизатор картинок не нужен
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`/img/salon/${scheme.id}?v=${scheme.imageVersion}`}
+                      alt={`Схема салона: ${scheme.name}`}
+                      loading="lazy"
+                      className="aspect-[3/1] w-full object-contain"
+                    />
+                  )}
+                  {scheme.name}
                 </button>
               ))}
             </div>
             <p className="flex items-center justify-between gap-3">
-              <span className="text-[15px]">Итого за {seats} сидений</span>
-              <span className="text-[22px] font-bold whitespace-nowrap">{formatRub(price * seats)}</span>
+              <span className="text-[15px]">Итого за {layout.seats} сидений</span>
+              <span className="text-[22px] font-bold whitespace-nowrap">
+                {formatRub(kitTotal(basePriceKopecks, groups, selected, layout))}
+              </span>
             </p>
+            <KitBreakdown groups={groups} selected={selected} layout={layout} />
             <button
               type="button"
-              onClick={() => addToCart(seats)}
+              onClick={addKitToCart}
               className="border-brand text-brand hover:bg-brand h-11 rounded-[10px] border-[1.5px] bg-white text-sm font-semibold hover:text-white"
             >
-              Положить {seats} шт. в корзину
+              Положить комплект ({layout.seats} шт.) в корзину
             </button>
             <p className="text-ink-2 text-[13px]">
               Для автопарков — оптовая цена, установка в нашем цехе — рассчитаем отдельно: Max, WhatsApp или Telegram{" "}
@@ -183,6 +227,26 @@ export function ProductConfigurator({
       </div>
     </div>
   );
+}
+
+/**
+ * Из чего сложен комплект: сколько сидений в схеме и, если выбраны подлокотники или откидные спинки,
+ * сколько их в этой схеме — на них умножается доплата за опцию.
+ */
+function KitBreakdown({
+  groups,
+  selected,
+  layout,
+}: {
+  groups: Group[];
+  selected: Record<string, string>;
+  layout: KitLayout;
+}) {
+  const features = new Set(groups.filter((group) => selected[group.id]).map((group) => kitFeatureOf(group)));
+  const parts = [`сидений: ${layout.seats}`];
+  if (features.has("armrest")) parts.push(`подлокотников: ${kitCount("armrest", layout)}`);
+  if (features.has("recliner")) parts.push(`откидных спинок: ${kitCount("recliner", layout)}`);
+  return <p className="text-ink-2 text-[13px]">В схеме {parts.join(", ")}</p>;
 }
 
 function QuantityStepper({ value, onChange }: { value: number; onChange: (value: number) => void }) {

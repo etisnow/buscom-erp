@@ -394,6 +394,41 @@ export const getSitemapEntries = cached(async () => {
   ];
 }, "sitemap");
 
+/**
+ * Схемы салона для блока «Комплект на салон» — включённые, в порядке справочника ERP
+ * («Схемы салонов»). `imageVersion` — часть адреса картинки: заменили чертёж, адрес новый.
+ */
+export const getKitLayouts = cached(async () => {
+  const rows = await db.salonLayout.findMany({
+    where: { isActive: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      seats: true,
+      armrests: true,
+      reclinerBacks: true,
+      updatedAt: true,
+      imageContentType: true,
+    },
+  });
+  return rows.map(({ updatedAt, imageContentType, ...layout }) => ({
+    ...layout,
+    hasImage: imageContentType !== null,
+    imageVersion: updatedAt.getTime(),
+  }));
+}, "kit-layouts");
+
+/** Чертёж схемы салона для публичной выдачи. */
+export async function readSalonLayoutImage(id: string) {
+  const row = await db.salonLayout.findFirst({
+    where: { id, isActive: true },
+    select: { imageData: true, imageContentType: true },
+  });
+  if (!row?.imageData || !row.imageContentType) return null;
+  return { data: row.imageData, contentType: row.imageContentType };
+}
+
 /** Картинка товара для публичной выдачи. Не кешируется здесь: байты не сериализуются в JSON. */
 export async function readProductImage(id: string, size: "thumb" | "full") {
   const image = await db.productImage.findUnique({

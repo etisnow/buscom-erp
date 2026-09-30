@@ -21,7 +21,7 @@ import { ProductConfigurator } from "@/components/catalog/product-configurator";
 import { ProductGallery } from "@/components/catalog/product-gallery";
 import { COMPANY, SITE_ORIGIN } from "@/config/company";
 import { pageMetadata } from "@/config/metadata";
-import { getPageBySlug, type CategoryPage, type ProductPage } from "@/server/catalog";
+import { getKitLayouts, getPageBySlug, type CategoryPage, type ProductPage } from "@/server/catalog";
 
 /**
  * Товар и категория живут на одном уровне адресов: bus-com.ru/{slug}, как на
@@ -50,11 +50,25 @@ export default async function SlugPage({ params, searchParams }: PageProps<"/[sl
   const { slug } = await params;
   const page = await getPageBySlug(slug);
   if (!page) notFound();
-  if (page.kind === "product") return <ProductView product={page} />;
+  if (page.kind === "product") {
+    const kit = showSalonKit(page.salonKit, {
+      name: page.name,
+      categorySlugs: page.breadcrumbs.map((crumb) => crumb.slug),
+    });
+    // Схемы — из справочника ERP; блок «Комплект на салон» показываем, только если они есть
+    const kitLayouts = kit ? await getKitLayouts() : [];
+    return <ProductView product={page} kitLayouts={kitLayouts} />;
+  }
   return <CategoryView category={page} query={parseCatalogQuery(await searchParams)} />;
 }
 
-function ProductView({ product }: { product: ProductPage }) {
+function ProductView({
+  product,
+  kitLayouts,
+}: {
+  product: ProductPage;
+  kitLayouts: Awaited<ReturnType<typeof getKitLayouts>>;
+}) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -103,10 +117,7 @@ function ProductView({ product }: { product: ProductPage }) {
             basePriceKopecks={product.basePriceKopecks}
             groups={product.options}
             isActive={product.isActive}
-            kit={showSalonKit(product.salonKit, {
-              name: product.name,
-              categorySlugs: product.breadcrumbs.map((crumb) => crumb.slug),
-            })}
+            kitLayouts={kitLayouts}
           />
         </div>
         <div className="lg:hidden">
