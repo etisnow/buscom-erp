@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { pageFaq, parsePageText } from "@buscom/domain/site/page-text";
+import { stripInline } from "@buscom/domain/site/rich-text";
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
 import { PageSections } from "@/components/page-text";
 import { pageMetadata } from "@/config/metadata";
@@ -27,8 +28,9 @@ export default async function DeliveryPage() {
     "@type": "FAQPage",
     mainEntity: faq.map((item) => ({
       "@type": "Question",
-      name: item.question,
-      acceptedAnswer: { "@type": "Answer", text: item.answer },
+      // Разметка (жирный, ссылки) в структурированных данных не нужна — обычный текст
+      name: stripInline(item.question),
+      acceptedAnswer: { "@type": "Answer", text: stripInline(item.answer) },
     })),
   };
   return (

@@ -1,5 +1,6 @@
 import "server-only";
 import { compatibilityHints, type CompatibilityHints } from "@buscom/domain/product/compatibility-hints";
+import { stripInline } from "@buscom/domain/site/rich-text";
 import { db } from "@/server/db";
 import { getCarModels } from "@/server/settings/service";
 
@@ -22,7 +23,7 @@ export async function listCompatibilityReview(): Promise<{ rows: CompatibilityRe
   const rows = products
     .map(({ description, ...product }) => ({
       ...product,
-      ...compatibilityHints(`${product.name} ${description ?? ""}`, models),
+      ...compatibilityHints(`${product.name} ${stripInline(description ?? "")}`, models),
     }))
     .filter((row) => row.suggested.length > 0 || row.unclear.length > 0)
     // Сначала те, где подсказка однозначна: их можно принять не читая описание

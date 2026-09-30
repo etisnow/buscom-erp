@@ -13,7 +13,10 @@ describe("шаблоны метатегов", () => {
   });
 
   it("отрывок описания: одна строка, до 160 знаков, пусто — нет", () => {
-    expect(descriptionSnippet("Первая\n\n• вторая  строка")).toBe("Первая • вторая строка");
+    expect(descriptionSnippet("Первая\n\n• вторая  строка")).toBe("Первая вторая строка");
+    expect(descriptionSnippet("## Про **сиденье**\n> *цитата* и [сайт](https://a.ru)")).toBe(
+      "Про сиденье цитата и сайт",
+    );
     expect(descriptionSnippet("а".repeat(200))).toHaveLength(160);
     expect(descriptionSnippet(null)).toBeUndefined();
   });

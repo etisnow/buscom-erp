@@ -4,17 +4,25 @@
  * менеджер пишет его в обычном поле, а вёрстка остаётся за сайтом.
  *
  *   ## Заголовок раздела
+ *   ### Подзаголовок
+ *   > цитата
  *   Абзац — любая строка.
  *   • пункт списка (или «- пункт»)
  *   1. пункт нумерованного списка
  *   ? Вопрос для блока «Частые вопросы»
  *   ответ — строки под вопросом до пустой строки
  *
+ * Внутри строки — встроенная разметка (**жирный**, *курсив*, [ссылка](https://…)), её разбирает
+ * `rich-text.ts`; здесь строки остаются как есть.
+ *
  * Строки подряд одного вида собираются в один список; пустая строка их разделяет.
  */
 
 export type PageBlock =
   | { kind: "heading"; text: string }
+  /** «### …»: заголовок внутри раздела, новый раздел он не начинает */
+  | { kind: "subheading"; text: string }
+  | { kind: "quote"; text: string }
   | { kind: "paragraph"; text: string }
   | { kind: "list"; ordered: boolean; items: string[] }
   | { kind: "faq"; items: { question: string; answer: string }[] };
@@ -36,6 +44,12 @@ export function parsePageText(text: string): PageBlock[] {
     }
     if (line.startsWith("## ")) {
       blocks.push({ kind: "heading", text: line.slice(3).trim() });
+      answering = false;
+    } else if (line.startsWith("### ")) {
+      blocks.push({ kind: "subheading", text: line.slice(4).trim() });
+      answering = false;
+    } else if (line.startsWith("> ")) {
+      blocks.push({ kind: "quote", text: line.slice(2).trim() });
       answering = false;
     } else if (line.startsWith("? ")) {
       const item = { question: line.slice(2).trim(), answer: "" };

@@ -2,6 +2,7 @@ import "server-only";
 import { categoryPath } from "@buscom/domain/product/categories";
 import { csvFileName, EXPORT_LIMIT, toCsv } from "@buscom/domain/csv";
 import { formatRubPlain } from "@buscom/domain/money";
+import { stripInline } from "@buscom/domain/site/rich-text";
 import { db } from "@/server/db";
 import { productsWhere, type ProductFilters } from "@/server/products/list";
 
@@ -50,7 +51,8 @@ export async function exportProductsCsv(filters: ProductFilters): Promise<Produc
       product.sku,
       product.name,
       // Описание многострочное: переводы строк внутри ячейки экранирует toCsv
-      product.description ?? "",
+      // Разметка (жирный, ссылки) в таблице ни к чему — обычный текст
+      stripInline(product.description ?? ""),
       categoryPath(product.category?.id, categories),
       formatRubPlain(product.priceKopecks),
       // Совместимость — массив моделей; точку с запятой внутри ячейки экранирует toCsv.

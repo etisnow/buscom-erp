@@ -15,7 +15,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { stripInline } from "@buscom/domain/site/rich-text";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatRub, rublesToKopecks } from "@buscom/domain/money";
@@ -58,8 +59,8 @@ import {
   fetchSupplierCombosAction,
   fetchSupplierPriceAction,
   updateProductAction,
-} from "@/app/(app)/products/actions";
   uploadProductImagesAction,
+} from "@/app/(app)/products/actions";
 
 /**
  * Поставщик товара в форме: закупочная цена — строкой, как её вводят.
@@ -99,7 +100,6 @@ function withChoice(
   return next;
 }
 
-/**
 /** Снимки из импорта — в сохранённый товар по одному; возвращает, сколько не загрузилось. */
 async function uploadImportedImages(
   productId: string,
@@ -122,6 +122,7 @@ async function uploadImportedImages(
   return failed;
 }
 
+/**
  * Заведение и правка товара. `product` не задан — создаём новый; `draft` — новый
  * товар из «Импорта с сайта поставщика»: поля и снимки уже заполнены, человек сверяет.
  */
@@ -162,7 +163,7 @@ export function ProductDialog({
   const [compatibility, setCompatibility] = useState<string[]>(
     () =>
       product?.compatibility ??
-      (draft ? compatibilityHints(`${draft.name} ${draft.description}`, carModels).suggested : []),
+      (draft ? compatibilityHints(`${draft.name} ${stripInline(draft.description)}`, carModels).suggested : []),
   );
   // Подсказка по названию и описанию: null — ещё не спрашивали
   const [hints, setHints] = useState<CompatibilityHints | null>(null);
@@ -216,9 +217,9 @@ export function ProductDialog({
       : toOptionForms(product?.options ?? []),
   );
   const [pending, startTransition] = useTransition();
-
   /** «Снимки: 3 из 9…» — пока снимки нового товара грузятся один за другим */
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+
   /** Индекс строки, для которой сейчас тянется цена; null — ничего не тянется. */
   const [fetching, setFetching] = useState<number | null>(null);
 
@@ -437,14 +438,14 @@ export function ProductDialog({
       if (failed > 0) {
         toast.warning(`Не загрузилось снимков: ${failed} из ${importedImages.length} — добавьте их в карточке товара`);
       }
-    });
       onOpenChange(false);
+    });
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* minmax(0,1fr): иначе колонка сетки растягивается под длинное имя поставщика и контент вылезает за окно */}
-      <DialogContent className="max-h-[90vh] grid-cols-[minmax(0,1fr)] overflow-x-hidden overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[90vh] grid-cols-[minmax(0,1fr)] overflow-x-hidden overflow-y-auto sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{product ? "Товар" : draft ? "Новый товар из импорта" : "Новый товар"}</DialogTitle>
           <DialogDescription>
@@ -556,7 +557,7 @@ export function ProductDialog({
                   size="sm"
                   className="w-fit"
                   onClick={() => {
-                    const found = compatibilityHints(`${name} ${description}`, carModels);
+                    const found = compatibilityHints(`${name} ${stripInline(description)}`, carModels);
                     setCompatibility((current) => [
                       ...current,
                       ...found.suggested.filter((model) => !current.includes(model)),
@@ -585,15 +586,16 @@ export function ProductDialog({
             <Label className="text-xs" htmlFor="product-description">
               Описание
             </Label>
-            <Textarea
+            <RichTextEditor
               id="product-description"
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              onChange={setDescription}
               placeholder="Описание с сайта; можно дополнить своим"
               className="max-h-64 min-h-24 text-sm"
             />
             <span className="text-muted-foreground text-xs">
-              Переносится с сайта: следующий прогон «Каталог с сайта» перезапишет правки.
+              Текст правится сразу в том виде, как его увидит покупатель. Переносится с сайта: следующий прогон «Каталог
+              с сайта» перезапишет правки.
             </span>
           </div>
         </div>
