@@ -32,7 +32,7 @@ export function CategoryFilters({
   const field =
     "border-line-strong focus:border-brand h-11 w-full min-w-0 rounded-[9px] border bg-white px-3 text-sm outline-none";
   const chip =
-    "border-line-strong peer-checked:bg-brand peer-checked:border-brand peer-focus-visible:outline-brand hover:border-brand flex h-8 cursor-pointer items-center rounded-full border px-3 text-[13px] peer-checked:text-white peer-focus-visible:outline-2";
+    "border-line-strong peer-checked:bg-brand peer-checked:border-brand peer-focus-visible:outline-brand hover:border-brand flex min-h-8 cursor-pointer items-center justify-between gap-2 rounded-2xl border px-3 py-1 text-[13px] leading-tight peer-checked:text-white peer-focus-visible:outline-2";
   return (
     <FiltersToggle active={activeFilters(query)}>
       <form action={`/${slug}`} className="card mt-3 flex flex-col gap-6 p-5 lg:mt-0">
@@ -73,7 +73,7 @@ export function CategoryFilters({
                 <span className={chip}>Все модели</span>
               </label>
               {models.map(({ model, count }) => (
-                <label key={model}>
+                <label key={model} className="max-w-full">
                   <input
                     type="radio"
                     name="model"
@@ -82,7 +82,8 @@ export function CategoryFilters({
                     className="peer sr-only"
                   />
                   <span className={chip}>
-                    {model} <span className="ml-1 opacity-60">{count}</span>
+                    <span>{model}</span>
+                    <span className="shrink-0 opacity-60">{count}</span>
                   </span>
                 </label>
               ))}
