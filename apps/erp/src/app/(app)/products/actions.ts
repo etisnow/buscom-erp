@@ -12,6 +12,7 @@ import {
 } from "@/server/products/supplier-price";
 import { getDewatermarkKey, removeWatermark } from "@/server/products/dewatermark";
 import { getCarveKey, removeBackground } from "@/server/products/carve";
+import { processStoredImage, restoreOriginalImage } from "@/server/products/image-processing";
 import { addImages, deleteImage, makeImageMain } from "@/server/products/images";
 import { canEditCatalog, createProduct, deleteProduct, updateProduct } from "@/server/products/service";
 import { importFromSupplier, type SupplierImportResult } from "@/server/products/supplier-import";
@@ -212,6 +213,24 @@ export async function uploadProductImagesAction(productId: string, form: FormDat
 export async function deleteProductImageAction(imageId: string): Promise<ProductResult> {
   const user = await requireUser();
   return run(() => deleteImage(imageId, user), "Картинка удалена");
+}
+
+/**
+ * «Удалить знак / фон» у картинки, уже сохранённой в товаре. Внешний сервис отвечает до
+ * минуты, поэтому действие вызывается по одной картинке. Оригинал остаётся — его можно вернуть.
+ */
+export async function processProductImageAction(imageId: string, operation: ImageOperation): Promise<ProductResult> {
+  const user = await requireUser();
+  if (operation !== "watermark" && operation !== "background") return { ok: false, error: "Неизвестная операция" };
+  return run(
+    () => processStoredImage(imageId, operation, user),
+    operation === "watermark" ? "Водяной знак удалён" : "Фон удалён",
+  );
+}
+
+export async function restoreProductImageAction(imageId: string): Promise<ProductResult> {
+  const user = await requireUser();
+  return run(() => restoreOriginalImage(imageId, user), "Оригинал возвращён");
 }
 
 /** Картинка становится аватаркой: её видно в списках и в позициях заказа. */

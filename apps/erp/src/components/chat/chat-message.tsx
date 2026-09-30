@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FileText, MoreHorizontal, Pencil, Reply, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,10 +52,18 @@ function Attachment({ file }: { file: ChatAttachmentView }) {
   const href = `/api/chat-attachments/${file.id}`;
   if (file.contentType.startsWith("image/")) {
     return (
-      <a href={href} target="_blank" rel="noopener" className="block">
-        {/* eslint-disable-next-line @next/next/no-img-element -- файл из нашего API, оптимизатор тут не нужен */}
-        <img src={href} alt={file.fileName} className="max-h-48 max-w-64 rounded-md border object-contain" />
-      </a>
+  const [viewing, setViewing] = useState<number | null>(null);
+      <>
+        <button type="button" onClick={() => setViewing(0)} title="Открыть на весь экран" className="block">
+          {/* eslint-disable-next-line @next/next/no-img-element -- файл из нашего API, оптимизатор тут не нужен */}
+          <img src={href} alt={file.fileName} className="max-h-48 max-w-64 rounded-md border object-contain" />
+        </button>
+        <ImageLightbox
+          images={[{ src: href, alt: file.fileName, openHref: href }]}
+          index={viewing}
+          onIndexChange={setViewing}
+        />
+      </>
     );
   }
   return (

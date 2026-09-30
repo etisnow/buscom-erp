@@ -1,6 +1,7 @@
 import { beforeEach, expect, it } from "vitest";
 import { ProductImageError } from "@buscom/domain/product/images";
 import { addImages, deleteImage, makeImageMain, readImage } from "@/server/products/images";
+import { restoreOriginalImage } from "@/server/products/image-processing";
 import { createProduct } from "@/server/products/service";
 import type { SessionUser } from "@/server/session";
 import { describeDb, resetDb, testDb } from "@/test/db";
@@ -101,5 +102,33 @@ describeDb("галерея товара в карточке (живая БД)", 
       createProduct({ sku: "VP-43", name: "Отопитель", priceKopecks: 900_000 }, manager, [JPEG(1), NOT_IMAGE]),
     ).rejects.toThrow(ProductImageError);
     expect(await testDb.product.findUnique({ where: { sku: "VP-43" } })).toBeNull();
+  });
+
+  it("«Вернуть оригинал»: на то же место встаёт первоначальная картинка, метка обработки снимается", async () => {
+    await addImages(productId, [JPEG(1), JPEG(2), JPEG(3)], manager);
+    const middle = await testDb.productImage.findFirstOrThrow({ where: { productId, sortOrder: 1 } });
+    // Как после «Удалить фон»: в data — результат, в originalData — первоначальный снимок
+    await testDb.productImage.update({
+      where: { id: middle.id },
+      data: { data: PNG, contentType: "image/png", originalData: JPEG(2), originalContentType: "image/jpeg" },
+    });
+
+    await restoreOriginalImage(middle.id, manager);
+
+    expect(await order()).toEqual([
+      [0, "image/jpeg"],
+      [1, "image/jpeg"],
+      [2, "image/jpeg"],
+    ]);
+    const restored = await testDb.productImage.findFirstOrThrow({ where: { productId, sortOrder: 1 } });
+    expect(restored.id).not.toBe(middle.id);
+    expect(restored.originalData).toBeNull();
+    expect([...restored.data]).toEqual([...JPEG(2)]);
+  });
+
+  it("вернуть оригинал у необработанной картинки нельзя", async () => {
+    await addImages(productId, [JPEG(1)], manager);
+    const image = await testDb.productImage.findFirstOrThrow({ where: { productId } });
+    await expect(restoreOriginalImage(image.id, manager)).rejects.toThrow("не обрабатывали");
   });
 });

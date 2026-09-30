@@ -1,14 +1,24 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useTransition } from "react";
-import { ImageOff, ImageUp, Star, Trash2 } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { Eraser, ImageMinus, ImageOff, ImageUp, Star, Trash2, Undo2, WandSparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
 import { cn } from "@/lib/utils";
 import {
   deleteProductImageAction,
   makeProductImageMainAction,
+  processProductImageAction,
+  restoreProductImageAction,
   uploadProductImagesAction,
 } from "@/app/(app)/products/actions";
 
@@ -58,11 +68,13 @@ export function ProductGalleryEditor({
   name,
 }: {
   productId: string;
-  images: { id: string }[];
+  /** `originalContentType` есть — картинку обрабатывали, оригинал можно вернуть */
+  images: { id: string; originalContentType?: string | null }[];
   name: string;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
+  const [viewing, setViewing] = useState<number | null>(null);
 
   function upload(files: File[]) {
     startTransition(async () => {
@@ -87,13 +99,34 @@ export function ProductGalleryEditor({
     });
   }
 
+  /** Обработка идёт у внешнего сервиса до минуты: пока ждём, картинка помечена, а не «зависла» */
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  function process(imageId: string, operation: "watermark" | "background") {
+    setProcessingId(imageId);
+    startTransition(async () => {
+      const result = await processProductImageAction(imageId, operation);
+      setProcessingId(null);
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.error);
+    });
+  }
+
   return (
     <div className="flex flex-col gap-2">
+      <ImageLightbox
+        images={images.map((image, index) => ({
+          src: imageUrl(image.id),
+          alt: index === 0 ? name : `${name} — картинка ${index + 1}`,
+          openHref: imageUrl(image.id),
+        }))}
+        index={viewing}
+        onIndexChange={setViewing}
+      />
       {/* Картинок у сиденья бывает и сорок пять — ряд прокручивается, чтобы поля товара не уезжали вниз */}
       <div className={cn("flex max-h-56 flex-wrap items-start gap-2 overflow-y-auto", pending && "opacity-50")}>
         {images.map((image, index) => (
           <div key={image.id} className="group relative">
-            <a href={imageUrl(image.id)} target="_blank" rel="noopener" title="Открыть в полном размере">
+            <button type="button" onClick={() => setViewing(index)} title="Открыть на весь экран" className="block">
               <Image
                 src={imageUrl(image.id, "thumb")}
                 alt={index === 0 ? name : `${name} — картинка ${index + 1}`}
@@ -102,10 +135,23 @@ export function ProductGalleryEditor({
                 unoptimized
                 className={cn("size-24 rounded-md border object-cover", index === 0 && "border-primary border-2")}
               />
-            </a>
+            </button>
             {index === 0 ? (
               <span className="bg-primary text-primary-foreground absolute top-1 left-1 rounded px-1 text-[10px] leading-4">
                 Главная
+              </span>
+            ) : null}
+            {image.originalContentType ? (
+              <span
+                className="bg-background/90 absolute top-1 right-1 rounded px-1 text-[10px] leading-4"
+                title="Картинка обработана, оригинал можно вернуть"
+              >
+                обработана
+              </span>
+            ) : null}
+            {processingId === image.id ? (
+              <span className="bg-background/70 absolute inset-0 flex items-center justify-center rounded-md text-xs font-medium">
+                Обрабатываю…
               </span>
             ) : null}
             {/* Кнопки поверх картинки: в ряду из нескольких картинок им негде встать рядом */}
@@ -121,6 +167,32 @@ export function ProductGalleryEditor({
                   <Star />
                 </Button>
               )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon-xs" title="Убрать знак или фон" disabled={pending}>
+                    <WandSparkles />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={() => process(image.id, "watermark")}>
+                    <Eraser />
+                    Удалить водяной знак
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => process(image.id, "background")}>
+                    <ImageMinus />
+                    Удалить фон
+                  </DropdownMenuItem>
+                  {image.originalContentType ? (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={() => act(() => restoreProductImageAction(image.id))}>
+                        <Undo2 />
+                        Вернуть оригинал
+                      </DropdownMenuItem>
+                    </>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="destructive"
                 size="icon-xs"

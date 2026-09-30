@@ -5,6 +5,7 @@ import { Star, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { processImageAction, type ImageOperation } from "@/app/(app)/products/actions";
 import { Button } from "@/components/ui/button";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
 import type { ImportedImage } from "@/server/products/supplier-import";
 
 type Picture = { base64: string; contentType: string };
@@ -58,6 +59,7 @@ export function ImportedImagesEditor({
   onChange: Dispatch<SetStateAction<ImportedImageDraft[]>>;
 }) {
   const [running, setRunning] = useState(false);
+  const [viewing, setViewing] = useState<number | null>(null);
 
   if (images.length === 0) {
     return (
@@ -105,6 +107,14 @@ export function ImportedImagesEditor({
 
   return (
     <div className="flex flex-col gap-2">
+      <ImageLightbox
+        images={images.map((image, index) => ({
+          src: `data:${image.current.contentType};base64,${image.current.base64}`,
+          alt: `Снимок ${index + 1}`,
+        }))}
+        index={viewing}
+        onIndexChange={setViewing}
+      />
       <span className="text-sm font-medium">
         Снимки <span className="text-muted-foreground font-normal">— первый станет главным</span>
       </span>
@@ -142,12 +152,11 @@ export function ImportedImagesEditor({
               className={`flex flex-col gap-1.5 rounded-md border p-1.5 ${image.selected ? "border-primary" : ""}`}
             >
               <div className="relative">
-                <a
-                  href={src}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="Открыть крупно"
-                  className="bg-muted relative block aspect-[4/3] overflow-hidden rounded"
+                <button
+                  type="button"
+                  onClick={() => setViewing(index)}
+                  title="Открыть на весь экран"
+                  className="bg-muted relative block aspect-[4/3] w-full overflow-hidden rounded"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element -- снимок ещё не сохранён, отдать его по адресу нельзя */}
                   <img src={src} alt="" className={`size-full object-contain ${image.busy ? "opacity-40" : ""}`} />
@@ -161,7 +170,7 @@ export function ImportedImagesEditor({
                       Обрабатываю…
                     </span>
                   ) : null}
-                </a>
+                </button>
                 <input
                   type="checkbox"
                   aria-label="Выбрать снимок"

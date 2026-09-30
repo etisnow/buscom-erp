@@ -42,7 +42,8 @@ const listSelect = {
   },
   // Только id картинок: байты в список не тянем. Первая — аватарка для списка,
   // остальные нужны галерее в карточке товара.
-  images: { orderBy: { sortOrder: "asc" }, select: { id: true } },
+  // originalContentType — не байты, а метка «картинку обрабатывали, оригинал можно вернуть»
+  images: { orderBy: { sortOrder: "asc" }, select: { id: true, originalContentType: true } },
   options: {
     orderBy: { sortOrder: "asc" },
     select: {
