@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { AppSidebar, type NavItem } from "@/components/layout/app-sidebar";
+import { FaviconBadge } from "@/components/layout/favicon-badge";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
 import { PullToRefresh } from "@/components/layout/pull-to-refresh";
 import { OrderSearch } from "@/components/layout/order-search";
@@ -14,6 +15,7 @@ import { requireUser } from "@/server/session";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
+  const chatUnread = await unreadChatCount(user.id);
 
   // Меню собирается по правам роли (PRD, «Карта экранов»).
   const items: NavItem[] = [
@@ -26,7 +28,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       href: "/chat",
       label: "Чат",
       icon: "chat",
-      badge: await unreadChatCount(user.id),
+      badge: chatUnread,
       liveBadgeUrl: "/api/chat/unread",
     },
     { href: "/news", label: "Новости", icon: "news", badge: await unreadNewsCount(user.id) },
@@ -40,6 +42,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <SidebarProvider>
+      {/* Число непрочитанных в чате — на иконке вкладки браузера */}
+      <FaviconBadge url="/api/chat/unread" initial={chatUnread} />
       <AppSidebar items={items} />
       <SidebarInset>
         {/* Отступ сверху — под «чёлку» и строку состояния, когда ERP открыта значком с главного экрана */}
