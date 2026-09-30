@@ -13,6 +13,12 @@ import {
   saveSlaMinutes,
   setDictionaryItemActive,
 } from "@/server/settings/service";
+import {
+  addSalonLayout,
+  deleteSalonLayout,
+  setSalonLayoutActive,
+  updateSalonLayout,
+} from "@/server/settings/salon-layouts";
 import { requireUser } from "@/server/session";
 
 export type SettingsResult = { ok: true; message: string } | { ok: false; error: string };
@@ -50,6 +56,28 @@ export async function deleteDictionaryItemAction(id: string): Promise<SettingsRe
 export async function renameDictionaryItemAction(id: string, name: string): Promise<SettingsResult> {
   await requireUser(ADMIN_ROLES);
   return run(() => renameDictionaryItem(id, name), "Переименовано");
+}
+
+export type SalonLayoutFormValues = { name: string; seats: number; armrests: number; reclinerBacks: number };
+
+export async function addSalonLayoutAction(values: SalonLayoutFormValues): Promise<SettingsResult> {
+  await requireUser(ADMIN_ROLES);
+  return run(() => addSalonLayout(values), "Схема добавлена");
+}
+
+export async function updateSalonLayoutAction(id: string, values: SalonLayoutFormValues): Promise<SettingsResult> {
+  await requireUser(ADMIN_ROLES);
+  return run(() => updateSalonLayout(id, values), "Схема сохранена");
+}
+
+export async function toggleSalonLayoutAction(id: string, isActive: boolean): Promise<SettingsResult> {
+  await requireUser(ADMIN_ROLES);
+  return run(() => setSalonLayoutActive(id, isActive), isActive ? "Включено" : "Выключено");
+}
+
+export async function deleteSalonLayoutAction(id: string): Promise<SettingsResult> {
+  await requireUser(ADMIN_ROLES);
+  return run(() => deleteSalonLayout(id), "Удалено");
 }
 
 export async function saveDiscountLimitAction(percent: number): Promise<SettingsResult> {

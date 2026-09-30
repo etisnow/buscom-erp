@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { DictionaryEditor } from "@/components/admin/dictionary-editor";
+import { SalonLayoutsEditor } from "@/components/admin/salon-layouts-editor";
 import { DiscountLimitEditor, RequisitesEditor, SlaEditor } from "@/components/admin/settings-editor";
+import { listSalonLayouts } from "@/server/settings/salon-layouts";
 import { SLA_ENABLED } from "@buscom/domain/sla";
 import { ADMIN_ROLES } from "@buscom/domain/user/role";
 import { getSettings, listDictionary } from "@/server/settings/service";
@@ -13,12 +15,13 @@ export const metadata: Metadata = {
 export default async function AdminDictionariesPage() {
   await requirePageUser(ADMIN_ROLES);
 
-  const [settings, orderSources, cancelReasons, carriers, carModels] = await Promise.all([
+  const [settings, orderSources, cancelReasons, carriers, carModels, salonLayouts] = await Promise.all([
     getSettings(),
     listDictionary("ORDER_SOURCE"),
     listDictionary("CANCEL_REASON"),
     listDictionary("CARRIER"),
     listDictionary("CAR_MODEL"),
+    listSalonLayouts(),
   ]);
 
   return (
@@ -53,6 +56,8 @@ export default async function AdminDictionariesPage() {
         description="Из этого списка выбирается совместимость в карточке товара. Переименование меняет название модели и у товаров. Выключенная модель пропадёт из выбора, но останется у товаров, где уже стоит; модель, указанную у товаров, удалить нельзя — только выключить."
         items={carModels}
       />
+
+      <SalonLayoutsEditor items={salonLayouts} />
 
       <DiscountLimitEditor percent={settings.discountLimitPercent} />
       {SLA_ENABLED && <SlaEditor slaMinutes={settings.slaMinutes} />}
