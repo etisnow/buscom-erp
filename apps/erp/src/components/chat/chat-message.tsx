@@ -14,11 +14,45 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
+import { chatAvatar } from "@buscom/domain/chat/avatar";
 import { splitOrderLinks } from "@buscom/domain/chat/order-links";
 import { formatMoscowDateTime } from "@buscom/domain/datetime";
 import { cn } from "@/lib/utils";
 import type { ChatActionResult } from "@/app/(app)/chat/actions";
 import type { ChatAttachmentView, ChatMessageView } from "@/server/chat/service";
+
+/** Цвета фона аватарок; их столько же, сколько AVATAR_COLOR_COUNT в домене. Все — с белым текстом. */
+const AVATAR_COLORS = [
+  "bg-rose-600",
+  "bg-orange-600",
+  "bg-amber-700",
+  "bg-lime-700",
+  "bg-emerald-600",
+  "bg-teal-600",
+  "bg-sky-600",
+  "bg-blue-600",
+  "bg-indigo-600",
+  "bg-violet-600",
+  "bg-fuchsia-600",
+  "bg-pink-700",
+];
+
+/** Кружок с двумя заглавными буквами слева от первого сообщения автора; цвет зависит от сотрудника. */
+function AuthorAvatar({ author }: { author: { id: string; name: string } }) {
+  const { initials, colorIndex } = chatAvatar(author);
+  return (
+    <span
+      aria-hidden
+      title={author.name}
+      className={cn(
+        "absolute top-1.5 left-2 flex size-8 items-center justify-center rounded-full text-xs font-semibold text-white select-none",
+        AVATAR_COLORS[colorIndex],
+      )}
+    >
+      {initials}
+    </span>
+  );
+}
 
 export function formatSize(bytes: number): string {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} КБ` : `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
@@ -144,12 +178,13 @@ export function ChatMessage({
     <div
       id={`msg-${message.id}`}
       className={cn(
-        "group hover:bg-muted/50 relative scroll-mt-2 rounded-md px-2 py-1 transition-colors",
+        "group hover:bg-muted/50 relative scroll-mt-2 rounded-md py-1 pr-2 pl-12 transition-colors",
         unread && "bg-muted/60 hover:bg-muted/80",
         !message.deleted && "pointer-coarse:pr-[4.5rem]",
         showAuthor && "mt-2",
       )}
     >
+      {showAuthor ? <AuthorAvatar author={message.author} /> : null}
       {showAuthor ? (
         <div className="flex items-baseline gap-2">
           <span className="text-sm font-semibold">{message.author.name}</span>
