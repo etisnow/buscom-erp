@@ -9,6 +9,7 @@ import {
   replyPreview,
 } from "@buscom/domain/chat/message";
 import { orderNumbersIn } from "@buscom/domain/chat/order-links";
+import { MAX_REACTION_KINDS, normalizeReaction } from "@buscom/domain/chat/reaction";
 import { detectDocumentType } from "@buscom/domain/order/supplier-document";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
@@ -40,6 +41,9 @@ export type ChatAttachmentView = {
   expired: boolean;
 };
 
+/** Реакция под сообщением: эмодзи и кто его поставил (в порядке постановки) */
+export type ChatReactionView = { emoji: string; users: { id: string; name: string }[] };
+
 export type ChatMessageView = {
   id: string;
   author: { id: string; name: string };
@@ -49,6 +53,7 @@ export type ChatMessageView = {
   editedAt: string | null;
   deleted: boolean;
   attachments: ChatAttachmentView[];
+  reactions: ChatReactionView[];
   /** Упомянутые в тексте номера, для которых заказ существует — их UI делает ссылками */
   orderNumbers: number[];
   /**
@@ -71,6 +76,10 @@ const messageSelect = {
     select: { id: true, fileName: true, byteSize: true, contentType: true, expiredAt: true },
     orderBy: { createdAt: "asc" as const },
   },
+  reactions: {
+    select: { emoji: true, user: { select: { id: true, name: true } } },
+    orderBy: { createdAt: "asc" as const },
+  },
   replyTo: {
     select: {
       id: true,
@@ -91,6 +100,7 @@ type MessageRow = {
   deletedAt: Date | null;
   user: { id: string; name: string };
   attachments: { id: string; fileName: string; byteSize: number; contentType: string; expiredAt: Date | null }[];
+  reactions: { emoji: string; user: { id: string; name: string } }[];
   replyTo: {
     id: string;
     text: string;
@@ -99,6 +109,17 @@ type MessageRow = {
     _count: { attachments: number };
   } | null;
 };
+
+/** Реакции по эмодзи: порядок — по первой постановке, люди внутри — по времени. */
+function groupReactions(rows: MessageRow["reactions"]): ChatReactionView[] {
+  const byEmoji = new Map<string, ChatReactionView>();
+  for (const { emoji, user } of rows) {
+    const group = byEmoji.get(emoji) ?? { emoji, users: [] };
+    group.users.push(user);
+    byEmoji.set(emoji, group);
+  }
+  return [...byEmoji.values()];
+}
 
 async function toViews(rows: MessageRow[]): Promise<ChatMessageView[]> {
   const mentioned = new Set(rows.flatMap((row) => (row.deletedAt ? [] : orderNumbersIn(row.text))));
@@ -130,6 +151,7 @@ async function toViews(rows: MessageRow[]): Promise<ChatMessageView[]> {
           contentType: file.contentType,
           expired: file.expiredAt !== null,
         })),
+    reactions: row.deletedAt ? [] : groupReactions(row.reactions),
     orderNumbers: row.deletedAt ? [] : orderNumbersIn(row.text).filter((number) => existing.has(number)),
     replyTo:
       row.replyTo && !row.deletedAt
@@ -241,12 +263,42 @@ export async function editChatMessage(id: string, text: string, user: SessionUse
   });
 }
 
+/**
+ * Поставить реакцию или снять, если она уже стоит. `updatedAt` сообщения обновляется в той же
+ * транзакции — по нему опрос ленты приносит изменение остальным. Возвращает сообщение как оно
+ * теперь выглядит, чтобы автор нажатия увидел результат сразу.
+ */
+export async function toggleChatReaction(id: string, emoji: string, user: SessionUser): Promise<ChatMessageView> {
+  const value = normalizeReaction(emoji);
+  const message = await loadMessage(id);
+  if (message.deletedAt) throw new ChatError("Сообщение удалено");
+
+  const row = await db.$transaction(async (tx) => {
+    const key = { messageId_userId_emoji: { messageId: id, userId: user.id, emoji: value } };
+    const existing = await tx.chatReaction.findUnique({ where: key, select: { id: true } });
+    if (existing) {
+      await tx.chatReaction.delete({ where: key });
+    } else {
+      const kinds = await tx.chatReaction.groupBy({ by: ["emoji"], where: { messageId: id } });
+      if (kinds.length >= MAX_REACTION_KINDS && !kinds.some((kind) => kind.emoji === value)) {
+        throw new ChatError(`На сообщении не больше ${MAX_REACTION_KINDS} разных реакций`);
+      }
+      await tx.chatReaction.create({ data: { messageId: id, userId: user.id, emoji: value } });
+    }
+    return tx.chatMessage.update({ where: { id }, data: { updatedAt: new Date() }, select: messageSelect });
+  });
+
+  const [view] = await toViews([row]);
+  return view;
+}
+
 /** Удаление мягкое: строка остаётся с пометкой, текст и файлы стираются. */
 export async function deleteChatMessage(id: string, user: SessionUser): Promise<void> {
   const message = await loadMessage(id);
   if (!canDeleteMessage(message, user)) throw new ForbiddenError("Удалить можно только своё сообщение");
   await db.$transaction([
     db.chatAttachment.deleteMany({ where: { messageId: id } }),
+    db.chatReaction.deleteMany({ where: { messageId: id } }),
     db.chatMessage.update({ where: { id }, data: { text: "", deletedAt: new Date() }, select: { id: true } }),
   ]);
 }

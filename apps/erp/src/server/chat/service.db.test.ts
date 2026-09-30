@@ -8,6 +8,7 @@ import {
   postChatMessage,
   purgeExpiredChatAttachments,
   readChatAttachment,
+  toggleChatReaction,
   unreadChatCount,
 } from "@/server/chat/service";
 import { ForbiddenError } from "@/server/errors";
@@ -143,5 +144,33 @@ describeDb("чат сотрудников (живая БД)", () => {
     const [view] = (await listChatMessages()).messages;
     expect(view.attachments).toMatchObject([{ fileName: "старое.png", expired: true }]);
     expect(await purgeExpiredChatAttachments(new Date("2026-09-25"))).toBe(0);
+  });
+
+  it("реакция ставится и снимается повторным нажатием, опрос видит изменение", async () => {
+    const message = await postChatMessage(author, "привет", []);
+    const before = new Date();
+
+    const put = await toggleChatReaction(message.id, "👍", reader);
+    expect(put.reactions).toEqual([{ emoji: "👍", users: [{ id: reader.id, name: "Читатель" }] }]);
+    await toggleChatReaction(message.id, "👍", author);
+    const both = await toggleChatReaction(message.id, "🔥", author);
+    expect(both.reactions.map((reaction) => [reaction.emoji, reaction.users.length])).toEqual([
+      ["👍", 2],
+      ["🔥", 1],
+    ]);
+    expect((await chatChangesSince(before)).map((item) => item.id)).toContain(message.id);
+
+    const removed = await toggleChatReaction(message.id, "👍", reader);
+    expect(removed.reactions.find((reaction) => reaction.emoji === "👍")?.users).toEqual([
+      { id: author.id, name: "Автор" },
+    ]);
+  });
+
+  it("реакцией может быть только эмодзи; на удалённое сообщение реакцию не ставят", async () => {
+    const message = await postChatMessage(author, "привет", []);
+    await expect(toggleChatReaction(message.id, "да", reader)).rejects.toThrow("только эмодзи");
+
+    await deleteChatMessage(message.id, author);
+    await expect(toggleChatReaction(message.id, "👍", reader)).rejects.toThrow("удалено");
   });
 });

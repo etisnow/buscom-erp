@@ -9,6 +9,7 @@ import {
   editChatMessage,
   markChatRead,
   postChatMessage,
+  toggleChatReaction,
   type ChatMessageView,
 } from "@/server/chat/service";
 import { ForbiddenError } from "@/server/errors";
@@ -74,6 +75,23 @@ export async function deleteChatMessageAction(id: string): Promise<ChatActionRes
   const parsed = z.string().min(1).safeParse(id);
   if (!parsed.success) return { ok: false, error: "Неизвестное сообщение" };
   return run(() => deleteChatMessage(parsed.data, user));
+}
+
+const reactionSchema = z.object({ id: z.string().min(1), emoji: z.string() });
+
+/** Поставить или снять реакцию; в ответе — сообщение в новом виде. */
+export async function toggleChatReactionAction(
+  input: z.input<typeof reactionSchema>,
+): Promise<{ ok: true; message: ChatMessageView } | { ok: false; error: string }> {
+  const user = await requireUser();
+  const parsed = reactionSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Неизвестное сообщение" };
+  try {
+    return { ok: true, message: await toggleChatReaction(parsed.data.id, parsed.data.emoji, user) };
+  } catch (error) {
+    if (error instanceof ChatError || error instanceof ForbiddenError) return { ok: false, error: error.message };
+    throw error;
+  }
 }
 
 /** `upTo` — время последнего сообщения, которое сотрудник увидел в ленте. */

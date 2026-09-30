@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { useCoarsePointer } from "@/hooks/use-mobile";
 import { canDeleteMessage, canEditMessage, MAX_ATTACHMENTS, replyPreview } from "@buscom/domain/chat/message";
 import type { UserRole } from "@buscom/db/enums";
@@ -25,6 +26,7 @@ import {
   editChatMessageAction,
   markChatReadAction,
   sendChatMessageAction,
+  toggleChatReactionAction,
 } from "@/app/(app)/chat/actions";
 import type { ChatMessageView } from "@/server/chat/service";
 
@@ -91,6 +93,16 @@ export function ChatRoom({
   const scroller = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
+
+  /** Эмодзи — в позицию курсора (или поверх выделенного), курсор встаёт сразу после него */
+  function insertEmoji(emoji: string) {
+    const field = textarea.current;
+    const from = field?.selectionStart ?? text.length;
+    const to = field?.selectionEnd ?? text.length;
+    setText(text.slice(0, from) + emoji + text.slice(to));
+    const caret = from + emoji.length;
+    requestAnimationFrame(() => field?.setSelectionRange(caret, caret));
+  }
   /** Прокрутить вниз после следующей отрисовки — лента была у низа или отправили своё */
   const stickToBottom = useRef(true);
   /** Высота ленты до подгрузки истории — чтобы экран не прыгнул */
@@ -241,6 +253,17 @@ export function ChatRoom({
     return result;
   }
 
+  /** Реакция: ответ сервера — сообщение в новом виде, показываем его сразу, не дожидаясь опроса. */
+  async function react(id: string, emoji: string) {
+    const result = await toggleChatReactionAction({ id, emoji });
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    stickToBottom.current = nearBottom();
+    setMessages((current) => merge(current, [result.message]));
+  }
+
   async function remove(id: string) {
     const result = await deleteChatMessageAction(id);
     if (result.ok) void poll();
@@ -294,6 +317,7 @@ export function ChatRoom({
             <ChatMessage
               key={message.id}
               message={message}
+              currentUserId={user.id}
               showAuthor={showAuthor}
               unread={
                 message.author.id === user.id &&
@@ -305,6 +329,7 @@ export function ChatRoom({
               onEdit={(draft) => edit(message.id, draft)}
               onDelete={() => setToDelete(message.id)}
               onReply={() => startReply(message)}
+              onReact={(emoji) => void react(message.id, emoji)}
               onJump={jumpTo}
             />
           );
@@ -372,6 +397,7 @@ export function ChatRoom({
           >
             <Paperclip />
           </Button>
+          <EmojiPicker onPick={insertEmoji} disabled={sending} />
           <Textarea
             ref={textarea}
             value={text}

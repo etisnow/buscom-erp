@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { FileText, MoreHorizontal, Pencil, Reply, Trash2 } from "lucide-react";
+import { FileText, MoreHorizontal, Pencil, Reply, SmilePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
+import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { splitOrderLinks } from "@buscom/domain/chat/order-links";
 import { formatMoscowDateTime } from "@buscom/domain/datetime";
 import { cn } from "@/lib/utils";
@@ -28,7 +29,17 @@ function MessageText({ text, orderNumbers }: { text: string; orderNumbers: numbe
   return (
     <p className="text-sm break-words whitespace-pre-wrap">
       {splitOrderLinks(text).map((segment, index) =>
-        segment.type === "order" && orderNumbers.includes(segment.number) ? (
+        segment.type === "link" ? (
+          <a
+            key={index}
+            href={segment.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary break-all underline underline-offset-2 hover:no-underline"
+          >
+            {segment.text}
+          </a>
+        ) : segment.type === "order" && orderNumbers.includes(segment.number) ? (
           <Link key={index} href={`/orders/${segment.number}`} className="text-primary font-medium hover:underline">
             {segment.text}
           </Link>
@@ -41,6 +52,7 @@ function MessageText({ text, orderNumbers }: { text: string; orderNumbers: numbe
 }
 
 function Attachment({ file }: { file: ChatAttachmentView }) {
+  const [viewing, setViewing] = useState<number | null>(null);
   if (file.expired) {
     return (
       <span className="text-muted-foreground inline-flex items-center gap-1.5 rounded-md border border-dashed px-2 py-1 text-xs">
@@ -52,8 +64,6 @@ function Attachment({ file }: { file: ChatAttachmentView }) {
   const href = `/api/chat-attachments/${file.id}`;
   if (file.contentType.startsWith("image/")) {
     return (
-  const [viewing, setViewing] = useState<number | null>(null);
-  const [viewing, setViewing] = useState<number | null>(null);
       <>
         <button type="button" onClick={() => setViewing(0)} title="Открыть на весь экран" className="block">
           {/* eslint-disable-next-line @next/next/no-img-element -- файл из нашего API, оптимизатор тут не нужен */}
@@ -88,6 +98,7 @@ function Attachment({ file }: { file: ChatAttachmentView }) {
  */
 export function ChatMessage({
   message,
+  currentUserId,
   showAuthor,
   unread,
   canEdit,
@@ -95,8 +106,11 @@ export function ChatMessage({
   onEdit,
   onDelete,
   onReply,
+  onReact,
   onJump,
 }: {
+  /** Ид того, кто смотрит ленту: свои реакции подсвечиваются */
+  currentUserId: string;
   message: ChatMessageView;
   /** Имя над сообщением — если предыдущее от другого человека или давно */
   showAuthor: boolean;
@@ -107,6 +121,8 @@ export function ChatMessage({
   onEdit: (text: string) => Promise<ChatActionResult>;
   onDelete: () => void;
   onReply: () => void;
+  /** Поставить реакцию или снять свою */
+  onReact: (emoji: string) => void;
   /** Прокрутить к сообщению, на которое это — ответ */
   onJump: (id: string) => void;
 }) {
@@ -130,7 +146,7 @@ export function ChatMessage({
       className={cn(
         "group hover:bg-muted/50 relative scroll-mt-2 rounded-md px-2 py-1 transition-colors",
         unread && "bg-muted/60 hover:bg-muted/80",
-        !message.deleted && "pointer-coarse:pr-11",
+        !message.deleted && "pointer-coarse:pr-[4.5rem]",
         showAuthor && "mt-2",
       )}
     >
@@ -202,13 +218,55 @@ export function ChatMessage({
               (изменено)
             </span>
           ) : null}
+          {message.reactions.length ? (
+            <div className="flex flex-wrap items-center gap-1 pt-1">
+              {message.reactions.map((reaction) => {
+                const mine = reaction.users.some((person) => person.id === currentUserId);
+                return (
+                  <button
+                    key={reaction.emoji}
+                    type="button"
+                    onClick={() => onReact(reaction.emoji)}
+                    title={reaction.users.map((person) => person.name).join(", ")}
+                    aria-pressed={mine}
+                    className={cn(
+                      "hover:bg-muted flex h-6 items-center gap-1 rounded-full border px-2 text-xs",
+                      mine && "border-primary/60 bg-primary/10",
+                    )}
+                  >
+                    <span className="text-sm leading-none">{reaction.emoji}</span>
+                    <span className="tabular-nums">{reaction.users.length}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </>
       )}
 
       {!showAuthor && !message.deleted ? (
-        <span className="text-muted-foreground absolute top-1.5 right-10 hidden text-xs group-hover:inline">
+        <span className="text-muted-foreground absolute top-1.5 right-16 hidden text-xs group-hover:inline">
           {time}
         </span>
+      ) : null}
+
+      {!message.deleted && !editing ? (
+        <EmojiPicker
+          onPick={onReact}
+          closeOnPick
+          side="bottom"
+          trigger={
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Поставить реакцию"
+              title="Поставить реакцию"
+              className="absolute top-1 right-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100"
+            >
+              <SmilePlus />
+            </Button>
+          }
+        />
       ) : null}
 
       {!message.deleted && !editing ? (
