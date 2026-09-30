@@ -139,7 +139,18 @@ export function ProductsTable({
                 <TableCell className="font-mono text-xs">{product.sku}</TableCell>
                 <TableCell>
                   <div className="flex flex-col">
-                    <span>{product.name}</span>
+                    {canEditCatalog ? (
+                      <button
+                        type="button"
+                        title="Открыть товар на правку"
+                        className="hover:text-primary w-fit text-left hover:underline"
+                        onClick={() => setEditingProduct(product)}
+                      >
+                        {product.name}
+                      </button>
+                    ) : (
+                      <span>{product.name}</span>
+                    )}
                     {product.options.length > 0 ? (
                       <span className="text-muted-foreground text-xs">
                         опции: {product.options.map((option) => option.name).join(", ")}
