@@ -21,9 +21,11 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
   const [{ messages, hasMore }, othersReadAt] = await Promise.all([listChatMessages(), othersChatReadAt(user.id)]);
 
   return (
-    // Высота — экран минус шапка и отступы; на телефоне ещё минус нижнее меню (3.5rem + зазор 1rem)
-    <main className="flex h-[calc(100svh-3.5rem-2rem-env(safe-area-inset-top))] flex-col gap-4 max-md:h-[calc(100svh-3.5rem-2rem-4.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))]">
-      <h1 className="font-heading text-xl font-semibold">Чат</h1>
+    // Высота — экран минус шапка и отступы. На телефоне чат во весь экран между шапкой и нижним меню:
+    // отступы контейнера (p-4 по краям, gap-4 и запас под меню внизу) гасятся отрицательными полями,
+    // высота — экран минус шапка (3.5rem) и меню (3.5rem)
+    <main className="flex h-[calc(100svh-3.5rem-2rem-env(safe-area-inset-top))] flex-col gap-4 max-md:-mx-4 max-md:-mt-4 max-md:-mb-8 max-md:h-[calc(100svh-7rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] max-md:gap-0">
+      <h1 className="font-heading text-xl font-semibold max-md:hidden">Чат</h1>
       <ChatRoom
         initialMessages={messages}
         initialHasMore={hasMore}

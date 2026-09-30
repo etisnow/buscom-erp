@@ -273,7 +273,7 @@ export function ChatRoom({
   return (
     <div
       className={cn(
-        "bg-card relative flex min-h-0 flex-1 flex-col rounded-lg border",
+        "bg-card relative flex min-h-0 flex-1 flex-col rounded-lg border max-md:rounded-none max-md:border-0",
         dragging && "border-primary bg-primary/5",
       )}
       onDragOver={(event) => {
@@ -376,7 +376,8 @@ export function ChatRoom({
             ))}
           </div>
         ) : null}
-        <div className="flex items-end gap-2">
+        {/* Как в Телеграме: одно поле на всю ширину подвала, кнопки — внутри него */}
+        <div className="bg-muted/50 focus-within:border-ring focus-within:ring-ring/40 flex items-end gap-0.5 rounded-2xl border p-1 focus-within:ring-2">
           <input
             ref={fileInput}
             type="file"
@@ -387,22 +388,12 @@ export function ChatRoom({
               event.target.value = "";
             }}
           />
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Прикрепить файлы"
-            title="Прикрепить файлы (или перетащите их в чат)"
-            disabled={sending}
-            onClick={() => fileInput.current?.click()}
-          >
-            <Paperclip />
-          </Button>
           <EmojiPicker onPick={insertEmoji} disabled={sending} />
           <Textarea
             ref={textarea}
             value={text}
             placeholder={touch ? "Сообщение…" : "Сообщение… Enter — отправить, Shift+Enter — новая строка"}
-            className="max-h-48 min-h-9 flex-1 resize-none"
+            className="max-h-48 min-h-9 flex-1 resize-none border-0 bg-transparent px-1 py-2 shadow-none focus-visible:border-transparent focus-visible:ring-0 dark:bg-transparent"
             rows={1}
             onChange={(event) => setText(event.target.value)}
             onPaste={(event) => {
@@ -419,7 +410,18 @@ export function ChatRoom({
             }}
           />
           <Button
+            variant="ghost"
             size="icon"
+            aria-label="Прикрепить файлы"
+            title="Прикрепить файлы (или перетащите их в чат)"
+            disabled={sending}
+            onClick={() => fileInput.current?.click()}
+          >
+            <Paperclip />
+          </Button>
+          <Button
+            size="icon"
+            className="rounded-full"
             aria-label="Отправить"
             disabled={sending || (!text.trim() && !files.length)}
             onClick={send}
