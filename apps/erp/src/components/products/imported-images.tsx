@@ -35,9 +35,9 @@ export function toImageDrafts(images: ImportedImage[]): ImportedImageDraft[] {
   }));
 }
 
-/** base64 того, что уйдёт в товар */
-export function chosenBase64(image: ImportedImageDraft): string {
-  return image.current.base64;
+/** То, что уйдёт в товар: снимок после обработки или оригинал */
+export function chosenPicture(image: ImportedImageDraft): Picture {
+  return image.current;
 }
 
 const OPERATIONS: [ImageOperation, string][] = [

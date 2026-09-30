@@ -97,21 +97,25 @@ async function run(action: () => Promise<unknown>, message: string): Promise<Pro
   }
 }
 
-/** Снимки нового товара из импорта — base64; тип и размер проверяет сервис */
-const newImagesSchema = z.array(z.string().min(1).max(8_000_000)).max(12, { error: "Не больше 12 снимков" });
+export type CreateProductResult = { ok: true; message: string; id: string } | { ok: false; error: string };
 
-export async function createProductAction(
-  input: z.input<typeof draftSchema>,
-  images: string[] = [],
-): Promise<ProductResult> {
+/**
+ * Новый товар. Снимки сюда не передаются: из импорта их бывает до двенадцати, и base64-строки в массиве
+ * упираются в лимит React на разбор запроса Server Action — суммарно не больше 1 000 000 знаков
+ * (ошибка «Maximum array nesting exceeded», сохранение падало ошибкой 500 без объяснений). Форма
+ * заводит товар этим небольшим запросом и грузит снимки следом по одному (`uploadProductImagesAction`,
+ * файлом в FormData, как в галерее карточки), в порядке показа: первый станет главным.
+ */
+export async function createProductAction(input: z.input<typeof draftSchema>): Promise<CreateProductResult> {
   const user = await requireUser();
   const parsed = draftSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
-  const parsedImages = newImagesSchema.safeParse(images);
-  if (!parsedImages.success) return { ok: false, error: z.prettifyError(parsedImages.error) };
 
-  const files = parsedImages.data.map((base64) => new Uint8Array(Buffer.from(base64, "base64")));
-  return run(() => createProduct(parsed.data, user, files), "Товар добавлен");
+  let id = "";
+  const result = await run(async () => {
+    id = (await createProduct(parsed.data, user)).id;
+  }, "Товар добавлен");
+  return result.ok ? { ...result, id } : result;
 }
 
 /**

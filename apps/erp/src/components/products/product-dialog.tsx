@@ -40,7 +40,7 @@ import {
 import type { ProductRow } from "@/server/products/list";
 import type { SupplierImportDraft } from "@/server/products/supplier-import";
 import {
-  chosenBase64,
+  chosenPicture,
   ImportedImagesEditor,
   toImageDrafts,
   type ImportedImageDraft,
@@ -59,6 +59,7 @@ import {
   fetchSupplierPriceAction,
   updateProductAction,
 } from "@/app/(app)/products/actions";
+  uploadProductImagesAction,
 
 /**
  * Поставщик товара в форме: закупочная цена — строкой, как её вводят.
@@ -99,6 +100,28 @@ function withChoice(
 }
 
 /**
+/** Снимки из импорта — в сохранённый товар по одному; возвращает, сколько не загрузилось. */
+async function uploadImportedImages(
+  productId: string,
+  pictures: { base64: string; contentType: string }[],
+  onProgress: (text: string) => void,
+): Promise<number> {
+  let failed = 0;
+  for (const [index, picture] of pictures.entries()) {
+    onProgress(`Снимки: ${index + 1} из ${pictures.length}…`);
+    const bytes = Uint8Array.from(atob(picture.base64), (char) => char.charCodeAt(0));
+    const form = new FormData();
+    form.set("file", new File([bytes], `snimok-${index + 1}`, { type: picture.contentType }));
+    try {
+      const result = await uploadProductImagesAction(productId, form);
+      if (!result.ok) failed += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+  return failed;
+}
+
  * Заведение и правка товара. `product` не задан — создаём новый; `draft` — новый
  * товар из «Импорта с сайта поставщика»: поля и снимки уже заполнены, человек сверяет.
  */
@@ -194,6 +217,8 @@ export function ProductDialog({
   );
   const [pending, startTransition] = useTransition();
 
+  /** «Снимки: 3 из 9…» — пока снимки нового товара грузятся один за другим */
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   /** Индекс строки, для которой сейчас тянется цена; null — ничего не тянется. */
   const [fetching, setFetching] = useState<number | null>(null);
 
@@ -389,16 +414,31 @@ export function ProductDialog({
     };
 
     startTransition(async () => {
-      const result = product
-        ? await updateProductAction(product.id, payload)
-        : await createProductAction(payload, importedImages.map(chosenBase64));
-      if (result.ok) {
-        toast.success(result.message);
-        onOpenChange(false);
-      } else {
-        toast.error(result.error);
+      if (product) {
+        const result = await updateProductAction(product.id, payload);
+        if (result.ok) {
+          toast.success(result.message);
+          onOpenChange(false);
+        } else {
+          toast.error(result.error);
+        }
+        return;
+      }
+
+      const created = await createProductAction(payload);
+      if (!created.ok) {
+        toast.error(created.error);
+        return;
+      }
+      // Снимки — по одному, следом за товаром: одним запросом они не проходят в лимит разбора запроса
+      const failed = await uploadImportedImages(created.id, importedImages.map(chosenPicture), setUploadProgress);
+      setUploadProgress(null);
+      toast.success(created.message);
+      if (failed > 0) {
+        toast.warning(`Не загрузилось снимков: ${failed} из ${importedImages.length} — добавьте их в карточке товара`);
       }
     });
+      onOpenChange(false);
   }
 
   return (
@@ -791,7 +831,7 @@ export function ProductDialog({
             Отмена
           </Button>
           <Button disabled={pending || !sku.trim() || !name.trim()} onClick={submit}>
-            Сохранить
+            {uploadProgress ?? "Сохранить"}
           </Button>
         </DialogFooter>
       </DialogContent>
