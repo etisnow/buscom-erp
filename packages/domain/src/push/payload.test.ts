@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { chatPushPayload, isPushServiceHost, MAX_PUSH_BODY, pushSubscriptionSchema } from "./payload";
+import {
+  chatPushPayload,
+  isPushServiceHost,
+  MAX_PUSH_BODY,
+  notificationPushPayload,
+  pushSubscriptionSchema,
+} from "./payload";
 
 describe("pushSubscriptionSchema", () => {
   const keys = { p256dh: "BNc...", auth: "tBH..." };
@@ -63,5 +69,42 @@ describe("chatPushPayload", () => {
     expect(chatPushPayload({ authorName: "А", text: "", attachmentCount: 3 }).body).toBe("📎 3 файла");
     expect(chatPushPayload({ authorName: "А", text: "", attachmentCount: 5 }).body).toBe("📎 5 файлов");
     expect(chatPushPayload({ authorName: "А", text: "", attachmentCount: 11 }).body).toBe("📎 11 файлов");
+  });
+});
+
+describe("notificationPushPayload", () => {
+  const letter = {
+    subject: "BusCom ERP: Новый заказ №3021",
+    text: [
+      "Новый заказ №3021 — Пришёл с сайта.",
+      "",
+      "Клиент: ООО «Ромашка»",
+      "Сумма заказа: 27 000 ₽",
+      "Оплата: Не оплачен",
+      "",
+      "https://erp.bus-com.ru/orders/3021",
+    ].join("\n"),
+  };
+
+  it("заголовок — тема письма без «BusCom ERP: », текст — строки письма без ссылки", () => {
+    expect(notificationPushPayload({ id: "n1", ...letter, orderNumber: 3021 })).toEqual({
+      title: "Новый заказ №3021",
+      body: "Новый заказ №3021 — Пришёл с сайта.\nКлиент: ООО «Ромашка»\nСумма заказа: 27 000 ₽\nОплата: Не оплачен",
+      url: "/orders/3021",
+      tag: "n1",
+    });
+  });
+
+  it("без заказа нажатие ведёт на главную; длинный текст обрезается", () => {
+    const payload = notificationPushPayload({ id: "n2", subject: "Тема", text: "а".repeat(500), orderNumber: null });
+    expect(payload.url).toBe("/");
+    expect(payload.body).toHaveLength(MAX_PUSH_BODY);
+    expect(payload.body.endsWith("…")).toBe(true);
+  });
+
+  it("пустая тема — общий заголовок", () => {
+    expect(notificationPushPayload({ id: "n3", subject: "BusCom ERP: ", text: "текст", orderNumber: 1 }).title).toBe(
+      "Уведомление",
+    );
   });
 });

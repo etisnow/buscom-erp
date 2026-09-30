@@ -49,7 +49,7 @@ export type TopicGroup = {
 export const GENERAL_TOPIC_GROUPS: TopicGroup[] = [
   {
     title: "Новый заказ",
-    description: "Письмо о каждом новом заказе из отмеченного источника.",
+    description: "Письмо и пуш о каждом новом заказе из отмеченного источника.",
     topics: [
       { key: orderCreatedTopic("MANUAL"), label: "Заведён вручную" },
       { key: orderCreatedTopic("SITE"), label: "Пришёл с сайта" },
@@ -57,7 +57,7 @@ export const GENERAL_TOPIC_GROUPS: TopicGroup[] = [
   },
   {
     title: "Статус оплаты",
-    description: "Письмо, когда заказ переходит в отмеченный статус — после платежа или правки состава заказа.",
+    description: "Письмо и пуш, когда заказ переходит в отмеченный статус — после платежа или правки состава заказа.",
     topics: (["PARTIAL", "PAID", "OVERPAID"] as const).map((status) => ({
       key: paymentStatusTopic(status),
       label: PAYMENT_STATUS_LABELS[status],

@@ -734,6 +734,8 @@ model Notification {
   sentAt    DateTime?
   attempts  Int       @default(0)
   lastError String?
+  /// Пуш по уведомлению отправлен (или пробовали и не вышло): повторно не шлём, даже если письмо уходит с повторами
+  pushedAt  DateTime?
 
   @@index([sentAt, createdAt])
 }

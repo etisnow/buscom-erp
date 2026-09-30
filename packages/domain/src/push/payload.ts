@@ -69,3 +69,28 @@ export function chatPushPayload(message: { authorName: string; text: string; att
     tag: "chat",
   };
 }
+
+/**
+ * Пуш по уведомлению о заказе (те же темы, что у писем: новый заказ, статус оплаты, этап поставщика).
+ * Заголовок — тема письма без «BusCom ERP: », текст — строки письма без ссылки, нажатие открывает заказ.
+ * Тег — id уведомления: каждое показывается отдельно, а не заменяет предыдущее (в чате тег общий).
+ */
+export function notificationPushPayload(input: {
+  id: string;
+  subject: string;
+  text: string;
+  orderNumber: number | null;
+}): PushPayload {
+  const title = truncate(input.subject.replace(/^BusCom ERP:\s*/, ""), 80) || "Уведомление";
+  const lines = input.text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !/^https?:\/\//i.test(line));
+  const body = lines.join("\n");
+  return {
+    title,
+    body: body.length > MAX_PUSH_BODY ? `${body.slice(0, MAX_PUSH_BODY - 1)}…` : body,
+    url: input.orderNumber !== null ? `/orders/${input.orderNumber}` : "/",
+    tag: input.id,
+  };
+}

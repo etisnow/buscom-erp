@@ -10,6 +10,10 @@ import type { SessionUser } from "@/server/session";
 import { describeDb, resetDb, testDb } from "@/test/db";
 import { makeProduct, makeUser } from "@/test/fixtures";
 
+const sendPush = vi.hoisted(() =>
+  vi.fn<(where: { userIds: string[] }, payload: { title: string; url: string }) => Promise<unknown>>(),
+);
+vi.mock("@/server/push/service", () => ({ sendPush }));
 const sendLetter = vi.hoisted(() => vi.fn<(letter: { to: string; subject: string; text: string }) => Promise<void>>());
 vi.mock("@/server/mail", () => ({ sendLetter }));
 // Отправку по таймеру в тестах не запускаем — очередь разбирается вызовом dispatchNotifications
@@ -28,6 +32,8 @@ describeDb("уведомления по событиям заказов (жив�
     await resetDb();
     sendLetter.mockReset();
     sendLetter.mockResolvedValue(undefined);
+    sendPush.mockReset();
+    sendPush.mockResolvedValue({ sent: 0, removed: 0, failed: 0 });
     manager = await makeUser("MANAGER", "Автор");
     watcher = await makeUser("HEAD", "Наблюдатель");
   });
@@ -165,5 +171,33 @@ describeDb("уведомления по событиям заказов (жив�
     await testDb.notification.update({ where: { id: row.id }, data: { attempts: MAX_ATTEMPTS } });
     expect(await dispatchNotifications()).toEqual({ sent: 0, failed: 0 });
     sendLetter.mockReset();
+  });
+
+  it("пуш: получателю, один раз на уведомление, даже если письмо не уходит", async () => {
+    await subscribe(watcher, [ORDER_CREATED]);
+    const { order } = await setupOrder();
+    sendLetter.mockRejectedValue(new Error("SMTP недоступен"));
+
+    await dispatchNotifications();
+    expect(sendPush).toHaveBeenCalledTimes(1);
+    expect(sendPush.mock.calls[0][0]).toEqual({ userIds: [watcher.id] });
+    expect(sendPush.mock.calls[0][1]).toMatchObject({
+      title: `Новый заказ №${order.number}`,
+      url: `/orders/${order.number}`,
+    });
+
+    // Повтор отправки письма пуш не дублирует
+    await dispatchNotifications();
+    expect(sendPush).toHaveBeenCalledTimes(1);
+    expect((await testDb.notification.findFirstOrThrow()).pushedAt).not.toBeNull();
+  });
+
+  it("ошибка пуша письму не мешает и не повторяется", async () => {
+    await subscribe(watcher, [ORDER_CREATED]);
+    await setupOrder();
+    sendPush.mockRejectedValue(new Error("сервис пушей недоступен"));
+
+    expect(await dispatchNotifications()).toEqual({ sent: 1, failed: 0 });
+    expect(sendPush).toHaveBeenCalledTimes(1);
   });
 });

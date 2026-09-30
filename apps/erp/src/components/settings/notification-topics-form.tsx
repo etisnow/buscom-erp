@@ -64,8 +64,9 @@ export function NotificationTopicsForm({ topics, suppliers }: { topics: string[]
       <div>
         <h2 className="font-heading font-medium">Уведомления</h2>
         <p className="text-muted-foreground text-sm">
-          Отметьте, о чём присылать письма. Уведомления приходят по всем заказам, кроме изменений, которые вы сделали
-          сами.
+          Отметьте, о чём присылать письма и пуши. Уведомления приходят по всем заказам, кроме изменений, которые вы
+          сделали сами. Пуши приходят на устройства, где включены уведомления (блок выше), — вместе с письмом, а не
+          вместо него.
         </p>
       </div>
 
@@ -95,7 +96,7 @@ export function NotificationTopicsForm({ topics, suppliers }: { topics: string[]
         <div>
           <h3 className="text-sm font-medium">Этапы поставщиков</h3>
           <p className="text-muted-foreground text-sm">
-            Письмо приходит, когда поставщик в заказе переходит на отмеченный этап.
+            Письмо и пуш приходят, когда поставщик в заказе переходит на отмеченный этап.
           </p>
         </div>
 

@@ -1,7 +1,9 @@
 import "server-only";
+import { notificationPushPayload } from "@buscom/domain/push/payload";
 import { notificationAddress } from "@buscom/domain/user/settings";
 import { db } from "@/server/db";
 import { sendLetter } from "@/server/mail";
+import { sendPush } from "@/server/push/service";
 
 /** Попыток на письмо: дальше оно остаётся в таблице с последней ошибкой. */
 export const MAX_ATTEMPTS = 5;
@@ -13,6 +15,35 @@ const DISPATCH_DELAY_MS = 1_000;
 const RETRY_SECONDS = 60;
 
 export type DispatchSummary = { sent: number; failed: number };
+
+/**
+ * Пуш по уведомлению — на устройства получателя, если он их подключил (Настройки → уведомления
+ * на устройстве). Один раз на уведомление: `pushedAt` ставится в любом случае, поэтому повторы
+ * отправки письма пуш не дублируют, а недоставленный пуш не повторяется (письмо остаётся).
+ * Идёт до письма и от него не зависит: не настроенная или упавшая почта пушам не мешает.
+ */
+async function pushNotification(notification: {
+  id: string;
+  userId: string;
+  subject: string;
+  text: string;
+  order: { number: number } | null;
+}): Promise<void> {
+  try {
+    await sendPush(
+      { userIds: [notification.userId] },
+      notificationPushPayload({ ...notification, orderNumber: notification.order?.number ?? null }),
+    );
+  } catch (error) {
+    console.error(`[push] Пуш по уведомлению не отправлен: ${error instanceof Error ? error.message : error}`);
+  } finally {
+    await db.notification.update({
+      where: { id: notification.id },
+      data: { pushedAt: new Date() },
+      select: { id: true },
+    });
+  }
+}
 
 /**
  * Отправляет письма из очереди. Каждое письмо сначала «забирается»
@@ -43,8 +74,17 @@ export async function dispatchNotifications(now: Date = new Date()): Promise<Dis
 
     const notification = await db.notification.findUniqueOrThrow({
       where: { id },
-      select: { subject: true, text: true, user: { select: { email: true, notificationEmail: true } } },
+      select: {
+        id: true,
+        userId: true,
+        subject: true,
+        text: true,
+        pushedAt: true,
+        order: { select: { number: true } },
+        user: { select: { email: true, notificationEmail: true } },
+      },
     });
+    if (!notification.pushedAt) await pushNotification(notification);
 
     try {
       await sendLetter({
