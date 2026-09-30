@@ -19,8 +19,8 @@ async function MailboxFolders() {
       depth: folder.depth,
       messages: folder.messages,
       // Свои отправленные письма непрочитанными не бывают: копия из другой почтовой
-      // программы может прийти без флага \Seen, но выделять её незачем
-      unseen: folder.specialUse === "\\Sent" ? null : folder.unseen,
+      // программы может прийти без флага \Seen, но выделять её незачем. Спам — тоже
+      unseen: folder.specialUse === "\\Sent" || folder.specialUse === "\\Junk" ? null : folder.unseen,
       selectable: folder.selectable,
     }));
   } catch (error) {
