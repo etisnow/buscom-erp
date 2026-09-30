@@ -21,6 +21,9 @@ type Draft = { name: string; seats: string; armrests: string; reclinerBacks: str
 
 const EMPTY_DRAFT: Draft = { name: "", seats: "", armrests: "0", reclinerBacks: "0" };
 
+/** Версия в адресе: заменили чертёж — адрес другой, и браузер не покажет старую копию из кеша */
+const imageUrl = (item: SalonLayoutEntry) => `/api/salon-layouts/${item.id}/image?v=${item.imageVersion}`;
+
 function toDraft(item: SalonLayoutEntry): Draft {
   return {
     name: item.name,
@@ -107,9 +110,9 @@ export function SalonLayoutsEditor({ items }: { items: SalonLayoutEntry[] }) {
 
       <ImageLightbox
         images={withImage.map((item) => ({
-          src: `/api/salon-layouts/${item.id}/image`,
+          src: imageUrl(item),
           alt: item.name,
-          openHref: `/api/salon-layouts/${item.id}/image`,
+          openHref: imageUrl(item),
         }))}
         index={viewing}
         onIndexChange={setViewing}
@@ -131,7 +134,7 @@ export function SalonLayoutsEditor({ items }: { items: SalonLayoutEntry[] }) {
                 >
                   {/* Картинку отдаёт наш маршрут за авторизацией — оптимизатор Next без cookie её не получит. */}
                   <Image
-                    src={`/api/salon-layouts/${item.id}/image`}
+                    src={imageUrl(item)}
                     alt={item.name}
                     width={96}
                     height={36}

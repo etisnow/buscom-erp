@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { readSalonLayoutImage } from "@/server/settings/salon-layouts";
 import { getSessionUser } from "@/server/session";
 
 /** Чертёж схемы салона. Как и картинки товаров — только для вошедших в ERP. */
-export async function GET(_request: Request, { params }: RouteContext<"/api/salon-layouts/[id]/image">) {
+export async function GET(request: NextRequest, { params }: RouteContext<"/api/salon-layouts/[id]/image">) {
   const user = await getSessionUser();
   if (!user) return new NextResponse(null, { status: 401 });
 
@@ -14,8 +14,11 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/salo
   return new NextResponse(new Uint8Array(image.data), {
     headers: {
       "Content-Type": image.contentType,
-      // Картинка схемы меняется редко, но по одному адресу — не «навсегда», как у товаров.
-      "Cache-Control": "private, max-age=3600",
+      // С версией в адресе (?v=) файл по этому адресу не меняется — кешируем надолго. Без версии
+      // чертёж могли заменить, поэтому кеш короткий.
+      "Cache-Control": request.nextUrl.searchParams.has("v")
+        ? "private, max-age=31536000, immutable"
+        : "private, max-age=60",
       "X-Content-Type-Options": "nosniff",
     },
   });

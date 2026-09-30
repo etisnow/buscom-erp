@@ -8,6 +8,8 @@ export type SalonLayoutEntry = SalonLayoutInput & {
   isActive: boolean;
   /** Есть ли чертёж схемы: сама картинка отдаётся отдельным маршрутом */
   hasImage: boolean;
+  /** Когда схема менялась, мс: часть адреса картинки — заменили чертёж, адрес новый, кеш браузера не мешает */
+  imageVersion: number;
 };
 
 export async function listSalonLayouts(onlyActive = false): Promise<SalonLayoutEntry[]> {
@@ -22,10 +24,15 @@ export async function listSalonLayouts(onlyActive = false): Promise<SalonLayoutE
       sortOrder: true,
       isActive: true,
       imageContentType: true,
+      updatedAt: true,
     },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
-  return rows.map(({ imageContentType, ...row }) => ({ ...row, hasImage: imageContentType !== null }));
+  return rows.map(({ imageContentType, updatedAt, ...row }) => ({
+    ...row,
+    hasImage: imageContentType !== null,
+    imageVersion: updatedAt.getTime(),
+  }));
 }
 
 export async function readSalonLayoutImage(id: string): Promise<{ data: Uint8Array; contentType: string } | null> {
