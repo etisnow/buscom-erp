@@ -43,6 +43,7 @@ const MAP: Record<string, string> = {
 export const RESERVED_SLUGS = new Set([
   "kontakty",
   "oplata-dostavka",
+  "status-zakaza",
   "privacy",
   "korzina",
   "oformlenie",

@@ -69,7 +69,7 @@ export type SeoPlan = {
 };
 
 /** Страницы, которые на новом сайте остаются по тем же адресам (этап 6 плана). */
-export const KEPT_PAGES = new Set(["/", "/kontakty", "/oplata-dostavka", "/privacy"]);
+export const KEPT_PAGES = new Set(["/", "/kontakty", "/oplata-dostavka", "/status-zakaza", "/privacy"]);
 
 /** Убраны насовсем — 410 (SITE-PRD, «Адреса»). */
 export const GONE_PATHS = new Set(["/refubrishment_test"]);

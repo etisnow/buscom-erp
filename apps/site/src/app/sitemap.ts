@@ -6,7 +6,7 @@ import { getModels, getSitemapEntries } from "@/server/catalog";
 // Из базы на запрос (данные — из кеша каталога): при сборке базы нет
 export const dynamic = "force-dynamic";
 
-const STATIC_PAGES = ["/kontakty", "/oplata-dostavka", "/privacy"];
+const STATIC_PAGES = ["/kontakty", "/oplata-dostavka", "/status-zakaza", "/privacy"];
 
 /**
  * `/sitemap.xml` — только канонические адреса (SITE-PRD, «Индексация»): главная,

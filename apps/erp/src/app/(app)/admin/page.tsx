@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookMarked, KeyRound, Mail, PlugZap, Truck, Users } from "lucide-react";
+import { BookMarked, KeyRound, ListChecks, Mail, PlugZap, Truck, Users } from "lucide-react";
 import { requirePageUser } from "@/server/session";
 
 export const metadata: Metadata = {
@@ -35,6 +35,14 @@ const SECTIONS = [
     icon: Truck,
     title: "Транспортные компании",
     description: "Ключи API перевозчиков: по ним загружаются терминалы для выбора при оформлении заказа.",
+    adminOnly: true,
+  },
+  {
+    href: "/admin/client-statuses",
+    icon: ListChecks,
+    title: "Статусы для клиента",
+    description:
+      "Как статусы заказа и этапы поставщиков выглядят для покупателя в блоке «Проверить статус заказа» на сайте.",
     adminOnly: true,
   },
   {

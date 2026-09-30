@@ -10,6 +10,7 @@ import { getCategoryTree } from "@/server/catalog";
 
 /** Разделы меню MVP. Переоборудование и акции — после запуска (решение владельца 26.09.2026). */
 const NAV = [
+  { href: "/status-zakaza", label: "Статус заказа" },
   { href: "/oplata-dostavka", label: "Доставка и оплата" },
   { href: "/kontakty", label: "Контакты" },
 ] as const;

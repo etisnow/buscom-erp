@@ -10,6 +10,7 @@ import { NoPhoto, ProductCard } from "@/components/catalog/product-card";
 import { CatalogToggle } from "@/components/catalog-menu";
 import { LeadForm } from "@/components/lead-form";
 import { ModelPicker } from "@/components/model-picker";
+import { OrderStatusCheck } from "@/components/order-status-check";
 import { PageText } from "@/components/page-text";
 import { COMPANY } from "@/config/company";
 import { getHits, getModels, getPopularCategories } from "@/server/catalog";
@@ -29,7 +30,7 @@ const MODELS_ON_HOME = 8;
 
 const STEPS = ["Присылаете модель и фото салона", "Считаем комплект и работы", "Устанавливаем в цехе"] as const;
 
-/** Главная по макету (экран 01): подбор по модели, цех, разделы, хиты, заявка и текст о компании. */
+/** Главная по макету (экран 01): подбор по модели, цех, разделы, хиты, проверка статуса заказа, заявка и текст о компании. */
 export default async function HomePage() {
   const [categories, hits, page, models] = await Promise.all([
     getPopularCategories(),
@@ -110,6 +111,8 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+      <OrderStatusCheck />
 
       <section
         id="zayavka"

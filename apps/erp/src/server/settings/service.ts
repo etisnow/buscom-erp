@@ -14,6 +14,7 @@ import {
   type ServiceSettings,
   type SmtpSettings,
 } from "@buscom/domain/settings";
+import type { ClientStatusMapping } from "@buscom/domain/order/client-status";
 import type { Prisma } from "@buscom/db/client";
 import type { DictionaryType, OrderSource, OrderStatus } from "@buscom/db/enums";
 import { db } from "@/server/db";
@@ -47,6 +48,9 @@ export async function readSettings(): Promise<AppSettings> {
     services: stored.has(SETTING_KEYS.services)
       ? parseSetting("services", stored.get(SETTING_KEYS.services))
       : DEFAULT_SETTINGS.services,
+    clientStatuses: stored.has(SETTING_KEYS.clientStatuses)
+      ? parseSetting("clientStatuses", stored.get(SETTING_KEYS.clientStatuses))
+      : DEFAULT_SETTINGS.clientStatuses,
   };
 }
 
@@ -86,6 +90,10 @@ export async function saveEmailTemplates(templates: EmailTemplates, userId: stri
 
 export async function saveCarrierSettings(settings: CarrierSettings, userId: string): Promise<void> {
   await writeSetting(SETTING_KEYS.carriers, settings, userId);
+}
+
+export async function saveClientStatusMapping(mapping: ClientStatusMapping, userId: string): Promise<void> {
+  await writeSetting(SETTING_KEYS.clientStatuses, mapping, userId);
 }
 
 export async function saveServiceSettings(settings: ServiceSettings, userId: string): Promise<void> {

@@ -4,6 +4,11 @@
  * поэтому пустая база сразу работоспособна.
  */
 import { z } from "zod";
+import {
+  clientStatusMappingSchema,
+  DEFAULT_CLIENT_STATUS_MAPPING,
+  type ClientStatusMapping,
+} from "./order/client-status";
 import { DEFAULT_EMAIL_TEMPLATES, parseEmailTemplates, type EmailTemplates } from "./email/templates";
 import { DEFAULT_DISCOUNT_LIMIT_PERCENT } from "./order/discount";
 import { DEFAULT_SLA_MINUTES } from "./sla";
@@ -18,6 +23,7 @@ export const SETTING_KEYS = {
   imap: "imap",
   carriers: "carriers",
   services: "services",
+  clientStatuses: "clientStatuses",
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
@@ -228,6 +234,8 @@ export type AppSettings = {
   imap: ImapSettings;
   carriers: CarrierSettings;
   services: ServiceSettings;
+  /** Соответствие статусов ERP и этапов поставщиков клиентским статусам — «Статусы для клиента» */
+  clientStatuses: ClientStatusMapping;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -239,6 +247,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   imap: DEFAULT_IMAP_SETTINGS,
   carriers: DEFAULT_CARRIER_SETTINGS,
   services: DEFAULT_SERVICE_SETTINGS,
+  clientStatuses: DEFAULT_CLIENT_STATUS_MAPPING,
 };
 
 /** Разбор значения из БД: негодное значение не роняет систему, а откатывается к умолчанию. */
@@ -275,6 +284,10 @@ export function parseSetting<K extends keyof AppSettings>(key: K, raw: unknown):
     case "services": {
       const parsed = serviceSettingsSchema.safeParse(raw);
       return (parsed.success ? parsed.data : DEFAULT_SERVICE_SETTINGS) as AppSettings[K];
+    }
+    case "clientStatuses": {
+      const parsed = clientStatusMappingSchema.safeParse(raw);
+      return (parsed.success ? parsed.data : DEFAULT_CLIENT_STATUS_MAPPING) as AppSettings[K];
     }
     default:
       return DEFAULT_SETTINGS[key];

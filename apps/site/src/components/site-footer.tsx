@@ -38,6 +38,9 @@ export async function SiteFooter() {
         </nav>
         <nav aria-label="Покупателям" className="flex flex-col gap-0.5 md:gap-2.5">
           <p className="font-semibold text-white">Покупателям</p>
+          <Link href="/status-zakaza" className="py-1.5 hover:text-white md:py-0">
+            Проверить статус заказа
+          </Link>
           <Link href="/oplata-dostavka" className="py-1.5 hover:text-white md:py-0">
             Доставка и оплата
           </Link>
