@@ -2,7 +2,7 @@ import "server-only";
 import type { TerminalCarrier } from "@buscom/db/enums";
 import { describeTerminalSync, syncTerminals } from "@/server/carriers/terminals";
 
-const CARRIERS: TerminalCarrier[] = ["DELLIN", "PEC"];
+const CARRIERS: TerminalCarrier[] = ["DELLIN", "PEC", "KIT"];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Первое обновление — не сразу при старте: выкат и так нагружает сервер */

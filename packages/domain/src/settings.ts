@@ -168,6 +168,8 @@ export const carrierSettingsSchema = z.object({
   pecLogin: z.string().trim().max(200).default(""),
   /** Ключ API из кабинета ПЭК («Регистрационные данные → Ключи API») — пароль Basic-авторизации */
   pecApiKey: z.string().trim().max(200).default(""),
+  /** Токен API «КИТ» (ГТД, capi.tk-kit.com) — для статуса груза по накладной */
+  kitToken: z.string().trim().max(500).default(""),
 });
 
 export type CarrierSettings = z.infer<typeof carrierSettingsSchema>;
@@ -177,6 +179,7 @@ export const DEFAULT_CARRIER_SETTINGS: CarrierSettings = {
   yandexMapsApiKey: "",
   pecLogin: "",
   pecApiKey: "",
+  kitToken: "",
 };
 
 /**
@@ -300,4 +303,12 @@ export function mergePecSettings(
     pecLogin: incoming.pecLogin,
     pecApiKey: incoming.pecApiKey === "" ? current.pecApiKey : incoming.pecApiKey,
   };
+}
+
+/** Сохранение токена КИТ: пустое поле оставляет сохранённый, как у ключа ДЛ. */
+export function mergeKitSettings(
+  current: CarrierSettings,
+  incoming: Pick<CarrierSettings, "kitToken">,
+): CarrierSettings {
+  return { ...current, kitToken: incoming.kitToken === "" ? current.kitToken : incoming.kitToken };
 }

@@ -1,4 +1,6 @@
 import "server-only";
+import type { CargoStatusResult } from "@buscom/domain/carrier/cargo-status";
+import { parsePecCargoStatus } from "@buscom/domain/carrier/pec-status";
 
 /**
  * API личного кабинета ПЭК (kabinet.pecom.ru/api/v1). Запросы — POST с JSON,
@@ -50,6 +52,18 @@ export async function checkPecCredentials(
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "неизвестная ошибка" };
+  }
+}
+
+/** Текущий статус груза по коду (`/cargos/basicstatus/`). Ничего не сохраняет. */
+export async function fetchPecCargoStatus(credentials: PecCredentials, cargoCode: string): Promise<CargoStatusResult> {
+  try {
+    return parsePecCargoStatus(
+      await call(credentials, "/cargos/basicstatus/", { cargoCodes: [cargoCode] }, 15_000),
+      cargoCode,
+    );
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "ПЭК не ответили" };
   }
 }
 

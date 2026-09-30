@@ -808,6 +808,7 @@ model SalonLayout {
 enum TerminalCarrier {
   DELLIN
   PEC
+  KIT
 }
 
 /// Терминалы и пункты транспортных компаний — из них покупатель выбирает пункт

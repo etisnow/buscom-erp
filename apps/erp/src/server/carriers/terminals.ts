@@ -1,11 +1,13 @@
 import "server-only";
 import { parseDellinTerminals } from "@buscom/domain/carrier/dellin";
+import { parseKitTerminals } from "@buscom/domain/carrier/kit";
 import { parsePecBranches } from "@buscom/domain/carrier/pec";
 import { canDeactivateMissing, type CarrierTerminalRecord } from "@buscom/domain/carrier/terminals";
 import type { CarrierSettings } from "@buscom/domain/settings";
 import type { TerminalCarrier } from "@buscom/db/enums";
 import { db } from "@/server/db";
 import { downloadDellinTerminals } from "@/server/carriers/dellin";
+import { downloadKitDirectory } from "@/server/carriers/kit";
 import { downloadPecBranches } from "@/server/carriers/pec";
 import { readSettings } from "@/server/settings/service";
 
@@ -34,9 +36,10 @@ const SOURCES: Record<TerminalCarrier, (settings: CarrierSettings) => Promise<Lo
     dellinAppKey ? downloadDellinTerminals(dellinAppKey).then(parseDellinTerminals) : null,
   PEC: ({ pecLogin, pecApiKey }) =>
     pecLogin && pecApiKey ? downloadPecBranches({ login: pecLogin, apiKey: pecApiKey }).then(parsePecBranches) : null,
+  KIT: ({ kitToken }) => (kitToken ? downloadKitDirectory(kitToken).then(parseKitTerminals) : null),
 };
 
-export const CARRIER_LABELS: Record<TerminalCarrier, string> = { DELLIN: "ДЛ", PEC: "ПЭК" };
+export const CARRIER_LABELS: Record<TerminalCarrier, string> = { DELLIN: "ДЛ", PEC: "ПЭК", KIT: "КИТ" };
 
 /** `null` — ключ перевозчика не задан, обновлять нечем. */
 export async function syncTerminals(carrier: TerminalCarrier): Promise<TerminalSyncSummary | null> {

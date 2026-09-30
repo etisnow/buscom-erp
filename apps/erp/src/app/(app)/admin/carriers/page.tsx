@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
-import { CarrierKeysEditor, MapsKeyEditor, PecKeysEditor, type TerminalsView } from "@/components/admin/carrier-keys";
+import {
+  CarrierKeysEditor,
+  KitKeyEditor,
+  MapsKeyEditor,
+  PecKeysEditor,
+  type TerminalsView,
+} from "@/components/admin/carrier-keys";
 import { formatMoscowDateTime } from "@buscom/domain/datetime";
 import { ADMIN_ROLES } from "@buscom/domain/user/role";
 import { getTerminalStats } from "@/server/carriers/terminals";
@@ -12,10 +18,11 @@ export const metadata: Metadata = {
 
 export default async function AdminCarriersPage() {
   await requirePageUser(ADMIN_ROLES);
-  const [settings, dellin, pec] = await Promise.all([
+  const [settings, dellin, pec, kit] = await Promise.all([
     getSettings(),
     getTerminalStats("DELLIN"),
     getTerminalStats("PEC"),
+    getTerminalStats("KIT"),
   ]);
   const view = (stats: typeof dellin): TerminalsView => ({
     active: stats.active,
@@ -33,6 +40,7 @@ export default async function AdminCarriersPage() {
         hasPecKey={settings.carriers.pecApiKey.length > 0}
         terminals={view(pec)}
       />
+      <KitKeyEditor hasKitToken={settings.carriers.kitToken.length > 0} terminals={view(kit)} />
       <MapsKeyEditor yandexMapsApiKey={settings.carriers.yandexMapsApiKey} />
     </main>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2, ScanText } from "lucide-react";
+import { Loader2, PackageSearch, ScanText } from "lucide-react";
 import { toast } from "sonner";
 import { DocumentUpload, type DocumentView } from "@/components/orders/document-upload";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { CargoStatus } from "@buscom/domain/carrier/cargo-status";
+import { isDellinCarrier } from "@buscom/domain/carrier/dellin-status";
+import { isKitCarrier } from "@buscom/domain/carrier/kit-status";
+import { isPecCarrier } from "@buscom/domain/carrier/pec-status";
+import { formatMoscowDateTime } from "@buscom/domain/datetime";
 import { rublesToKopecks } from "@buscom/domain/money";
 import {
   CargoInputError,
@@ -24,6 +29,7 @@ import { ORDER_DOCUMENT_LABELS } from "@buscom/domain/order/order-document";
 import type { TerminalSnapshot } from "@buscom/domain/carrier/terminals";
 import type { DeliveryMethod } from "@buscom/db/enums";
 import {
+  checkCargoStatusAction,
   deleteOrderDocumentAction,
   recognizeWaybillAction,
   updateDeliveryAction,
@@ -102,6 +108,8 @@ export function OrderDelivery({
   const [volume, setVolume] = useState(cargo.volumeCm3 === null ? "" : formatVolumeM3(cargo.volumeCm3));
   const [pending, startTransition] = useTransition();
   const [recognizing, startRecognition] = useTransition();
+  const [checking, startChecking] = useTransition();
+  const [cargoStatus, setCargoStatus] = useState<CargoStatus | null>(null);
   /** Поля, которые подставила накладная и которые ещё не сохранены, — подсвечены */
   const [filled, setFilled] = useState<Set<FilledField>>(new Set());
   const mark = (field: FilledField) => (filled.has(field) ? FILLED_CLASS : undefined);
@@ -141,6 +149,14 @@ export function OrderDelivery({
       setFilled(changed);
       if (changed.size === 0) toast.info("Нового в накладной не нашлось — поля уже совпадают или не распознаны");
       else toast.success(`Подставлено полей: ${changed.size}. Проверьте подсвеченные и сохраните доставку`);
+    });
+  }
+
+  function checkStatus() {
+    startChecking(async () => {
+      const result = await checkCargoStatusAction(orderId);
+      if (result.ok) setCargoStatus(result.status);
+      else toast.error(result.error);
     });
   }
 
@@ -389,6 +405,23 @@ export function OrderDelivery({
         ) : null}
       </div>
 
+      {(isDellinCarrier(carrier) || isPecCarrier(carrier) || isKitCarrier(carrier)) && trackingNumber ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" disabled={checking} onClick={checkStatus}>
+            {checking ? <Loader2 className="animate-spin" /> : <PackageSearch />}
+            {checking ? "Спрашиваю перевозчика…" : "Проверить статус груза"}
+          </Button>
+          {cargoStatus ? (
+            <span className={cn("text-sm", cargoStatus.pickedUp && "font-medium text-green-700 dark:text-green-400")}>
+              {cargoStatus.pickedUp ? "Груз забран" : cargoStatus.stateName}
+              {cargoStatus.stateDate ? ` · ${formatMoscowDateTime(new Date(cargoStatus.stateDate))}` : ""}
+            </span>
+          ) : (
+            <span className="text-muted-foreground text-xs">Спросит перевозчика по сохранённому трек-номеру</span>
+          )}
+        </div>
+      ) : null}
+
       {method === "CARRIER" && !tracking.trim() ? (
         <p className="text-muted-foreground text-xs">
           Для доставки транспортной компанией нужен трек-номер — без него заказ не перевести в «Выполнен».
@@ -397,7 +430,12 @@ export function OrderDelivery({
 
       {canEdit ? (
         <div>
-          <Button size="sm" variant="outline" disabled={pending} onClick={save}>
+          <Button
+            size="sm"
+            disabled={pending}
+            onClick={save}
+            className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600"
+          >
             Сохранить доставку
           </Button>
         </div>

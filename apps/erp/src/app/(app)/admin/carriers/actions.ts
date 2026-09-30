@@ -6,11 +6,13 @@ import {
   carrierSettingsSchema,
   DEFAULT_CARRIER_SETTINGS,
   mergeCarrierSettings,
+  mergeKitSettings,
   mergePecSettings,
 } from "@buscom/domain/settings";
 import type { TerminalCarrier } from "@buscom/db/enums";
 import { ADMIN_ROLES } from "@buscom/domain/user/role";
 import { checkDellinAppKey } from "@/server/carriers/dellin";
+import { checkKitToken } from "@/server/carriers/kit";
 import { checkPecCredentials } from "@/server/carriers/pec";
 import { describeTerminalSync, syncTerminals } from "@/server/carriers/terminals";
 import { readSettings, saveCarrierSettings } from "@/server/settings/service";
@@ -62,7 +64,7 @@ export async function saveMapsKeyAction(yandexMapsApiKey: string): Promise<Setti
   };
 }
 
-const carrierSchema = z.enum(["DELLIN", "PEC"] satisfies TerminalCarrier[]);
+const carrierSchema = z.enum(["DELLIN", "PEC", "KIT"] satisfies TerminalCarrier[]);
 
 /** Обновить справочник пунктов перевозчика сейчас, не дожидаясь суточного прохода. */
 export async function syncTerminalsAction(carrierInput: TerminalCarrier): Promise<SettingsResult> {
@@ -127,4 +129,40 @@ export async function checkPecAction(input: z.input<typeof pecInputSchema>): Pro
   if (!pecLogin || !pecApiKey) return { ok: false, error: "Впишите логин и ключ — проверять нечего" };
   const result = await checkPecCredentials({ login: pecLogin, apiKey: pecApiKey });
   return result.ok ? { ok: true, message: "Доступ работает: ПЭК отдают список отделений" } : result;
+}
+
+const kitInputSchema = carrierSettingsSchema.pick({ kitToken: true });
+
+/** Токен КИТ. В форму не отдаётся: пустое поле — оставить сохранённый. */
+export async function saveKitAction(input: z.input<typeof kitInputSchema>): Promise<SettingsResult> {
+  const user = await requireUser(ADMIN_ROLES);
+  const parsed = kitInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+  await saveCarrierSettings(mergeKitSettings((await readSettings()).carriers, parsed.data), user.id);
+  revalidatePath("/admin/carriers");
+  return { ok: true, message: "Токен КИТ сохранён" };
+}
+
+export async function clearKitAction(): Promise<SettingsResult> {
+  const user = await requireUser(ADMIN_ROLES);
+  const current = await readSettings();
+  await saveCarrierSettings({ ...current.carriers, kitToken: "" }, user.id);
+  revalidatePath("/admin/carriers");
+  return { ok: true, message: "Токен КИТ удалён" };
+}
+
+/** Проверка токена из формы — до сохранения; пустое поле — проверяется сохранённый. */
+export async function checkKitAction(input: z.input<typeof kitInputSchema>): Promise<SettingsResult> {
+  await requireUser(ADMIN_ROLES);
+  const parsed = kitInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+  const { kitToken } = mergeKitSettings((await readSettings()).carriers, parsed.data);
+  if (!kitToken) return { ok: false, error: "Впишите токен — проверять нечего" };
+  try {
+    const result = await checkKitToken(kitToken);
+    return result.ok ? { ok: true, message: "Токен принят КИТ" } : result;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "неизвестная ошибка";
+    return { ok: false, error: `КИТ недоступны: ${reason}` };
+  }
 }

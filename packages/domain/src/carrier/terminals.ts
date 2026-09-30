@@ -9,7 +9,11 @@ import type { TerminalCarrier } from "@buscom/db/enums";
  * Перевозчики, у которых есть справочник пунктов: название в справочнике ТК
  * (как в `CARRIERS` сайта и в ERP) → код. У остальных ТК адрес вписывается руками.
  */
-const TERMINAL_CARRIERS: Record<string, TerminalCarrier> = { "Деловые линии": "DELLIN", ПЭК: "PEC" };
+const TERMINAL_CARRIERS: Record<string, TerminalCarrier> = {
+  "Деловые линии": "DELLIN",
+  ПЭК: "PEC",
+  "КИТ (GTD)": "KIT",
+};
 
 export function terminalCarrierOf(carrierName: string | null | undefined): TerminalCarrier | null {
   return (carrierName && TERMINAL_CARRIERS[carrierName]) || null;
@@ -20,7 +24,7 @@ export function terminalCarrierOf(carrierName: string | null | undefined): Termi
  * пункт могут переименовать или закрыть, а в заказе должно остаться, куда ехать.
  */
 export const terminalSnapshotSchema = z.object({
-  carrier: z.enum(["DELLIN", "PEC"] satisfies TerminalCarrier[]),
+  carrier: z.enum(["DELLIN", "PEC", "KIT"] satisfies TerminalCarrier[]),
   /** Код пункта у перевозчика */
   code: z.string().min(1).max(64),
   name: z.string().min(1).max(300),

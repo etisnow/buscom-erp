@@ -1,5 +1,7 @@
 import "server-only";
 import { z } from "zod";
+import type { CargoStatusResult } from "@buscom/domain/carrier/cargo-status";
+import { parseDellinStatusHistory } from "@buscom/domain/carrier/dellin-status";
 
 /**
  * API «Деловых Линий» (dev.dellin.ru). Запросы — POST с JSON, ключ приложения
@@ -44,6 +46,25 @@ async function requestTerminalsLink(appkey: string): Promise<LinkResult> {
 export async function checkDellinAppKey(appkey: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const link = await requestTerminalsLink(appkey);
   return link.ok ? { ok: true } : link;
+}
+
+/** Статус груза по номеру накладной (`/v3/orders/statuses_history.json`). Ничего не сохраняет. */
+export async function fetchDellinCargoStatus(appkey: string, docId: string): Promise<CargoStatusResult> {
+  const response = await fetch(`${API}/v3/orders/statuses_history.json`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ appkey, docIds: [docId] }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const body: unknown = await response.json().catch(() => null);
+  if (response.status === 401) {
+    return { ok: false, error: "ДЛ не принимают ключ — проверьте его в «Администрирование → Транспортные компании»" };
+  }
+  if (response.ok) {
+    const result = parseDellinStatusHistory(body, docId);
+    if (result.ok || !describeErrors(body)) return result;
+  }
+  return { ok: false, error: `ДЛ ответили ${response.status}: ${describeErrors(body) ?? "без подробностей"}` };
 }
 
 /** Файл справочника терминалов как есть (около 1,5 МБ JSON). Разбор — `@buscom/domain/carrier/dellin`. */

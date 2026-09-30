@@ -13,7 +13,9 @@ import type { WaybillFields } from "@buscom/domain/order/waybill-parse";
 import { ProductOptionError } from "@buscom/domain/product/options";
 import { isSupplierActionKey } from "@buscom/domain/supplier/actions";
 import { SupplierStageError } from "@buscom/domain/supplier/stages";
+import type { CargoStatusResult } from "@buscom/domain/carrier/cargo-status";
 import { ForbiddenError } from "@/server/errors";
+import { checkCargoStatus } from "@/server/orders/cargo-status";
 import { assignManager, takeOrder } from "@/server/orders/assignment";
 import { addOrderComment } from "@/server/orders/comments";
 import { updateOrderDelivery } from "@/server/orders/delivery";
@@ -359,6 +361,17 @@ export async function recognizeWaybillAction(orderId: string): Promise<Recognize
     }
     console.error("Распознавание накладной", error);
     return { ok: false, error: "Не удалось прочитать накладную — заполните поля вручную" };
+  }
+}
+
+/** Статус груза у перевозчика по сохранённому трек-номеру заказа — только чтение. */
+export async function checkCargoStatusAction(orderId: string): Promise<CargoStatusResult> {
+  await requireUser();
+  try {
+    return await checkCargoStatus(z.string().min(1).parse(orderId));
+  } catch (error) {
+    console.error("Проверка статуса груза", error);
+    return { ok: false, error: "Не удалось связаться с перевозчиком — попробуйте позже" };
   }
 }
 

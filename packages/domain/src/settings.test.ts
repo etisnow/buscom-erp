@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_CARRIER_SETTINGS,
   mergeCarrierSettings,
+  mergeKitSettings,
   mergePecSettings,
   mergeServiceSettings,
   DEFAULT_SERVICE_SETTINGS,
@@ -200,7 +201,13 @@ describe("IMAP", () => {
 });
 
 describe("ключи API транспортных компаний", () => {
-  const saved = { dellinAppKey: "ключ-1", yandexMapsApiKey: "карты-1", pecLogin: "buscom", pecApiKey: "пэк-1" };
+  const saved = {
+    dellinAppKey: "ключ-1",
+    yandexMapsApiKey: "карты-1",
+    pecLogin: "buscom",
+    pecApiKey: "пэк-1",
+    kitToken: "кит-1",
+  };
 
   it("пустое поле ключа ДЛ оставляет сохранённый, новый — заменяет; ключ карт форма ДЛ не трогает", () => {
     expect(mergeCarrierSettings(saved, { dellinAppKey: "" })).toEqual(saved);
@@ -213,6 +220,7 @@ describe("ключи API транспортных компаний", () => {
       yandexMapsApiKey: "",
       pecLogin: "",
       pecApiKey: "",
+      kitToken: "",
     });
   });
 
@@ -224,9 +232,20 @@ describe("ключи API транспортных компаний", () => {
     });
   });
 
+  it("токен КИТ: пустое поле оставляет сохранённый, новый заменяет", () => {
+    expect(mergeKitSettings(saved, { kitToken: "" })).toEqual(saved);
+    expect(mergeKitSettings(saved, { kitToken: "кит-2" })).toEqual({ ...saved, kitToken: "кит-2" });
+  });
+
   it("негодное значение из БД — умолчания, по умолчанию ключей нет", () => {
     expect(parseSetting("carriers", "мусор")).toEqual(DEFAULT_CARRIER_SETTINGS);
-    expect(DEFAULT_SETTINGS.carriers).toEqual({ dellinAppKey: "", yandexMapsApiKey: "", pecLogin: "", pecApiKey: "" });
+    expect(DEFAULT_SETTINGS.carriers).toEqual({
+      dellinAppKey: "",
+      yandexMapsApiKey: "",
+      pecLogin: "",
+      pecApiKey: "",
+      kitToken: "",
+    });
   });
 });
 

@@ -8,10 +8,13 @@ import { Label } from "@/components/ui/label";
 import type { SettingsResult } from "@/app/(app)/admin/dictionaries/actions";
 import {
   checkDellinKeyAction,
+  checkKitAction,
   checkPecAction,
   clearDellinKeyAction,
+  clearKitAction,
   clearPecAction,
   saveCarrierSettingsAction,
+  saveKitAction,
   saveMapsKeyAction,
   savePecAction,
   syncTerminalsAction,
@@ -300,6 +303,91 @@ export function PecKeysEditor({
       </div>
 
       <TerminalSync carrier="PEC" terminals={terminals} enabled={configured} />
+    </section>
+  );
+}
+
+/**
+ * Токен API «КИТ» (ГТД): нужен только для кнопки «Проверить статус груза» в заказе.
+ * Сохранённый токен в браузер не отдаётся — пустое поле оставляет прежний.
+ */
+export function KitKeyEditor({ hasKitToken, terminals }: { hasKitToken: boolean; terminals: TerminalsView }) {
+  const [token, setToken] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  function handle(action: () => Promise<SettingsResult>, clearField = false) {
+    startTransition(async () => {
+      const result = await action();
+      if (result.ok) {
+        toast.success(result.message);
+        if (clearField) setToken("");
+      } else toast.error(result.error);
+    });
+  }
+
+  return (
+    <section className="flex flex-col gap-3 rounded-lg border p-4">
+      <div>
+        <h2 className="font-heading font-medium">КИТ (ГТД)</h2>
+        <p className="text-muted-foreground text-sm">
+          Токен API из личного кабинета КИТ. По нему ERP берёт список терминалов КИТ — из него покупатель выбирает пункт
+          получения в корзине — и узнаёт статус груза по номеру накладной (кнопка «Проверить статус груза» в блоке
+          «Доставка» заказа). Графика работы терминалов КИТ не отдаёт — в корзине он не показывается.
+        </p>
+      </div>
+
+      <div className="flex max-w-md flex-col gap-1.5">
+        <Label className="text-xs" htmlFor="kit-token">
+          Токен API
+        </Label>
+        <Input
+          id="kit-token"
+          type="password"
+          autoComplete="off"
+          value={token}
+          onChange={(event) => setToken(event.target.value)}
+          className="h-8"
+          placeholder={hasKitToken ? "сохранён, оставьте пустым" : ""}
+        />
+        <span className="text-muted-foreground text-xs">
+          {hasKitToken ? "Пустое поле оставит сохранённый токен" : "Токен не задан — статус груза КИТ не проверяется"}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={pending || (!token && !hasKitToken)}
+          onClick={() => handle(() => saveKitAction({ kitToken: token }), true)}
+        >
+          Сохранить токен
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={pending || (!token && !hasKitToken)}
+          onClick={() => handle(() => checkKitAction({ kitToken: token }))}
+        >
+          {pending ? "Проверяем…" : "Проверить токен"}
+        </Button>
+        {hasKitToken ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-destructive"
+            disabled={pending}
+            onClick={() => handle(clearKitAction, true)}
+          >
+            Удалить токен
+          </Button>
+        ) : null}
+        <span className="text-muted-foreground text-xs">
+          Проверяется токен из поля, а если оно пустое — сохранённый
+        </span>
+      </div>
+
+      <TerminalSync carrier="KIT" terminals={terminals} enabled={hasKitToken} />
     </section>
   );
 }
