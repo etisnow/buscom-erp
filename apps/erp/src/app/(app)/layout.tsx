@@ -9,6 +9,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { ADMIN_SECTION_ROLES, ANALYTICS_ROLES, hasRole, roleLabel } from "@buscom/domain/user/role";
 import { unreadChatCount } from "@/server/chat/service";
 import { unreadEmailCount } from "@/server/emails/service";
+import { unreadNewsCount } from "@/server/news/service";
 import { requireUser } from "@/server/session";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
@@ -28,6 +29,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       badge: await unreadChatCount(user.id),
       liveBadgeUrl: "/api/chat/unread",
     },
+    { href: "/news", label: "Новости", icon: "news", badge: await unreadNewsCount(user.id) },
   ];
   if (hasRole(user.role, ANALYTICS_ROLES)) {
     items.push({ href: "/analytics", label: "Аналитика", icon: "analytics" });

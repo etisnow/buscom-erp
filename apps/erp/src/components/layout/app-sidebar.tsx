@@ -1,6 +1,16 @@
 "use client";
 
-import { ChartColumn, ClipboardList, Mail, Factory, MessagesSquare, Package, Settings, Users } from "lucide-react";
+import {
+  ChartColumn,
+  ClipboardList,
+  Mail,
+  Factory,
+  Megaphone,
+  MessagesSquare,
+  Package,
+  Settings,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLiveCount } from "@/components/layout/use-live-count";
@@ -21,7 +31,7 @@ import {
 export type NavItem = {
   href: string;
   label: string;
-  icon: "orders" | "customers" | "products" | "suppliers" | "mail" | "chat" | "analytics" | "admin";
+  icon: "orders" | "customers" | "products" | "suppliers" | "mail" | "chat" | "news" | "analytics" | "admin";
   /** Число рядом с пунктом — непрочитанные письма; 0 не показывается */
   badge?: number;
   /** Значок обновляется сам: адрес, отдающий `{ count }` (непрочитанные в чате) */
@@ -35,6 +45,7 @@ export const ICONS = {
   suppliers: Factory,
   mail: Mail,
   chat: MessagesSquare,
+  news: Megaphone,
   analytics: ChartColumn,
   admin: Settings,
 } as const;
