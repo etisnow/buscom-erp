@@ -26,7 +26,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/poisk">) 
 
   return (
     <section>
-      <h1 className="page-title">{query ? `Поиск: «${query}»` : "Поиск по каталогу"}</h1>
+      <h1 className="page-title [overflow-wrap:anywhere]">{query ? `Поиск: «${query}»` : "Поиск по каталогу"}</h1>
 
       {categories.length > 0 && (
         <ul className="mt-4 flex flex-wrap gap-2">

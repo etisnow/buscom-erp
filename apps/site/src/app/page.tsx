@@ -36,7 +36,7 @@ export default async function HomePage() {
   ]);
   return (
     <div className="flex flex-col gap-10 md:gap-14">
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_540px] lg:gap-6">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_540px] lg:gap-6">
         <section className="card flex flex-col justify-between gap-5 p-5 md:gap-7 md:p-10">
           <div className="flex flex-col gap-3.5">
             <h1 className="text-[26px] leading-[1.1] font-bold tracking-[-.02em] text-balance md:text-[46px]">
@@ -110,7 +110,7 @@ export default async function HomePage() {
 
       <section
         id="zayavka"
-        className="bg-brand grid scroll-mt-4 gap-6 rounded-[18px] p-5 text-white md:p-10 lg:grid-cols-[minmax(0,1fr)_460px] lg:gap-10"
+        className="bg-brand grid scroll-mt-4 grid-cols-[minmax(0,1fr)] gap-6 rounded-[18px] p-5 text-white md:p-10 lg:grid-cols-[minmax(0,1fr)_460px] lg:gap-10"
       >
         <div className="flex flex-col gap-[18px]">
           <h2 className="text-[22px] leading-[1.15] font-bold tracking-[-.01em] md:text-[32px]">

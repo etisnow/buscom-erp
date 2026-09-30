@@ -13,7 +13,7 @@ import { COMPANY } from "@/config/company";
 export function ModelPicker({ models }: { models: SiteModel[] }) {
   const [picked, setPicked] = useState<string | null>(null);
   const chip = (active: boolean) =>
-    `flex h-[38px] shrink-0 items-center rounded-full border px-[15px] text-sm ${
+    `flex h-[38px] shrink-0 items-center rounded-full border px-[15px] text-sm whitespace-nowrap ${
       active ? "bg-brand border-brand text-white" : "border-line-strong hover:border-brand bg-white"
     }`;
   const pick = (slug: string | null) => (event: MouseEvent) => {
@@ -22,14 +22,14 @@ export function ModelPicker({ models }: { models: SiteModel[] }) {
   };
   return (
     <div className="flex flex-col gap-3.5">
-      <ul className="-mx-5 flex gap-2 overflow-x-auto px-5 md:mx-0 md:flex-wrap md:px-0">
-        <li>
+      <ul className="-mx-5 flex [scrollbar-width:none] gap-2 overflow-x-auto px-5 md:mx-0 md:flex-wrap md:px-0 [&::-webkit-scrollbar]:hidden">
+        <li className="shrink-0">
           <Link href={MODELS_PATH} onClick={pick(null)} className={chip(picked === null)}>
             Все модели
           </Link>
         </li>
         {models.map((model) => (
-          <li key={model.slug}>
+          <li key={model.slug} className="shrink-0">
             <Link
               href={`${MODELS_PATH}/${model.slug}`}
               onClick={pick(model.slug)}
