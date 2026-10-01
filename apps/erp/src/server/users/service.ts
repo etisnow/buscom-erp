@@ -90,6 +90,13 @@ export async function changeUserRole(userId: string, role: UserRole, actorId: st
   await db.user.update({ where: { id: userId }, data: { role } });
 }
 
+/** Переименование сотрудника: имя видно в заказах, истории и чате; email и вход не меняются. */
+export async function renameUser(userId: string, name: string): Promise<void> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Укажите имя");
+  await db.user.update({ where: { id: userId }, data: { name: trimmed } });
+}
+
 /** Смена функции (менеджер, логист) — на права не влияет, только на вкладки заказов. */
 export async function changeUserJobFunction(userId: string, jobFunction: JobFunction | null): Promise<void> {
   await db.user.update({ where: { id: userId }, data: { jobFunction } });

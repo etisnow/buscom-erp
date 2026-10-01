@@ -8,6 +8,7 @@ import {
   changeUserJobFunction,
   changeUserRole,
   createUser,
+  renameUser,
   resetUserPassword,
   setUserActive,
 } from "@/server/users/service";
@@ -46,6 +47,19 @@ export async function createUserAction(input: z.input<typeof createSchema>): Pro
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
 
   return run(() => createUser(parsed.data), "Пользователь создан");
+}
+
+export async function renameUserAction(userId: string, name: string): Promise<AdminResult> {
+  await requireUser(ADMIN_ROLES);
+  const parsed = z
+    .string()
+    .trim()
+    .min(1, { error: "Укажите имя" })
+    .max(100, { error: "Имя не длиннее 100 знаков" })
+    .safeParse(name);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+
+  return run(() => renameUser(userId, parsed.data), "Имя изменено");
 }
 
 export async function changeRoleAction(userId: string, role: string): Promise<AdminResult> {

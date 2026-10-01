@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { KeyRound, UserPlus } from "lucide-react";
+import { KeyRound, Pencil, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,7 @@ import {
   changeJobFunctionAction,
   changeRoleAction,
   createUserAction,
+  renameUserAction,
   resetPasswordAction,
   setActiveAction,
   type AdminResult,
@@ -68,6 +69,7 @@ export function UsersTable({ users, currentUserId }: { users: UserRow[]; current
   const [role, setRole] = useState<UserRole>("MANAGER");
   const [jobFunction, setJobFunction] = useState<JobFunction | typeof NO_FUNCTION>("MANAGER");
   const [password, setPassword] = useState(suggestPassword);
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
 
   function handle(action: Promise<AdminResult>) {
     startTransition(async () => {
@@ -172,6 +174,42 @@ export function UsersTable({ users, currentUserId }: { users: UserRow[]; current
         </Dialog>
       </div>
 
+      <Dialog open={renaming !== null} onOpenChange={(open) => (open ? undefined : setRenaming(null))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Переименовать сотрудника</DialogTitle>
+            <DialogDescription>
+              Новое имя появится в заказах, истории и чате. Email и вход не меняются.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="rename-user">Имя</Label>
+            <Input
+              id="rename-user"
+              value={renaming?.name ?? ""}
+              onChange={(event) =>
+                setRenaming((current) => (current ? { ...current, name: event.target.value } : current))
+              }
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRenaming(null)} disabled={pending}>
+              Отмена
+            </Button>
+            <Button
+              disabled={pending || !renaming?.name.trim()}
+              onClick={() => {
+                if (!renaming) return;
+                handle(renameUserAction(renaming.id, renaming.name));
+                setRenaming(null);
+              }}
+            >
+              Сохранить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="min-w-0 overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
@@ -193,6 +231,16 @@ export function UsersTable({ users, currentUserId }: { users: UserRow[]; current
                   <TableCell>
                     {user.name}
                     {isSelf ? <span className="text-muted-foreground ml-1 text-xs">(вы)</span> : null}
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="ml-1 align-middle"
+                      aria-label={`Переименовать ${user.name}`}
+                      disabled={pending}
+                      onClick={() => setRenaming({ id: user.id, name: user.name })}
+                    >
+                      <Pencil />
+                    </Button>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{user.email}</TableCell>
                   <TableCell>
