@@ -68,13 +68,14 @@ const siteSchema = z.object({
   slug: z.string().max(200).nullable(),
   metaTitle: z.string().max(300, { error: "Title не длиннее 300 знаков" }).nullable(),
   metaDescription: z.string().max(1000, { error: "Description не длиннее 1000 знаков" }).nullable(),
+  seoText: z.string().max(20_000, { error: "Текст не длиннее 20 000 знаков" }).nullable().optional(),
 });
 
 export async function updateCategorySiteAction(id: string, input: z.input<typeof siteSchema>): Promise<CategoryResult> {
   const user = await requireUser();
   const parsed = siteSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
-  return run(() => updateCategorySite(id, parsed.data, user), "Адрес и метатеги сохранены");
+  return run(() => updateCategorySite(id, parsed.data, user), "Адрес, метатеги и текст сохранены");
 }
 
 export async function deleteCategoryAction(id: string): Promise<CategoryResult> {

@@ -256,6 +256,11 @@ function CategoryView({ category, query }: { category: CategoryPage; query: Cata
           )}
         </div>
       </div>
+      {category.seoText && (
+        <div className="card mt-6 p-5 text-[15px] leading-relaxed md:mt-8 md:p-7">
+          <PageText text={category.seoText} />
+        </div>
+      )}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     </section>
   );

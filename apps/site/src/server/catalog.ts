@@ -152,6 +152,8 @@ export type CategoryPage = {
   slug: string;
   metaTitle: string | null;
   metaDescription: string | null;
+  /** Текст под списком товаров (формат — page-text.ts); null — блока нет */
+  seoText: string | null;
   breadcrumbs: { name: string; slug: string }[];
   children: { name: string; slug: string; productCount: number }[];
   /** Подразделы плашками над списком: у раздела — свои, у подраздела — соседи по разделу (макет, экран 02) */
@@ -239,7 +241,7 @@ export const getPageBySlug = cached(async (slug: string): Promise<ProductPage | 
 
   const category = await db.productCategory.findUnique({
     where: { slug },
-    select: { id: true, name: true, metaTitle: true, metaDescription: true, parentId: true },
+    select: { id: true, name: true, metaTitle: true, metaDescription: true, seoText: true, parentId: true },
   });
   if (!category) return null;
   const tree = await getCategoryTree();
@@ -262,6 +264,7 @@ export const getPageBySlug = cached(async (slug: string): Promise<ProductPage | 
     slug,
     metaTitle: category.metaTitle,
     metaDescription: category.metaDescription,
+    seoText: category.seoText,
     breadcrumbs,
     children: (node?.children ?? []).map((child) => ({
       name: child.name,

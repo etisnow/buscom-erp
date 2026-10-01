@@ -20,6 +20,7 @@ export type CategoryRow = CategoryNode & {
   slug: string | null;
   metaTitle: string | null;
   metaDescription: string | null;
+  seoText: string | null;
 };
 
 export async function listCategories(): Promise<CategoryRow[]> {
@@ -32,6 +33,7 @@ export async function listCategories(): Promise<CategoryRow[]> {
       slug: true,
       metaTitle: true,
       metaDescription: true,
+      seoText: true,
       _count: { select: { products: true } },
     },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -45,6 +47,7 @@ export async function listCategories(): Promise<CategoryRow[]> {
     slug: row.slug,
     metaTitle: row.metaTitle,
     metaDescription: row.metaDescription,
+    seoText: row.seoText,
   }));
 }
 
@@ -123,7 +126,7 @@ export async function reorderCategories(parentId: string | null, ids: string[], 
   });
 }
 
-/** Адрес и метатеги категории на сайте; при смене адреса — переадресация со старого. */
+/** Адрес, метатеги и текст категории на сайте; при смене адреса — переадресация со старого. */
 export async function updateCategorySite(id: string, draft: SiteSeoDraft, user: SessionUser): Promise<void> {
   assertEditor(user);
   await db.$transaction((tx) => applySiteSeo(tx, { kind: "category", id }, draft));

@@ -18,6 +18,8 @@ export type SiteSeoDraft = {
   slug: string | null;
   metaTitle: string | null;
   metaDescription: string | null;
+  /** Текст под списком товаров — только у категорий; не передан — не трогаем */
+  seoText?: string | null;
 };
 
 export type SeoTarget = { kind: "product"; id: string } | { kind: "category"; id: string };
@@ -34,6 +36,18 @@ const clean = (value: string | null | undefined, max: number) => {
   if (text.length > max) throw new SiteSeoError(`Метатег длиннее ${max} знаков`);
   return text || null;
 };
+
+/** Текст страницы: абзацы сохраняются, лишние пробелы по краям и пустые строки подряд убираются */
+const cleanText = (value: string | null | undefined, max: number) => {
+  const text = (value ?? "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (text.length > max) throw new SiteSeoError(`Текст длиннее ${max} знаков`);
+  return text || null;
+};
+
+export const SEO_TEXT_MAX = 20_000;
 
 /** Занят ли слуг кем-то, кроме `target`. Возвращает, кем — для текста ошибки. */
 async function slugOwner(tx: Tx, slug: string, target?: SeoTarget): Promise<string | null> {
@@ -76,7 +90,10 @@ export async function applySiteSeo(tx: Tx, target: SeoTarget, draft: SiteSeoDraf
     metaDescription: clean(draft.metaDescription, 1000),
   };
   if (target.kind === "product") await tx.product.update({ where: { id: target.id }, data });
-  else await tx.productCategory.update({ where: { id: target.id }, data });
+  else {
+    const seoText = draft.seoText === undefined ? {} : { seoText: cleanText(draft.seoText, SEO_TEXT_MAX) };
+    await tx.productCategory.update({ where: { id: target.id }, data: { ...data, ...seoText } });
+  }
 
   const link = target.kind === "product" ? { productId: target.id } : { categoryId: target.id };
   if (current.slug && current.slug !== slug) {
