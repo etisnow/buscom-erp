@@ -13,7 +13,8 @@ import { getLandingPage } from "@/server/catalog";
 /**
  * Посадочная «категория + семейство модели» — `/modeli/gazel-next/sidenja-dlya-microavtobusov`
  * (docs/SITE-PLAN.md, этап 7; адрес утверждён владельцем 27.09.2026). Есть только у пар, где
- * товаров не меньше порога (`MIN_LANDING_PRODUCTS`): остальные отвечают 404.
+ * товаров не меньше порога (`MIN_LANDING_PRODUCTS`). Пара ниже порога ведёт 301 на страницу семейства
+ * (proxy.ts, `landingRedirect`), неизвестные семейство или категория — 404.
  */
 export async function generateMetadata({ params }: PageProps<"/modeli/[slug]/[category]">): Promise<Metadata> {
   const { slug, category } = await params;

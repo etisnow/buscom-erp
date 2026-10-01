@@ -66,3 +66,25 @@ export function landingCombos(
       return !seen.has(key) && seen.add(key);
     });
 }
+
+/** Что есть на сайте: адреса посадочных, слуги семейств и категорий — для `landingRedirect` */
+export type LandingIndex = {
+  pages: ReadonlySet<string>;
+  families: ReadonlySet<string>;
+  categories: ReadonlySet<string>;
+};
+
+/**
+ * Куда вести адрес посадочной, которой нет: пара «семейство + категория» опустилась ниже порога
+ * товаров — на страницу семейства, чтобы накопленный в поиске вес не пропал в 404.
+ * `null` — перенаправлять не нужно: это не адрес посадочной, страница есть, либо нет такого
+ * семейства или категории (тогда 404).
+ */
+export function landingRedirect(pathname: string, index: LandingIndex): string | null {
+  const match = new RegExp(`^${MODELS_PATH}/([^/]+)/([^/]+)/?$`).exec(pathname);
+  if (!match) return null;
+  const [, familySlug, categorySlug] = match;
+  if (index.pages.has(landingPath(familySlug, categorySlug))) return null;
+  if (!index.families.has(familySlug) || !index.categories.has(categorySlug)) return null;
+  return `${MODELS_PATH}/${familySlug}`;
+}

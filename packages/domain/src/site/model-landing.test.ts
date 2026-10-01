@@ -4,6 +4,7 @@ import {
   landingDescription,
   landingPath,
   landingPhrase,
+  landingRedirect,
   landingTitle,
   MIN_LANDING_PRODUCTS,
 } from "./model-landing";
@@ -80,5 +81,34 @@ describe("landingCombos", () => {
       ...Array.from({ length: 3 }, () => ({ categoryPath: ["a"], compatibility: ["ГАЗ Соболь"] })),
     ];
     expect(landingCombos(products).map((c) => c.family)).toEqual(["ГАЗель Next", "ГАЗ Соболь"]);
+  });
+});
+
+describe("перенаправление адреса посадочной", () => {
+  const index = {
+    pages: new Set(["/modeli/ford-transit/sidenja"]),
+    families: new Set(["ford-transit", "gazel-next"]),
+    categories: new Set(["sidenja", "opory-sidenij"]),
+  };
+
+  it("страница есть — не перенаправляем", () => {
+    expect(landingRedirect("/modeli/ford-transit/sidenja", index)).toBeNull();
+  });
+
+  it("пара ниже порога — на страницу семейства", () => {
+    expect(landingRedirect("/modeli/gazel-next/sidenja", index)).toBe("/modeli/gazel-next");
+    expect(landingRedirect("/modeli/ford-transit/opory-sidenij/", index)).toBe("/modeli/ford-transit");
+  });
+
+  it("нет семейства или категории — 404, а не перенаправление", () => {
+    expect(landingRedirect("/modeli/vito/sidenja", index)).toBeNull();
+    expect(landingRedirect("/modeli/ford-transit/net-takoj", index)).toBeNull();
+  });
+
+  it("другие адреса не трогаем", () => {
+    expect(landingRedirect("/modeli/ford-transit", index)).toBeNull();
+    expect(landingRedirect("/modeli", index)).toBeNull();
+    expect(landingRedirect("/sidenja", index)).toBeNull();
+    expect(landingRedirect("/modeli/ford-transit/sidenja/lishnee", index)).toBeNull();
   });
 });

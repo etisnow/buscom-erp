@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { landingRedirect } from "@buscom/domain/site/model-landing";
+import { MODELS_PATH } from "@buscom/domain/site/models";
 import { canonicalOrigin, fallbackLocation, redirectKeys, redirectLocation } from "@buscom/domain/site/redirects";
 import { siteEnv } from "@/env";
+import { landingIndex } from "@/server/landing-redirects";
 import { redirectData } from "@/server/redirects";
 
 /**
@@ -56,6 +59,17 @@ export async function proxy(request: NextRequest) {
       },
     );
     if (fallback) return NextResponse.redirect(new URL(fallback, request.nextUrl), 301);
+  }
+
+  // Посадочная пропала (товаров стало меньше порога) — 301 на страницу семейства, а не 404
+  if (pathname.startsWith(`${MODELS_PATH}/`)) {
+    const target = landingRedirect(pathname, await landingIndex());
+    if (target) {
+      const url = request.nextUrl.clone();
+      url.pathname = target;
+      url.search = "";
+      return NextResponse.redirect(url, 301);
+    }
   }
 
   const response = NextResponse.next();
