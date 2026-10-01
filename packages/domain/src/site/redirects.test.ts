@@ -79,6 +79,9 @@ describe("запасная переадресация (адреса из инд�
     );
     expect(resolve("/index.php", "?route=product/search")).toBe("/poisk");
     expect(resolve("/index.php", "?route=checkout/cart")).toBe("/korzina");
+    expect(resolve("/index.php", "?route=feed/google_sitemap")).toBe("/sitemap.xml");
+    expect(resolve("/index.php", "?route=feed/yandex_sitemap")).toBe("/sitemap.xml");
+    expect(resolve("/index.php", "?route=feed/imagemap")).toBe("/sitemap.xml");
     expect(resolve("/index.php", "?route=account/login")).toBe("/");
     expect(resolve("/index.php", "")).toBe("/");
   });

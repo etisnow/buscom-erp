@@ -54,7 +54,8 @@ const OWN_NESTED_ROOTS = new Set(["modeli", "img", "_next", "api"]);
  * OpenCart открывал товар под любым разделом и отвечал на служебные `index.php`:
  *
  * - `index.php?route=product/search&search=…` — на наш поиск;
- * - прочие `index.php` (корзина, оформление, вход, карта сайта) — на корзину или главную;
+ * - старые карты сайта `index.php?route=feed/…` — на `/sitemap.xml`;
+ * - прочие `index.php` (корзина, оформление, вход) — на корзину или главную;
  *   `product_id` сюда не доходит: его ключ ищется в таблице (`redirectKeys`);
  * - путь из нескольких сегментов — на самый глубокий сегмент, который сайт знает:
  *   слуг товара или категории (`isSlug`) либо старый адрес из таблицы (`lookup`).
@@ -86,6 +87,9 @@ export function fallbackLocation(
       return query ? `/poisk?q=${encodeURIComponent(query)}` : "/poisk";
     }
     if (route === "checkout/cart") return "/korzina";
+    // Карты сайта OpenCart (feed/google_sitemap, feed/yandex_sitemap, feed/imagemap) отправлены
+    // в Search Console и Вебмастер — после переключения поисковики читают по ним нашу карту
+    if (route.startsWith("feed/") && /sitemap|imagemap/.test(route)) return "/sitemap.xml";
     return "/";
   }
 
