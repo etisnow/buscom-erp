@@ -61,6 +61,19 @@ describe("judgeUrl", () => {
     expect(judge({ hops: [hop("/polki", 200)], page: hidden }, expected, true).level).toBe("ok");
   });
 
+  it("старый поисковый адрес, ведущий на закрытую страницу поиска, — не провал", () => {
+    const search: Expected = { path: "/index.php?route=product/search&search=stf2", title: null, description: null };
+    const hidden = { ...page, robots: "noindex, follow" };
+    const hops = [hop(search.path, 301, "/poisk?q=stf2"), hop("/poisk?q=stf2", 200)];
+    expect(judge({ hops, page: hidden }, search).level).toBe("ok");
+    expect(
+      judge(
+        { hops: [hop("/index.php?route=checkout/cart", 301, "/korzina"), hop("/korzina", 200)], page: hidden },
+        search,
+      ).level,
+    ).toBe("ok");
+  });
+
   it("другой title, description или canonical — предупреждение, не провал", () => {
     const verdict = judge({
       hops: [hop("/polki", 200)],

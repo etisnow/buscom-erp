@@ -27,6 +27,13 @@ export type Verdict = { path: string; level: "ok" | "warn" | "fail"; notes: stri
 /** Адреса, которые убраны намеренно и отвечают 410 (решение владельца, SITE-PRD «Адреса») */
 export const GONE_PATHS = new Set(["/refubrishment_test"]);
 
+/**
+ * Служебные страницы нового сайта, закрытые от индексации намеренно: на них ведут
+ * старые поисковые и корзинные адреса `index.php?route=…` (fallbackLocation). Старый
+ * адрес, приведший сюда, — не провал: результаты поиска и корзине в выдаче не место.
+ */
+export const NOINDEX_TARGETS = new Set(["/poisk", "/korzina"]);
+
 const MAX_HOPS = 5;
 
 const same = (a: string | null, b: string | null) =>
@@ -71,7 +78,8 @@ export function judgeUrl(expected: Expected, probe: UrlProbe, options: { staging
   if (probe.hops.length > 2) notes.push(`переадресаций подряд: ${probe.hops.length - 1}`);
 
   const page = probe.page;
-  if (page?.robots && /noindex/i.test(page.robots) && !options.staging) {
+  const target = new URL(last.url, first.url).pathname;
+  if (page?.robots && /noindex/i.test(page.robots) && !options.staging && !NOINDEX_TARGETS.has(target)) {
     return fail(`закрыта от индексации (${page.robots})`);
   }
 
