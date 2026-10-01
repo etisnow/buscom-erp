@@ -466,7 +466,12 @@ export function ProductDialog({
         ) : null}
 
         {product ? (
-          <ProductGalleryEditor productId={product.id} images={product.images} name={product.name} />
+          <ProductGalleryEditor
+            productId={product.id}
+            images={product.images}
+            name={product.name}
+            supplierUrls={links.map((link) => link.url.trim()).filter(Boolean)}
+          />
         ) : draft ? (
           <ImportedImagesEditor images={importedImages} onChange={setImportedImages} />
         ) : (

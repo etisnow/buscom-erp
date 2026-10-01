@@ -16,7 +16,11 @@ import { getCarveKey, removeBackground } from "@/server/products/carve";
 import { processStoredImage, restoreOriginalImage } from "@/server/products/image-processing";
 import { addImages, deleteImage, makeImageMain } from "@/server/products/images";
 import { canEditCatalog, createProduct, deleteProduct, updateProduct } from "@/server/products/service";
-import { importFromSupplier, type SupplierImportResult } from "@/server/products/supplier-import";
+import {
+  importFromSupplier,
+  importImagesFromSupplier,
+  type SupplierImportResult,
+} from "@/server/products/supplier-import";
 import { requireUser } from "@/server/session";
 
 export type ProductResult = { ok: true; message: string } | { ok: false; error: string };
@@ -215,6 +219,31 @@ export async function uploadProductImagesAction(productId: string, form: FormDat
 
   const data = await Promise.all(files.map(async (file) => new Uint8Array(await file.arrayBuffer())));
   return run(() => addImages(productId, data, user), files.length === 1 ? "Картинка сохранена" : "Картинки сохранены");
+}
+
+/**
+ * «Импортировать с сайта поставщика» в галерее товара: снимки со страницы поставщика
+ * добавляются в конец галереи, уже загруженные оттуда пропускаются.
+ */
+export async function importProductImagesAction(productId: string, url: string): Promise<ProductResult> {
+  const user = await requireUser();
+  const parsed = z.url({ error: "Вставьте ссылку на товар — она начинается с https://" }).safeParse(url.trim());
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+  try {
+    const result = await importImagesFromSupplier(productId, parsed.data, user);
+    if (!result.ok) return result;
+    revalidatePath("/products");
+    if (result.added === 0) {
+      return { ok: true, message: "Новых снимков нет — все снимки со страницы уже в галерее" };
+    }
+    const parts = [`Добавлено снимков: ${result.added}`];
+    if (result.skipped > 0) parts.push(`уже были: ${result.skipped}`);
+    parts.push(...result.warnings);
+    return { ok: true, message: parts.join(". ") };
+  } catch (error) {
+    if (error instanceof ForbiddenError) return { ok: false, error: error.message };
+    throw error;
+  }
 }
 
 export async function deleteProductImageAction(imageId: string): Promise<ProductResult> {

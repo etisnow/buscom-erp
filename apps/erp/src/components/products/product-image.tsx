@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRef, useState, useTransition } from "react";
-import { Eraser, ImageMinus, ImageOff, ImageUp, Star, Trash2, Undo2, WandSparkles } from "lucide-react";
+import { Download, Eraser, ImageMinus, ImageOff, ImageUp, Star, Trash2, Undo2, WandSparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,9 +13,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   deleteProductImageAction,
+  importProductImagesAction,
   makeProductImageMainAction,
   processProductImageAction,
   restoreProductImageAction,
@@ -66,11 +68,14 @@ export function ProductGalleryEditor({
   productId,
   images,
   name,
+  supplierUrls = [],
 }: {
   productId: string;
   /** `originalContentType` есть — картинку обрабатывали, оригинал можно вернуть */
   images: { id: string; originalContentType?: string | null }[];
   name: string;
+  /** Ссылки на товар у поставщиков — подсказка для «Импортировать с сайта поставщика» */
+  supplierUrls?: string[];
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
@@ -96,6 +101,21 @@ export function ProductGalleryEditor({
       const result = await action();
       if (result.ok) toast.success(result.message);
       else toast.error(result.error);
+    });
+  }
+
+  const [importing, setImporting] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
+  /** Снимки со страницы поставщика качаются, пока не придёт ответ — до нескольких десятков секунд */
+  function importFromSupplier() {
+    startTransition(async () => {
+      const result = await importProductImagesAction(productId, importUrl);
+      if (result.ok) {
+        toast.success(result.message);
+        setImporting(false);
+      } else {
+        toast.error(result.error);
+      }
     });
   }
 
@@ -229,6 +249,45 @@ export function ProductGalleryEditor({
           Добавить
         </button>
       </div>
+      {importing ? (
+        <div className="flex min-w-0 items-center gap-2">
+          <Input
+            type="url"
+            inputMode="url"
+            list={`supplier-urls-${productId}`}
+            placeholder="Ссылка на товар на сайте поставщика"
+            value={importUrl}
+            onChange={(event) => setImportUrl(event.target.value)}
+            className="h-8 min-w-0"
+          />
+          <datalist id={`supplier-urls-${productId}`}>
+            {supplierUrls.map((url) => (
+              <option key={url} value={url} />
+            ))}
+          </datalist>
+          <Button type="button" size="sm" disabled={pending || !importUrl.trim()} onClick={importFromSupplier}>
+            {pending ? "Импортирую…" : "Импортировать"}
+          </Button>
+          <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={() => setImporting(false)}>
+            Отмена
+          </Button>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="w-fit"
+          disabled={pending}
+          onClick={() => {
+            setImportUrl(supplierUrls[0] ?? "");
+            setImporting(true);
+          }}
+        >
+          <Download />
+          Импортировать с сайта поставщика
+        </Button>
+      )}
       <span className="text-muted-foreground text-xs">
         {images.length === 0
           ? "Картинок нет. JPEG, PNG, WebP или GIF до 5 МБ"

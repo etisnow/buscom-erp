@@ -28,6 +28,7 @@ import {
 } from "@buscom/domain/product/vanproject-product";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
+import { createImage } from "@/server/products/images";
 import { canEditCatalog } from "@/server/products/service";
 import { BROWSER_HEADERS, MAX_BYTES, priceCombos, request, statusError } from "@/server/products/supplier-price";
 import type { SessionUser } from "@/server/session";
@@ -111,8 +112,14 @@ export type SupplierImportDraft = {
 
 export type SupplierImportResult = { ok: true; draft: SupplierImportDraft } | { ok: false; error: string };
 
-export async function importFromSupplier(rawUrl: string, user: SessionUser): Promise<SupplierImportResult> {
-  if (!canEditCatalog(user.role)) throw new ForbiddenError("Недостаточно прав, чтобы заводить товары");
+type SupplierPage = {
+  url: string;
+  source: (typeof SOURCES)[number];
+  product: NonNullable<ReturnType<(typeof SOURCES)[number]["parse"]>>;
+};
+
+/** Страница товара у поставщика: адрес, сайт-источник и разобранная карточка. */
+async function loadSupplierPage(rawUrl: string): Promise<({ ok: true } & SupplierPage) | { ok: false; error: string }> {
   const typed = rawUrl.trim();
   // Ссылку часто вставляют без «https://»
   const url = /^[a-z][a-z0-9+.-]*:\/\//i.test(typed) ? typed : `https://${typed}`;
@@ -133,6 +140,56 @@ export async function importFromSupplier(rawUrl: string, user: SessionUser): Pro
   const product = source.parse((await page.response.text()).slice(0, MAX_BYTES));
   if (!product)
     return { ok: false, error: "По ссылке не карточка товара — откройте товар на сайте и скопируйте адрес" };
+  return { ok: true, url, source, product };
+}
+
+/**
+ * «Импорт с сайта поставщика» в галерее готового товара: снимки со страницы поставщика
+ * добавляются в конец галереи. Уже загруженные раньше (тот же адрес снимка) пропускаются,
+ * так что повторный импорт не плодит дубли.
+ */
+export async function importImagesFromSupplier(
+  productId: string,
+  rawUrl: string,
+  user: SessionUser,
+): Promise<{ ok: true; added: number; skipped: number; warnings: string[] } | { ok: false; error: string }> {
+  if (!canEditCatalog(user.role)) throw new ForbiddenError("Недостаточно прав, чтобы менять картинки товара");
+  const page = await loadSupplierPage(rawUrl);
+  if (!page.ok) return page;
+
+  const warnings: string[] = [];
+  const urls = page.product.imageUrls.slice(0, MAX_IMAGES);
+  if (urls.length === 0) return { ok: false, error: "На странице поставщика нет снимков товара" };
+  if (page.product.imageUrls.length > MAX_IMAGES) {
+    warnings.push(`У товара ${page.product.imageUrls.length} снимков — взяты первые ${MAX_IMAGES}`);
+  }
+
+  const known = new Set(
+    (
+      await db.productImage.findMany({ where: { productId, sourceUrl: { not: null } }, select: { sourceUrl: true } })
+    ).map((image) => image.sourceUrl),
+  );
+  const fresh = urls.filter((url) => !known.has(url));
+  const images = await downloadImages(fresh, warnings, page.source.name);
+
+  if (images.length > 0) {
+    await db.$transaction(async (tx) => {
+      for (const image of images) {
+        await createImage(tx, productId, {
+          data: new Uint8Array(Buffer.from(image.original.base64, "base64")),
+          sourceUrl: image.sourceUrl,
+        });
+      }
+    });
+  }
+  return { ok: true, added: images.length, skipped: urls.length - fresh.length, warnings };
+}
+
+export async function importFromSupplier(rawUrl: string, user: SessionUser): Promise<SupplierImportResult> {
+  if (!canEditCatalog(user.role)) throw new ForbiddenError("Недостаточно прав, чтобы заводить товары");
+  const page = await loadSupplierPage(rawUrl);
+  if (!page.ok) return page;
+  const { url, source, product } = page;
 
   const warnings: string[] = [];
 
