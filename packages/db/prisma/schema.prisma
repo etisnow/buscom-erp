@@ -60,6 +60,7 @@ model User {
   sitePages     SitePage[]
   expenses      Expense[]
   platformNews  PlatformNews[]
+  productLogs   ProductLog[]
   newsReads     PlatformNewsRead[]
 
   @@map("user")
@@ -224,6 +225,33 @@ model Product {
   redirects  UrlRedirect[]
 
   @@index([categoryId])
+}
+
+enum ProductLogAction {
+  CREATED
+  UPDATED
+  HIDDEN
+  SHOWN
+  DELETED
+}
+
+/// Журнал правок каталога: кто и что сделал с товаром. На товар не ссылается — запись
+/// об удалении должна пережить сам товар, поэтому артикул и название хранятся снимком
+model ProductLog {
+  id        String           @id @default(cuid())
+  productId String
+  sku       String
+  name      String
+  action    ProductLogAction
+  /// Для UPDATED и CREATED: [{ label, from, to }] — что поменялось, значения уже текстом
+  changes   Json?
+  /// null — действие системы
+  userId    String?
+  user      User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime         @default(now())
+
+  @@index([createdAt])
+  @@index([productId, createdAt])
 }
 
 /// Категория товаров. Дерево: у подкатегории есть родитель («Климат» → «Люки»).

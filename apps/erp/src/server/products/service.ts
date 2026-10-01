@@ -11,6 +11,7 @@ import { ForbiddenError } from "@/server/errors";
 import type { Tx } from "@/server/orders/internal";
 import type { SessionUser } from "@/server/session";
 import { createImage } from "@/server/products/images";
+import { logProductCreated, logProductDeleted, logProductUpdated, snapshotProduct } from "@/server/products/log";
 import { applySiteSeo, freeSlugFor, type SiteSeoDraft } from "@/server/site/seo";
 
 /** Кто правит каталог: цены и карточку — менеджеры и выше (PRD, роли). */
@@ -111,6 +112,7 @@ export async function createProduct(
         },
       );
       for (const data of images) await createImage(tx, product.id, { data });
+      await logProductCreated(tx, product.id, user);
       return product;
       // Снимки — сотни килобайт каждый: по общей базе за туннелем пяти секунд по умолчанию мало
     },
@@ -124,6 +126,7 @@ export async function updateProduct(id: string, draft: Partial<ProductDraft>, us
   }
 
   await db.$transaction(async (tx) => {
+    const before = await snapshotProduct(tx, id);
     await tx.product.update({
       where: { id },
       data: {
@@ -146,6 +149,7 @@ export async function updateProduct(id: string, draft: Partial<ProductDraft>, us
     // После опций: закупки привязываются к вариантам по названию, новым нужен уже их id
     if (draft.suppliers) await replaceOptionPrices(tx, id, draft.suppliers);
     if (draft.site) await applySiteSeo(tx, { kind: "product", id }, draft.site);
+    await logProductUpdated(tx, id, before, user);
   });
 }
 
@@ -271,6 +275,7 @@ export async function deleteProduct(id: string, user: SessionUser): Promise<{ or
     }
 
     const ordersCount = await tx.order.count({ where: { items: { some: { productId: id } } } });
+    await logProductDeleted(tx, id, user);
     await tx.product.delete({ where: { id } });
     return { ordersCount };
   });
