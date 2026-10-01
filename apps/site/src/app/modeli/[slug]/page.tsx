@@ -50,6 +50,9 @@ export default async function ModelPage({ params }: PageProps<"/modeli/[slug]">)
           {model.productCount}
         </span>
       </h1>
+      {model.members.length > 1 || model.members[0] !== model.name ? (
+        <p className="text-muted mt-2 text-sm md:text-[15px]">Версии и поколения: {model.members.join(", ")}</p>
+      ) : null}
       {model.sections.map((section, sectionIndex) => (
         <section key={section.name} className="mt-8 md:mt-10">
           <h2 className="mb-4 text-[22px] font-bold md:text-[26px]">

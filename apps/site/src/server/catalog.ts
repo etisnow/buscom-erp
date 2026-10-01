@@ -324,7 +324,7 @@ export const getPopularCategories = cached(async (): Promise<PopularCategory[]> 
     .map(({ id, name, slug, productCount, imageId }) => ({ id, name, slug, productCount, imageId }));
 }, "popular-categories");
 
-/** Модели авто, для которых есть товары в продаже (этап 7, `/modeli/{slug}`). */
+/** Семейства моделей авто, для которых есть товары в продаже (этап 7, `/modeli/{slug}`). */
 export const getModels = cached(async (): Promise<SiteModel[]> => {
   const products = await db.product.findMany({
     where: { isActive: true, slug: { not: null }, compatibility: { isEmpty: false } },
@@ -338,13 +338,13 @@ export type ModelPage = SiteModel & {
   sections: { name: string; slug: string | null; products: ProductCard[] }[];
 };
 
-/** Страница модели: товары, у которых она в совместимости, по разделам каталога. */
+/** Страница семейства: товары, у которых любое из его поколений в совместимости, по разделам каталога. */
 export const getModelPage = cached(async (slug: string): Promise<ModelPage | null> => {
   const model = (await getModels()).find((item) => item.slug === slug);
   if (!model) return null;
   const [products, tree] = await Promise.all([
     db.product.findMany({
-      where: { isActive: true, slug: { not: null }, compatibility: { has: model.name } },
+      where: { isActive: true, slug: { not: null }, compatibility: { hasSome: model.members } },
       orderBy: { name: "asc" },
       select: { ...cardSelect, categoryId: true },
     }),
