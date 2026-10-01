@@ -49,10 +49,13 @@ export async function findClientOrderStatus(number: number, phoneRaw: string): P
   if (!phone) return { ok: false, reason: "not-found" };
 
   const order = await db.order.findFirst({
-    where: { number, deletedAt: null, customer: { phone } },
+    // Клиент называет номер из письма сайта или внутренний номер ERP — подходит любой
+    where: { OR: [{ number }, { siteNumber: String(number) }], deletedAt: null, customer: { phone } },
+    orderBy: { number: "asc" },
     select: {
       id: true,
       number: true,
+      siteNumber: true,
       status: true,
       createdAt: true,
       totalKopecks: true,
@@ -116,7 +119,8 @@ export async function findClientOrderStatus(number: number, phoneRaw: string): P
   return {
     ok: true,
     status: {
-      number: order.number,
+      // Показываем номер в том виде, как его назвал клиент: письма сайта знают только свой
+      number: order.number === number || order.siteNumber !== String(number) ? order.number : number,
       totalKopecks: order.totalKopecks,
       current: timeline.current,
       headline: timeline.label,

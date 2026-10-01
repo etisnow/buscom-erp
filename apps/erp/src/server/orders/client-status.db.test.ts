@@ -30,6 +30,15 @@ describeDb("статус заказа для клиента (живая БД)", 
     orderNumber = order.number;
   });
 
+  it("находит заказ и по номеру с сайта, показывая номер, который назвал клиент", async () => {
+    await db.order.update({ where: { id: orderId }, data: { siteNumber: "2828" } });
+    const found = await findClientOrderStatus(2828, "+7 916 123 45 67");
+    expect(found.ok && found.status.number).toBe(2828);
+    const byInternal = await findClientOrderStatus(orderNumber, "+7 916 123 45 67");
+    expect(byInternal.ok && byInternal.status.number).toBe(orderNumber);
+    expect((await findClientOrderStatus(2828, "+7 900 000 00 00")).ok).toBe(false);
+  });
+
   it("находит заказ по номеру и телефону в любом написании; у нового заказа — «Принят»", async () => {
     await makeNew();
     const found = await findClientOrderStatus(orderNumber, "+7 (916) 123-45-67");
