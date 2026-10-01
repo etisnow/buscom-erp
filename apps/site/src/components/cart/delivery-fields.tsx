@@ -2,7 +2,7 @@
 
 import { useId, useMemo, useRef, useState, useTransition } from "react";
 import { cityKey, suggestCities } from "@buscom/domain/carrier/terminals";
-import { CARRIERS } from "@buscom/domain/site/cart";
+import { CARRIERS } from "@buscom/domain/site/cart-core";
 import { terminalsAction } from "@/app/korzina/actions";
 import { TerminalMap } from "./terminal-map";
 

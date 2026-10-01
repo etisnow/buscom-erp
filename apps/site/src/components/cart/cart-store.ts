@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { addToCart, cartSchema, type CartLine } from "@buscom/domain/site/cart";
+import { addToCart, parseCart, type CartLine } from "@buscom/domain/site/cart-core";
 
 /**
  * Корзина в браузере (localStorage): только что выбрано — товар, опции, количество.
@@ -22,8 +22,13 @@ function read(): CartLine[] {
     return EMPTY;
   }
   if (raw === cached.raw) return cached.cart;
-  const parsed = cartSchema.safeParse(raw ? JSON.parse(raw) : []);
-  cached = { raw, cart: parsed.success ? parsed.data : EMPTY };
+  let parsed: CartLine[] | null = null;
+  try {
+    parsed = parseCart(raw ? JSON.parse(raw) : []);
+  } catch {
+    // Битый JSON в хранилище — пустая корзина
+  }
+  cached = { raw, cart: parsed ?? EMPTY };
   return cached.cart;
 }
 

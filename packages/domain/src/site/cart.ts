@@ -3,6 +3,7 @@ import { terminalAddressLine, terminalCarrierOf, type TerminalSnapshot } from ".
 import { normalizePhone } from "../customer/phone";
 import type { SiteOrderPayload } from "../integration/contract";
 import { formatRub, type Kopecks } from "../money";
+import { CARRIERS, MAX_CART_LINES, MAX_QUANTITY, type CartLine } from "./cart-core";
 import {
   buildOptionSnapshot,
   describeOptions,
@@ -20,8 +21,7 @@ import {
  * (`../integration/contract.ts`) и там заводится, как заказ любого сайта.
  */
 
-export const MAX_CART_LINES = 50;
-export const MAX_QUANTITY = 999;
+export { addToCart, CARRIERS, cartLineKey, MAX_CART_LINES, MAX_QUANTITY, parseCart, type CartLine } from "./cart-core";
 
 export const cartLineSchema = z.object({
   productId: z.string().min(1).max(64),
@@ -29,23 +29,7 @@ export const cartLineSchema = z.object({
   quantity: z.number().int().min(1).max(MAX_QUANTITY),
 });
 
-export type CartLine = z.infer<typeof cartLineSchema>;
-
 export const cartSchema = z.array(cartLineSchema).max(MAX_CART_LINES);
-
-/** Одна позиция — один товар с одним набором опций: одинаковые складываются. */
-export function cartLineKey(line: Pick<CartLine, "productId" | "valueIds">): string {
-  return `${line.productId}:${[...line.valueIds].sort().join(",")}`;
-}
-
-export function addToCart(cart: readonly CartLine[], line: CartLine): CartLine[] {
-  const key = cartLineKey(line);
-  const existing = cart.find((item) => cartLineKey(item) === key);
-  if (!existing) return [...cart, line].slice(-MAX_CART_LINES);
-  return cart.map((item) =>
-    item === existing ? { ...item, quantity: Math.min(MAX_QUANTITY, item.quantity + line.quantity) } : item,
-  );
-}
 
 /** Товар из базы — ровно то, что нужно для расчёта позиции. */
 export type CatalogProduct = {
@@ -119,9 +103,6 @@ export function priceCart(cart: readonly CartLine[], products: ReadonlyMap<strin
   }
   return { lines, totalKopecks: lines.reduce((sum, line) => sum + line.totalKopecks, 0), dropped };
 }
-
-/** Перевозчики — как в справочнике ТК ERP (решение владельца 24.09.2026). */
-export const CARRIERS = ["СДЭК", "Деловые линии", "ПЭК", "КИТ (GTD)"] as const;
 
 const trimmed = (max: number) => z.string().trim().max(max);
 const optional = (max: number) =>

@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { formatRub } from "@buscom/domain/money";
-import { formatDeliveryDate, formatStepDate, type ClientOrderStatus } from "@buscom/domain/site/order-status";
+import type { ClientOrderStatus } from "@buscom/domain/site/order-status";
+import { formatDeliveryDate, formatStepDate } from "@buscom/domain/site/order-status-format";
 import { checkOrderStatusAction } from "@/app/_actions/order-status";
 import { reachGoal } from "@/components/analytics/metrika";
 

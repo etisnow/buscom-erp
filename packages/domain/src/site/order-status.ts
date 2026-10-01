@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { moscowParts } from "../datetime";
 import { normalizePhone } from "../customer/phone";
 
 /**
@@ -48,30 +47,4 @@ export const clientOrderStatusSchema = z.object({
 
 export type ClientOrderStatus = z.infer<typeof clientOrderStatusSchema>;
 
-const SHORT_MONTHS = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"] as const;
-const GENITIVE_MONTHS = [
-  "января",
-  "февраля",
-  "марта",
-  "апреля",
-  "мая",
-  "июня",
-  "июля",
-  "августа",
-  "сентября",
-  "октября",
-  "ноября",
-  "декабря",
-] as const;
-
-/** `2026-09-28T…` → «28 сен» — подпись шага под шкалой; день по Москве. */
-export function formatStepDate(iso: string): string {
-  const { day, month } = moscowParts(new Date(iso));
-  return `${day} ${SHORT_MONTHS[month]}`;
-}
-
-/** `2026-10-03T…` → «3 октября» — ожидаемая доставка; день по Москве. */
-export function formatDeliveryDate(iso: string): string {
-  const { day, month } = moscowParts(new Date(iso));
-  return `${day} ${GENITIVE_MONTHS[month]}`;
-}
+export { formatDeliveryDate, formatStepDate } from "./order-status-format";

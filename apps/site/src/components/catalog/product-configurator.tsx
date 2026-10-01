@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { formatRub } from "@buscom/domain/money";
-import { MAX_QUANTITY } from "@buscom/domain/site/cart";
+import { MAX_QUANTITY } from "@buscom/domain/site/cart-core";
 import { isNoneOptionValue } from "@buscom/domain/site/pricing";
 import { kitCount, kitFeatureOf, kitLines, kitTotal, type KitLayout } from "@buscom/domain/site/kit";
 import { ecommerce, reachGoal } from "@/components/analytics/metrika";
