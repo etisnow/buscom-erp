@@ -117,15 +117,29 @@ export function OrderStatusCheck({
 }
 
 /**
- * Цвет верхней линии шага: пройден — зелёный, текущий — оранжевый, впереди — серый (как в макете);
- * частичная оплата — наполовину зелёная.
+ * Цвет верхней линии шага: пройден (в том числе последний достигнутый) — зелёный, следующий за ним — оранжевый,
+ * дальше — серый; частичная оплата — наполовину зелёная. «Отменён» остаётся оранжевым: следующего шага у него нет.
  */
 const STEP_LINE = {
   done: "bg-brand",
-  current: "bg-accent",
+  current: "bg-brand",
   pending: "bg-line-strong",
   partial: "bg-gradient-to-r from-brand from-50% to-line-strong to-50%",
+  next: "bg-accent",
 } as const;
+
+/** Линия шага: оранжевая у первого невыполненного шага после текущего хода заказа. */
+function stepLineKey(steps: ClientOrderStatus["steps"], index: number): keyof typeof STEP_LINE {
+  const step = steps[index];
+  if (step.state === "current" && step.key === "CANCELLED") return "next";
+  if (step.state !== "pending") return step.state;
+  const currentIndex = steps.findIndex((item) => item.state === "current");
+  if (currentIndex === -1 || index < currentIndex) return "pending";
+  const nextIndex = steps.findIndex(
+    (item, i) => i > currentIndex && (item.state === "pending" || item.state === "partial"),
+  );
+  return nextIndex === index ? "next" : "pending";
+}
 
 function StatusPanel({ status }: { status: ClientOrderStatus }) {
   const { tracking, delivery } = status;
@@ -167,9 +181,12 @@ function StatusPanel({ status }: { status: ClientOrderStatus }) {
       </div>
 
       <ol className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-[repeat(auto-fit,minmax(0,1fr))]">
-        {status.steps.map((step) => (
+        {status.steps.map((step, index) => (
           <li key={step.key} className="flex min-w-0 flex-col gap-1">
-            <span className={`h-[3px] rounded-full ${STEP_LINE[step.state]}`} aria-hidden="true" />
+            <span
+              className={`h-[3px] rounded-full ${STEP_LINE[stepLineKey(status.steps, index)]}`}
+              aria-hidden="true"
+            />
             <span
               className={`mt-1 text-[15px] leading-tight font-semibold ${step.state === "pending" ? "text-subtle" : "text-ink"}`}
             >
