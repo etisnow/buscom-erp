@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { fallbackLocation, redirectKeys, redirectLocation } from "@buscom/domain/site/redirects";
+import { canonicalOrigin, fallbackLocation, redirectKeys, redirectLocation } from "@buscom/domain/site/redirects";
 import { siteEnv } from "@/env";
 import { redirectData } from "@/server/redirects";
 
@@ -16,14 +16,13 @@ export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const noindex = !siteEnv().SITE_INDEXING;
 
-  // http → https кодом 301: перенаправление в панели Джино отвечает 302, а поиску
-  // нужен постоянный переезд. Прокси хостинга сообщает исходную схему в X-Forwarded-Proto
-  if (request.headers.get("x-forwarded-proto") === "http") {
-    const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-    if (host && !/^(localhost|127\.0\.0\.1)(:|$)/.test(host)) {
-      return NextResponse.redirect(`https://${host}${pathname}${search}`, 301);
-    }
-  }
+  // http → https и www → без www кодом 301 (canonicalOrigin). Прокси хостинга сообщает
+  // исходную схему в X-Forwarded-Proto; переключатель «только HTTPS» в панели Джино отвечает 302
+  const origin = canonicalOrigin(
+    request.headers.get("x-forwarded-proto"),
+    request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
+  );
+  if (origin) return NextResponse.redirect(`${origin}${pathname}${search}`, 301);
 
   const keys = redirectKeys(pathname, search);
   if (pathname !== "/") {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fallbackLocation, redirectKeys, redirectLocation } from "./redirects";
+import { canonicalOrigin, fallbackLocation, redirectKeys, redirectLocation } from "./redirects";
 import { startingPrice } from "./pricing";
 
 describe("ключи переадресации", () => {
@@ -88,6 +88,21 @@ describe("запасная переадресация (адреса из инд�
 
   it("index.php с product_id решает таблица, не запасное правило", () => {
     expect(resolve("/index.php", "?route=product/product&product_id=429")).toBeNull();
+  });
+});
+
+describe("канонический адрес: https и без www", () => {
+  it("http и www ведутся одним переходом на https без www", () => {
+    expect(canonicalOrigin("http", "bus-com.ru")).toBe("https://bus-com.ru");
+    expect(canonicalOrigin("https", "www.bus-com.ru")).toBe("https://bus-com.ru");
+    expect(canonicalOrigin("http", "www.new.bus-com.ru")).toBe("https://new.bus-com.ru");
+  });
+
+  it("канонический запрос и локальный dev не трогает", () => {
+    expect(canonicalOrigin("https", "bus-com.ru")).toBeNull();
+    expect(canonicalOrigin(null, "bus-com.ru")).toBeNull();
+    expect(canonicalOrigin("http", "localhost:3001")).toBeNull();
+    expect(canonicalOrigin("http", null)).toBeNull();
   });
 });
 
