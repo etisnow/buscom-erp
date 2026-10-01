@@ -59,6 +59,35 @@ export function modelFamily(name: string): string {
   return FAMILY_ALIASES[family] ?? family;
 }
 
+/**
+ * Как семейство ищут по-русски: «сиденья форд транзит», «газель некст», «спринтер»
+ * (docs/SEO-SEMANTICS.md). У «ГАЗель Бизнес», «Соболь» и прочих русских названий пары нет.
+ * У Дукато — только «Фиат Дукато»: на Боксер и Джампер спрос в разы меньше.
+ */
+const FAMILY_RU_NAMES: Record<string, string> = {
+  "Ford Transit": "Форд Транзит",
+  "Mercedes Sprinter": "Мерседес Спринтер",
+  "Fiat Ducato / Peugeot Boxer / Citroen Jumper": "Фиат Дукато",
+  "Iveco Daily": "Ивеко Дейли",
+  "Volkswagen Crafter": "Фольксваген Крафтер",
+  "Volkswagen Transporter": "Фольксваген Транспортер",
+  "Volkswagen LT": "Фольксваген ЛТ",
+  "Citroen Jumpy / Peugeot Expert": "Ситроен Джампи",
+  "Renault Master": "Рено Мастер",
+  "ГАЗель Next": "Газель Некст",
+  "ГАЗель Next CitiLine": "Газель Некст Ситилайн",
+  "ГАЗон Next": "Газон Некст",
+};
+
+/**
+ * Название семейства для заголовков и описаний: «Ford Transit (Форд Транзит)» — страница
+ * отвечает и на латинское, и на русское написание. Ссылки и хлебные крошки — без перевода.
+ */
+export function familyDisplayName(family: string): string {
+  const ru = FAMILY_RU_NAMES[family];
+  return ru ? `${family} (${ru})` : family;
+}
+
 /** Адрес страницы семейства, к которому относится модель (поколение — на страницу семейства). */
 export function modelPath(name: string): string {
   return `${MODELS_PATH}/${modelSlug(modelFamily(name))}`;

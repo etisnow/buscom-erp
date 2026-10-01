@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { landingPhrase } from "@buscom/domain/site/model-landing";
-import { MODELS_PATH, modelDescription, modelTitle } from "@buscom/domain/site/models";
+import { MODELS_PATH, familyDisplayName, modelDescription, modelTitle } from "@buscom/domain/site/models";
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
 import { ProductCard } from "@/components/catalog/product-card";
 import { COMPANY, SITE_ORIGIN } from "@/config/company";
@@ -18,8 +18,8 @@ export async function generateMetadata({ params }: PageProps<"/modeli/[slug]">):
   const model = await getModelPage(slug);
   if (!model) return {};
   return pageMetadata({
-    title: modelTitle(model.name),
-    description: modelDescription(model.name, model.productCount),
+    title: modelTitle(familyDisplayName(model.name)),
+    description: modelDescription(familyDisplayName(model.name), model.productCount),
     path: `${MODELS_PATH}/${model.slug}`,
   });
 }
@@ -46,7 +46,7 @@ export default async function ModelPage({ params }: PageProps<"/modeli/[slug]">)
     <section>
       <Breadcrumbs items={[{ name: "Подбор по модели", slug: MODELS_PATH.slice(1) }]} current={model.name} />
       <h1 className="page-title">
-        Комплектующие для {model.name}{" "}
+        Комплектующие для {familyDisplayName(model.name)}{" "}
         <span className="text-muted align-middle text-sm font-normal tracking-normal md:text-[15px]">
           {model.productCount}
         </span>

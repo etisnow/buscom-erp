@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { redirectKeys, redirectLocation } from "@buscom/domain/site/redirects";
+import { fallbackLocation, redirectKeys, redirectLocation } from "@buscom/domain/site/redirects";
 import { siteEnv } from "@/env";
-import { redirectTable } from "@/server/redirects";
+import { redirectData } from "@/server/redirects";
 
 /**
  * Каждый запрос сначала сверяется с таблицей старых адресов (`UrlRedirect`):
@@ -26,8 +26,8 @@ export async function proxy(request: NextRequest) {
   }
 
   const keys = redirectKeys(pathname, search);
-  if (keys.length > 0 && pathname !== "/") {
-    const table = await redirectTable();
+  if (pathname !== "/") {
+    const { table, slugs } = await redirectData();
     const target = keys.map((key) => table.get(key)).find(Boolean);
     if (target?.statusCode === 410) {
       return new NextResponse("Страница удалена", {
@@ -41,6 +41,18 @@ export async function proxy(request: NextRequest) {
       url.search = "";
       return NextResponse.redirect(url, 301);
     }
+    // Адреса из индекса, которых не было в карте старого сайта: «раздел/товар»,
+    // поиск и служебные `index.php` (docs/SEO-SEMANTICS.md, «Что нашёл замер»)
+    const fallback = fallbackLocation(
+      pathname,
+      search,
+      (slug) => slugs.has(slug),
+      (key) => {
+        const found = table.get(key);
+        return found && found.statusCode === 301 ? redirectLocation(found) : null;
+      },
+    );
+    if (fallback) return NextResponse.redirect(new URL(fallback, request.nextUrl), 301);
   }
 
   const response = NextResponse.next();

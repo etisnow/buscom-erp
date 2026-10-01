@@ -8,7 +8,9 @@
  *   pnpm check:site-urls http://localhost:3001 --staging --report=misc/local.md
  *
  * Каждый адрес: цепочка переадресаций проходится вручную (до 6 шагов), код каждого
- * шага записывается. Правила — `packages/domain/src/site/url-check.ts`. Итог —
+ * шага записывается. Правила — `packages/domain/src/site/url-check.ts`. Кроме снимка
+ * проверяются адреса из индекса Яндекса (`--indexed=`, выгрузка «Страницы в поиске»
+ * Вебмастера от 01.10.2026): в карте старого сайта их не было — только код ответа. Итог —
  * сводка в консоль и отчёт Markdown в `misc/url-check.md` (провалы и предупреждения поимённо).
  * Код выхода 1 — есть провалы. В базу не ходит.
  */
@@ -24,6 +26,11 @@ const staging = args.includes("--staging");
 const snapshotPath =
   args.find((arg) => arg.startsWith("--snapshot="))?.slice("--snapshot=".length) ??
   "../../docs/site-snapshot/pages.json";
+const indexedPath =
+  args.find((arg) => arg.startsWith("--indexed="))?.slice("--indexed=".length) ??
+  "../../docs/site-snapshot/positions-2026-10-01/wm-pages-in-search.csv";
+/** Мусор из индекса, который не был страницей магазина: `wp-login.php`, `31039797170.htm` */
+const INDEXED_JUNK = /(?<!index)\.php$|\.htm$/i;
 const reportPath = args.find((arg) => arg.startsWith("--report="))?.slice("--report=".length) ?? "misc/url-check.md";
 
 const CONCURRENCY = 4;
@@ -62,7 +69,20 @@ async function probe(path: string): Promise<UrlProbe> {
 }
 
 async function main() {
-  const rows = JSON.parse(readFileSync(snapshotPath, "utf8")) as OldSnapshotRow[];
+  const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8")) as OldSnapshotRow[];
+  const known = new Set(snapshot.map((row) => row.path));
+  const indexed: OldSnapshotRow[] = [];
+  for (const line of readFileSync(indexedPath, "utf8").split(/\r?\n/).slice(1)) {
+    const match = /^"([^"]+)"/.exec(line);
+    if (!match) continue;
+    const url = new URL(match[1]);
+    const path = url.pathname + url.search;
+    if (known.has(path) || INDEXED_JUNK.test(url.pathname)) continue;
+    known.add(path);
+    indexed.push({ path, url: match[1], source: "extra", priority: null, status: 200, location: null, page: null });
+  }
+  const rows = [...snapshot, ...indexed];
+  console.log(`Снимок: ${snapshot.length}, из индекса сверх снимка: ${indexed.length}`);
   console.log(`Проверяем ${rows.length} адресов на ${base}${staging ? " (временный адрес: noindex допустим)" : ""}`);
 
   const verdicts: Verdict[] = new Array(rows.length);

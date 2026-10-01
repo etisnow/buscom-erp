@@ -44,3 +44,56 @@ export function redirectLocation(target: Exclude<RedirectTarget, { statusCode: 4
   if (target.categorySlug) return `/${target.categorySlug}`;
   return target.toPath ?? "/";
 }
+
+/** Первые сегменты собственных вложенных маршрутов нового сайта: их пути — не старые адреса */
+const OWN_NESTED_ROOTS = new Set(["modeli", "img", "_next", "api"]);
+
+/**
+ * Куда вести старый адрес, которого нет в таблице переадресаций (снимок 01.10.2026:
+ * 292 адреса из индекса Яндекса не попали в карту сайта, docs/SEO-SEMANTICS.md).
+ * OpenCart открывал товар под любым разделом и отвечал на служебные `index.php`:
+ *
+ * - `index.php?route=product/search&search=…` — на наш поиск;
+ * - прочие `index.php` (корзина, оформление, вход, карта сайта) — на корзину или главную;
+ *   `product_id` сюда не доходит: его ключ ищется в таблице (`redirectKeys`);
+ * - путь из нескольких сегментов — на самый глубокий сегмент, который сайт знает:
+ *   слуг товара или категории (`isSlug`) либо старый адрес из таблицы (`lookup`).
+ *   `/komplektuyshie-dlya-sidenij/podlokotnik-reguliruemiy-2` → `/podlokotnik-reguliruemiy-2`,
+ *   а товар, которого больше нет, — на его раздел из того же пути.
+ *
+ * Однокомпонентный неизвестный путь остаётся 404: угадывать не из чего.
+ */
+export function fallbackLocation(
+  pathname: string,
+  search: string,
+  isSlug: (slug: string) => boolean,
+  lookup: (key: string) => string | null,
+): string | null {
+  let path: string;
+  try {
+    path = decodeURIComponent(pathname);
+  } catch {
+    path = pathname;
+  }
+  const segments = path.toLowerCase().split("/").filter(Boolean);
+
+  if (segments.length === 1 && segments[0] === "index.php") {
+    const params = new URLSearchParams(search);
+    const route = params.get("route") ?? "";
+    if (route === "product/product" && params.has("product_id")) return null;
+    if (route === "product/search") {
+      const query = params.get("search")?.trim();
+      return query ? `/poisk?q=${encodeURIComponent(query)}` : "/poisk";
+    }
+    if (route === "checkout/cart") return "/korzina";
+    return "/";
+  }
+
+  if (segments.length < 2 || OWN_NESTED_ROOTS.has(segments[0])) return null;
+  for (const segment of [...segments].reverse()) {
+    if (isSlug(segment)) return `/${segment}`;
+    const target = lookup(`/${segment}`);
+    if (target) return target;
+  }
+  return null;
+}

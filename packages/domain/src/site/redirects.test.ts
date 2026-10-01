@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { redirectKeys, redirectLocation } from "./redirects";
+import { fallbackLocation, redirectKeys, redirectLocation } from "./redirects";
 import { startingPrice } from "./pricing";
 
 describe("ключи переадресации", () => {
@@ -32,6 +32,59 @@ describe("ключи переадресации", () => {
     expect(redirectLocation({ ...base, categorySlug: "polki" })).toBe("/polki");
     expect(redirectLocation({ ...base, toPath: "/kontakty" })).toBe("/kontakty");
     expect(redirectLocation(base)).toBe("/");
+  });
+});
+
+describe("запасная переадресация (адреса из индекса вне карты сайта)", () => {
+  const slugs = new Set(["podlokotnik-reguliruemiy-2", "komplektuyshie-dlya-sidenij", "sidenja-dlya-microavtobusov"]);
+  const table = new Map([
+    ["/russia", "/"],
+    ["/stekla", "/detali-kuzova-mikroavtobusa"],
+  ]);
+  const resolve = (path: string, search = "") =>
+    fallbackLocation(
+      path,
+      search,
+      (slug) => slugs.has(slug),
+      (key) => table.get(key) ?? null,
+    );
+
+  it("товар под чужим разделом — на товар", () => {
+    expect(resolve("/komplektuyshie-dlya-sidenij/podlokotnik-reguliruemiy-2")).toBe("/podlokotnik-reguliruemiy-2");
+    expect(resolve("/Sidenja-I-Komplektuyshie/Podlokotnik-Reguliruemiy-2/")).toBe("/podlokotnik-reguliruemiy-2");
+  });
+
+  it("товара больше нет — на ближайший известный раздел из пути", () => {
+    expect(resolve("/sidenja-i-komplektuyshie/komplektuyshie-dlya-sidenij/chehol-dlya-sidenja")).toBe(
+      "/komplektuyshie-dlya-sidenij",
+    );
+    expect(resolve("/stekla/zamok-ushel")).toBe("/detali-kuzova-mikroavtobusa");
+    expect(resolve("/russia/otopitel-oc7")).toBe("/");
+  });
+
+  it("неизвестный путь и одиночный сегмент — 404", () => {
+    expect(resolve("/otopitel-oc7")).toBeNull();
+    expect(resolve("/wp-login.php")).toBeNull();
+    expect(resolve("/foo/bar")).toBeNull();
+  });
+
+  it("собственные вложенные маршруты сайта не трогает", () => {
+    expect(resolve("/modeli/ford-transit/sidenja-dlya-microavtobusov")).toBeNull();
+    expect(resolve("/img/salon/podlokotnik-reguliruemiy-2")).toBeNull();
+  });
+
+  it("index.php: поиск — на наш поиск, корзина — на корзину, прочее — на главную", () => {
+    expect(resolve("/index.php", "?route=product/search&search=%D1%81%D1%82%D0%B5%D0%BA%D0%BB%D0%BE")).toBe(
+      "/poisk?q=%D1%81%D1%82%D0%B5%D0%BA%D0%BB%D0%BE",
+    );
+    expect(resolve("/index.php", "?route=product/search")).toBe("/poisk");
+    expect(resolve("/index.php", "?route=checkout/cart")).toBe("/korzina");
+    expect(resolve("/index.php", "?route=account/login")).toBe("/");
+    expect(resolve("/index.php", "")).toBe("/");
+  });
+
+  it("index.php с product_id решает таблица, не запасное правило", () => {
+    expect(resolve("/index.php", "?route=product/product&product_id=429")).toBeNull();
   });
 });
 

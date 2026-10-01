@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { modelDescription, modelFamily, modelPath, modelSlug, modelTitle, siteModels } from "./models";
+import {
+  familyDisplayName,
+  modelDescription,
+  modelFamily,
+  modelPath,
+  modelSlug,
+  modelTitle,
+  siteModels,
+} from "./models";
 
 describe("адреса моделей", () => {
   it("транслитерация названия — формат, утверждённый владельцем", () => {
@@ -112,5 +120,31 @@ describe("метатеги модели", () => {
     expect(modelDescription("ГАЗель Next", 1)).toMatch(/^1 товар для ГАЗель Next:/);
     expect(modelDescription("ГАЗель Next", 23)).toMatch(/^23 товара /);
     expect(modelDescription("ГАЗель Next", 11)).toMatch(/^11 товаров /);
+  });
+});
+
+describe("familyDisplayName", () => {
+  it("дописывает русское название, по которому ищут", () => {
+    expect(familyDisplayName("Ford Transit")).toBe("Ford Transit (Форд Транзит)");
+    expect(familyDisplayName("ГАЗель Next")).toBe("ГАЗель Next (Газель Некст)");
+    expect(familyDisplayName(modelFamily("Fiat Ducato 244"))).toBe(
+      "Fiat Ducato / Peugeot Boxer / Citroen Jumper (Фиат Дукато)",
+    );
+  });
+
+  it("покрывает семейства из совместимости каталога", () => {
+    for (const name of [
+      "Mercedes Sprinter W907",
+      "Volkswagen Crafter 2017",
+      "Iveco Daily 2015+",
+      "Renault Master III",
+    ]) {
+      expect(familyDisplayName(modelFamily(name))).toMatch(/\(.+\)$/);
+    }
+  });
+
+  it("русские названия оставляет как есть", () => {
+    expect(familyDisplayName("ГАЗ Соболь")).toBe("ГАЗ Соболь");
+    expect(familyDisplayName("ГАЗель Бизнес")).toBe("ГАЗель Бизнес");
   });
 });

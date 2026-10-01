@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { landingDescription, landingPhrase, landingTitle } from "@buscom/domain/site/model-landing";
-import { MODELS_PATH } from "@buscom/domain/site/models";
+import { MODELS_PATH, familyDisplayName } from "@buscom/domain/site/models";
 import { pluralize } from "@buscom/domain/money-words";
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
 import { ProductCard } from "@/components/catalog/product-card";
@@ -19,10 +19,11 @@ export async function generateMetadata({ params }: PageProps<"/modeli/[slug]/[ca
   const { slug, category } = await params;
   const landing = await getLandingPage(slug, category);
   if (!landing) return {};
-  const phrase = landingPhrase(landing.categoryName, landing.family);
+  // Заголовки — с русским названием семейства: «Сиденья для Ford Transit (Форд Транзит)»
+  const heading = landingPhrase(landing.categoryName, familyDisplayName(landing.family));
   return pageMetadata({
-    title: landingTitle(phrase),
-    description: landingDescription(phrase, landing.productCount),
+    title: landingTitle(heading),
+    description: landingDescription(heading, landing.productCount),
     path: landing.path,
   });
 }
@@ -31,11 +32,11 @@ export default async function ModelLandingPage({ params }: PageProps<"/modeli/[s
   const { slug, category } = await params;
   const landing = await getLandingPage(slug, category);
   if (!landing) notFound();
-  const phrase = landingPhrase(landing.categoryName, landing.family);
+  const heading = landingPhrase(landing.categoryName, familyDisplayName(landing.family));
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: phrase,
+    name: heading,
     url: `${SITE_ORIGIN}${landing.path}`,
     numberOfItems: landing.products.length,
     itemListElement: landing.products.map((product, index) => ({
@@ -55,7 +56,7 @@ export default async function ModelLandingPage({ params }: PageProps<"/modeli/[s
         current={landing.categoryName}
       />
       <h1 className="page-title">
-        {phrase}{" "}
+        {heading}{" "}
         <span className="text-muted align-middle text-sm font-normal tracking-normal md:text-[15px]">
           {landing.products.length} {pluralize(landing.products.length, ["товар", "товара", "товаров"])}
         </span>
