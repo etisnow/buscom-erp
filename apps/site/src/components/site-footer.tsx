@@ -23,9 +23,6 @@ export async function SiteFooter() {
           <a href={`mailto:${COMPANY.email}`} className="py-1.5 hover:text-white md:py-0">
             {COMPANY.email}
           </a>
-          <p>
-            {COMPANY.warehouse.city}, {COMPANY.warehouse.street}
-          </p>
           <p>{COMPANY.hours}</p>
         </address>
         <nav aria-label="Каталог" className="flex flex-col gap-0.5 md:gap-2.5">

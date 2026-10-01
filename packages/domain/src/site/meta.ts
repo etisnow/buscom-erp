@@ -8,7 +8,7 @@ import { stripInline } from "./rich-text";
  */
 
 export function defaultTitle(name: string): string {
-  return `${name} — купить в Нижнем Новгороде | ${COMPANY.brand}`;
+  return `${name} — купить | ${COMPANY.brand}`;
 }
 
 /** «Диваны для микроавтобусов» уже про микроавтобусы — второй раз не приписываем. */

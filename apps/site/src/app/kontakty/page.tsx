@@ -15,20 +15,17 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Экран 07 макета. Контакты — из COMPANY (packages/domain/src/company.ts), их же
- * берут письма ERP; из ERP правятся заголовок, метатеги и текст под контактами. Карта — виджет Яндекса со старого сайта, грузится лениво:
- * он тяжёлый и не должен мешать первому экрану.
+ * берут письма ERP; из ERP правятся заголовок, метатеги и текст под контактами. Адреса и карты нет:
+ * продаём по всей России, к городу не привязываемся (решение владельца 01.10.2026).
  */
 export default async function ContactsPage() {
   const page = await getSitePage("kontakty");
-  const rows = [
-    ["Адрес", `${COMPANY.warehouse.city}, ${COMPANY.warehouse.street}`],
-    ["Режим работы", COMPANY.hours],
-  ] as const;
+  const rows = [["Режим работы", COMPANY.hours]] as const;
   return (
     <section>
       <Breadcrumbs items={[]} current={page.title} />
       <h1 className="page-title mb-4 md:mb-6">{page.title}</h1>
-      <div className="grid grid-cols-1 gap-3 md:gap-6 lg:grid-cols-[460px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-3 md:gap-6 lg:max-w-[460px]">
         <div className="flex flex-col gap-3">
           <div className="card flex flex-col gap-4 p-5 md:p-7">
             <div className="flex flex-col gap-2">
@@ -57,12 +54,6 @@ export default async function ContactsPage() {
             <p className="text-ink font-semibold">Компания «{COMPANY.brand}»</p>
           </div>
         </div>
-        <iframe
-          title="Мы на карте"
-          src="https://yandex.ru/map-widget/v1/?um=constructor%3AoVm42xd82asj5D_3UFrv1p6fQ5IN2-Ew&source=constructor"
-          loading="lazy"
-          className="border-line h-80 w-full rounded-2xl border md:h-[480px] lg:h-full lg:min-h-[640px]"
-        />
       </div>
       {page.body && (
         <div className="card mt-3 p-5 text-[15px] leading-relaxed md:mt-6 md:p-7">

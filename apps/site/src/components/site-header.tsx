@@ -26,9 +26,7 @@ export async function SiteHeader() {
     <header className="relative z-30 bg-white">
       <div className="border-surface-2 text-muted hidden border-b text-[13px] md:block">
         <div className="wrap flex h-9 items-center justify-between gap-4">
-          <span>
-            {COMPANY.warehouse.city} · {COMPANY.delivery}
-          </span>
+          <span>{COMPANY.delivery}</span>
           <nav aria-label="Информация" className="flex gap-7">
             {NAV.map((item) => (
               <Link key={item.href} href={item.href} className="hover:text-brand">

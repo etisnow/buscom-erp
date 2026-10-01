@@ -40,7 +40,7 @@ describe("siteModels", () => {
 
 describe("метатеги модели", () => {
   it("title и description с правильным числом", () => {
-    expect(modelTitle("ГАЗель Next")).toBe("Комплектующие для ГАЗель Next — купить в Нижнем Новгороде | Баском");
+    expect(modelTitle("ГАЗель Next")).toBe("Комплектующие для ГАЗель Next — купить | Баском");
     expect(modelDescription("ГАЗель Next", 1)).toMatch(/^1 товар для ГАЗель Next:/);
     expect(modelDescription("ГАЗель Next", 23)).toMatch(/^23 товара /);
     expect(modelDescription("ГАЗель Next", 11)).toMatch(/^11 товаров /);

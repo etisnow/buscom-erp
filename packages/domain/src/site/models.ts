@@ -44,7 +44,7 @@ export function siteModels(products: readonly { compatibility: readonly string[]
 }
 
 export function modelTitle(name: string): string {
-  return `Комплектующие для ${name} — купить в Нижнем Новгороде | ${COMPANY.brand}`;
+  return `Комплектующие для ${name} — купить | ${COMPANY.brand}`;
 }
 
 export function modelDescription(name: string, productCount: number): string {

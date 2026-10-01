@@ -3,7 +3,7 @@ import { defaultCategoryDescription, defaultTitle, descriptionSnippet } from "./
 
 describe("шаблоны метатегов", () => {
   it("title из названия", () => {
-    expect(defaultTitle("Полки")).toBe("Полки — купить в Нижнем Новгороде | Баском");
+    expect(defaultTitle("Полки")).toBe("Полки — купить | Баском");
   });
 
   it("description категории не повторяет «для микроавтобусов»", () => {

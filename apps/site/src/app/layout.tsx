@@ -43,12 +43,6 @@ const ORGANIZATION = {
   email: COMPANY.email,
   telephone: COMPANY.max.display,
   taxID: COMPANY.inn,
-  address: {
-    "@type": "PostalAddress",
-    addressCountry: "RU",
-    addressLocality: COMPANY.warehouse.city,
-    streetAddress: COMPANY.warehouse.street,
-  },
 };
 
 // Меню каталога читает базу — рендер на запрос, данные из кеша (src/server/catalog.ts)
