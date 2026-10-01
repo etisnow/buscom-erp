@@ -106,12 +106,19 @@ export function fallbackLocation(
  * Канонический адрес сайта — https и без `www.` (как в canonical и карте сайта).
  * Запрос по http или на `www.` ведётся туда одним переходом 301: перенаправление в панели
  * Джино отвечает 302, а `www.bus-com.ru` у старого сайта открывался как отдельный сайт.
+ * `canonicalHost` — основной хост (из `SITE_URL`), когда сайт открыт поисковикам: тогда
+ * и временный адрес (`new.bus-com.ru`) ведёт на основной, чтобы в выдаче не было копии.
  * Возвращает origin, на который вести, или null, если запрос уже канонический.
  * Локальные адреса не трогаем — dev-сервер работает по http.
  */
-export function canonicalOrigin(proto: string | null, host: string | null): string | null {
+export function canonicalOrigin(
+  proto: string | null,
+  host: string | null,
+  canonicalHost: string | null = null,
+): string | null {
   if (!host || /^(localhost|127\.0\.0\.1)(:|$)/.test(host)) return null;
-  const bare = host.replace(/^www\./i, "");
-  if (proto !== "http" && bare === host) return null;
-  return `https://${bare}`;
+  const bare = host.replace(/^www\./i, "").toLowerCase();
+  const target = canonicalHost ? canonicalHost.toLowerCase() : bare;
+  if (proto !== "http" && host.toLowerCase() === target) return null;
+  return `https://${target}`;
 }

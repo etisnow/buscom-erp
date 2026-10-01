@@ -18,9 +18,13 @@ export async function proxy(request: NextRequest) {
 
   // http → https и www → без www кодом 301 (canonicalOrigin). Прокси хостинга сообщает
   // исходную схему в X-Forwarded-Proto; переключатель «только HTTPS» в панели Джино отвечает 302
+  // Пока сайт закрыт от поисковиков, временный адрес работает как есть; после
+  // включения индексации всё, кроме основного хоста из SITE_URL, ведёт на него
+  const env = siteEnv();
   const origin = canonicalOrigin(
     request.headers.get("x-forwarded-proto"),
     request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
+    env.SITE_INDEXING ? new URL(env.SITE_URL).host : null,
   );
   if (origin) return NextResponse.redirect(`${origin}${pathname}${search}`, 301);
 

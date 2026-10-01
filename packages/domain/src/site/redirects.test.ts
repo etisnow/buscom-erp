@@ -98,6 +98,14 @@ describe("канонический адрес: https и без www", () => {
     expect(canonicalOrigin("http", "www.new.bus-com.ru")).toBe("https://new.bus-com.ru");
   });
 
+  it("при открытой индексации временный адрес ведёт на основной хост", () => {
+    expect(canonicalOrigin("https", "new.bus-com.ru", "bus-com.ru")).toBe("https://bus-com.ru");
+    expect(canonicalOrigin("http", "www.new.bus-com.ru", "bus-com.ru")).toBe("https://bus-com.ru");
+    expect(canonicalOrigin("https", "www.bus-com.ru", "bus-com.ru")).toBe("https://bus-com.ru");
+    expect(canonicalOrigin("https", "bus-com.ru", "bus-com.ru")).toBeNull();
+    expect(canonicalOrigin("https", "BUS-COM.RU", "bus-com.ru")).toBeNull();
+  });
+
   it("канонический запрос и локальный dev не трогает", () => {
     expect(canonicalOrigin("https", "bus-com.ru")).toBeNull();
     expect(canonicalOrigin(null, "bus-com.ru")).toBeNull();
