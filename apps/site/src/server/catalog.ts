@@ -1,5 +1,6 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
+import { landingCombos, landingPath } from "@buscom/domain/site/model-landing";
 import { siteModels, type SiteModel } from "@buscom/domain/site/models";
 import { parseSeatType, resolveSeatType, type SeatType } from "@buscom/domain/site/seats";
 import { startingPrice } from "@buscom/domain/site/pricing";
@@ -336,22 +337,112 @@ export const getModels = cached(async (): Promise<SiteModel[]> => {
   return siteModels(products);
 }, "models");
 
+/** Страница «категория + семейство»: что за пара и сколько в ней товаров */
+export type LandingInfo = {
+  family: string;
+  familySlug: string;
+  categoryId: string;
+  categoryName: string;
+  categorySlug: string;
+  productCount: number;
+  path: string;
+};
+
+/** Все посадочные «категория + семейство»: пары, где подходящих товаров не меньше порога (model-landing.ts). */
+export const getLandings = cached(async (): Promise<LandingInfo[]> => {
+  const [products, tree] = await Promise.all([
+    db.product.findMany({
+      where: { isActive: true, slug: { not: null }, categoryId: { not: null }, compatibility: { isEmpty: false } },
+      select: { categoryId: true, compatibility: true },
+    }),
+    getCategoryTree(),
+  ]);
+  // Для каждой категории — она сама и все её предки: страница раздела включает подкатегории
+  const paths = new Map<string, string[]>();
+  const info = new Map<string, { name: string; slug: string }>();
+  const walk = (nodes: MenuCategory[], ancestors: string[]) =>
+    nodes.forEach((node) => {
+      paths.set(node.id, [node.id, ...ancestors]);
+      info.set(node.id, { name: node.name, slug: node.slug });
+      walk(node.children, [node.id, ...ancestors]);
+    });
+  walk(tree, []);
+  return landingCombos(
+    products.map((product) => ({
+      categoryPath: paths.get(product.categoryId as string) ?? [],
+      compatibility: product.compatibility,
+    })),
+  ).flatMap((combo) => {
+    const category = info.get(combo.categoryId);
+    if (!category) return [];
+    return [
+      {
+        family: combo.family,
+        familySlug: combo.familySlug,
+        categoryId: combo.categoryId,
+        categoryName: category.name,
+        categorySlug: category.slug,
+        productCount: combo.productCount,
+        path: landingPath(combo.familySlug, category.slug),
+      },
+    ];
+  });
+}, "landings");
+
+export type LandingPage = LandingInfo & {
+  /** Названия поколений и исполнений из совместимости товаров */
+  members: string[];
+  products: ProductCard[];
+};
+
+/** Страница «категория + семейство»: товары категории и её подкатегорий, подходящие семейству. */
+export const getLandingPage = cached(async (familySlug: string, categorySlug: string): Promise<LandingPage | null> => {
+  const [landings, models, tree] = await Promise.all([getLandings(), getModels(), getCategoryTree()]);
+  const landing = landings.find((item) => item.familySlug === familySlug && item.categorySlug === categorySlug);
+  const model = models.find((item) => item.slug === familySlug);
+  if (!landing || !model) return null;
+  const find = (nodes: MenuCategory[]): MenuCategory | undefined =>
+    nodes.map((node) => (node.id === landing.categoryId ? node : find(node.children))).find(Boolean);
+  const ids: string[] = [];
+  const collect = (node: MenuCategory) => {
+    ids.push(node.id);
+    node.children.forEach(collect);
+  };
+  const root = find(tree);
+  if (!root) return null;
+  collect(root);
+  const products = await db.product.findMany({
+    where: {
+      isActive: true,
+      slug: { not: null },
+      categoryId: { in: ids },
+      compatibility: { hasSome: model.members },
+    },
+    orderBy: { name: "asc" },
+    select: cardSelect,
+  });
+  return { ...landing, members: model.members, products: products.map((item) => toCard(item)) };
+}, "landing-page");
+
 export type ModelPage = SiteModel & {
   /** Товары по разделам каталога — в порядке меню; без раздела — в конце */
   sections: { name: string; slug: string | null; products: ProductCard[] }[];
+  /** Посадочные «категория + семейство» этого семейства — ссылками под заголовком */
+  landings: LandingInfo[];
 };
 
 /** Страница семейства: товары, у которых любое из его поколений в совместимости, по разделам каталога. */
 export const getModelPage = cached(async (slug: string): Promise<ModelPage | null> => {
   const model = (await getModels()).find((item) => item.slug === slug);
   if (!model) return null;
-  const [products, tree] = await Promise.all([
+  const [products, tree, landings] = await Promise.all([
     db.product.findMany({
       where: { isActive: true, slug: { not: null }, compatibility: { hasSome: model.members } },
       orderBy: { name: "asc" },
       select: { ...cardSelect, categoryId: true },
     }),
     getCategoryTree(),
+    getLandings(),
   ]);
   // Раздел верхнего уровня для каждой категории дерева
   const sectionOf = new Map<string, MenuCategory>();
@@ -374,7 +465,11 @@ export const getModelPage = cached(async (slug: string): Promise<ModelPage | nul
     const target = sections.find((item) => item.slug === (section?.slug ?? null)) ?? sections[sections.length - 1];
     target.products.push(toCard(product));
   }
-  return { ...model, sections: sections.filter((section) => section.products.length > 0) };
+  return {
+    ...model,
+    sections: sections.filter((section) => section.products.length > 0),
+    landings: landings.filter((item) => item.familySlug === model.slug),
+  };
 }, "model-page");
 
 /** Все товары в продаже — для поиска по сайту (ищем в памяти: @buscom/domain/site/search). */

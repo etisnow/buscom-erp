@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { landingPhrase } from "@buscom/domain/site/model-landing";
 import { MODELS_PATH, modelDescription, modelTitle } from "@buscom/domain/site/models";
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
 import { ProductCard } from "@/components/catalog/product-card";
@@ -52,6 +53,21 @@ export default async function ModelPage({ params }: PageProps<"/modeli/[slug]">)
       </h1>
       {model.members.length > 1 || model.members[0] !== model.name ? (
         <p className="text-muted mt-2 text-sm md:text-[15px]">Версии и поколения: {model.members.join(", ")}</p>
+      ) : null}
+      {model.landings.length > 0 ? (
+        <ul className="mt-4 flex flex-wrap gap-2">
+          {model.landings.map((landing) => (
+            <li key={landing.path}>
+              <Link
+                href={landing.path}
+                className="border-line-strong hover:border-brand flex h-[38px] items-center gap-2 rounded-full border bg-white px-4 text-sm"
+              >
+                {landingPhrase(landing.categoryName, model.name)}
+                <span className="text-subtle text-sm">{landing.productCount}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       ) : null}
       {model.sections.map((section, sectionIndex) => (
         <section key={section.name} className="mt-8 md:mt-10">

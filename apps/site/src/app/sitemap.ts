@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { SITE_ORIGIN } from "@/config/company";
 import { MODELS_PATH } from "@buscom/domain/site/models";
-import { getModels, getSitemapEntries } from "@/server/catalog";
+import { getLandings, getModels, getSitemapEntries } from "@/server/catalog";
 
 // Из базы на запрос (данные — из кеша каталога): при сборке базы нет
 export const dynamic = "force-dynamic";
@@ -11,10 +11,10 @@ const STATIC_PAGES = ["/kontakty", "/oplata-dostavka", "/status-zakaza", "/priva
 /**
  * `/sitemap.xml` — только канонические адреса (SITE-PRD, «Индексация»): главная,
  * непустые категории, товары в продаже (`lastmod` по `updatedAt`), статические страницы
- * и страницы моделей, у которых есть товары.
+ * страницы моделей, у которых есть товары, и посадочные «категория + семейство».
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [entries, models] = await Promise.all([getSitemapEntries(), getModels()]);
+  const [entries, models, landings] = await Promise.all([getSitemapEntries(), getModels(), getLandings()]);
   return [
     { url: `${SITE_ORIGIN}/`, changeFrequency: "weekly", priority: 1 },
     ...STATIC_PAGES.map((path) => ({ url: `${SITE_ORIGIN}${path}`, changeFrequency: "monthly" as const })),
@@ -22,6 +22,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...(models.length > 0 ? [{ url: `${SITE_ORIGIN}${MODELS_PATH}`, changeFrequency: "weekly" as const }] : []),
     ...models.map((model) => ({
       url: `${SITE_ORIGIN}${MODELS_PATH}/${model.slug}`,
+      changeFrequency: "weekly" as const,
+    })),
+    ...landings.map((landing) => ({
+      url: `${SITE_ORIGIN}${landing.path}`,
       changeFrequency: "weekly" as const,
     })),
   ];
