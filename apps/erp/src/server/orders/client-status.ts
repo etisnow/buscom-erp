@@ -58,6 +58,7 @@ export async function findClientOrderStatus(number: number, phoneRaw: string): P
       totalKopecks: true,
       carrier: true,
       trackingNumber: true,
+      shippedAt: true,
       deliveryAddress: true,
       deliveryDate: true,
       supplierTracks: { select: { supplierId: true, stageId: true } },
@@ -108,6 +109,7 @@ export async function findClientOrderStatus(number: number, phoneRaw: string): P
     totalKopecks: order.totalKopecks,
     payments: order.payments,
     carrier: order.carrier,
+    shipped: order.trackingNumber?.trim() ? { at: order.shippedAt } : null,
     delivered: live?.pickedUp ? { at: live.at ? new Date(live.at) : null } : null,
   });
 

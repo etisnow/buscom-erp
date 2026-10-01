@@ -171,6 +171,8 @@ export function buildClientTimeline(input: {
   totalKopecks: number;
   payments: readonly PaymentRecord[];
   carrier?: string | null;
+  /** У заказа есть трек-номер: «Передан в ТК», если ход заказа ещё не дошёл; `at` — дата отгрузки, если известна */
+  shipped?: { at: Date | null } | null;
   /** Перевозчик подтвердил выдачу груза: заказ «Получен», если ещё нет */
   delivered?: { at: Date | null } | null;
 }): ClientTimeline {
@@ -203,6 +205,13 @@ export function buildClientTimeline(input: {
     mapping,
   );
   let deliveredAt = reachedAt[PROGRESS_STEPS.indexOf("DELIVERED")];
+  let handedAt = reachedAt[PROGRESS_STEPS.indexOf("HANDED_TO_CARRIER")];
+  // Есть трек-номер — заказ уже у перевозчика, что бы ни говорили статус и этапы
+  const handedRank = PROGRESS_STEPS.indexOf("HANDED_TO_CARRIER");
+  if (input.shipped && current !== "CANCELLED" && PROGRESS_STEPS.indexOf(current) < handedRank) {
+    current = "HANDED_TO_CARRIER";
+    handedAt = input.shipped.at ?? handedAt;
+  }
   if (input.delivered && current !== "CANCELLED" && current !== "DELIVERED") {
     current = "DELIVERED";
     deliveredAt = input.delivered.at;
@@ -239,7 +248,7 @@ export function buildClientTimeline(input: {
 
   const progress = (key: ProgressStep): ClientTimelineStep => {
     const index = PROGRESS_STEPS.indexOf(key);
-    const at = key === "DELIVERED" ? deliveredAt : reachedAt[index];
+    const at = key === "DELIVERED" ? deliveredAt : key === "HANDED_TO_CARRIER" ? handedAt : reachedAt[index];
     return {
       key,
       label: label(key),

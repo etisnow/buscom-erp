@@ -114,6 +114,29 @@ describe("buildClientTimeline", () => {
     ]);
   });
 
+  it("трек-номер переводит заказ в «Передан в ТК», даже если ход заказа ещё не дошёл", () => {
+    const timeline = buildClientTimeline({
+      ...base,
+      orderStatus: "IN_PROGRESS",
+      suppliers: [],
+      events: [{ kind: "STATUS", at: t(28, 11), toStatus: "IN_PROGRESS" }],
+      payments: [],
+      shipped: { at: t(30) },
+    });
+    expect(timeline.current).toBe("HANDED_TO_CARRIER");
+    expect(timeline.label).toBe("Передан в СДЭК");
+    expect(timeline.steps.find((step) => step.key === "HANDED_TO_CARRIER")).toMatchObject({
+      state: "current",
+      at: t(30),
+    });
+  });
+
+  it("трек-номер не отменяет «Отменён» и не откатывает «Получен»", () => {
+    const common = { ...base, suppliers: [], events: [], payments: [], shipped: { at: null } };
+    expect(buildClientTimeline({ ...common, orderStatus: "CANCELLED" }).current).toBe("CANCELLED");
+    expect(buildClientTimeline({ ...common, orderStatus: "COMPLETED" }).current).toBe("DELIVERED");
+  });
+
   it("оплата показывает правду, даже если заказ ещё не подтверждён", () => {
     const timeline = buildClientTimeline({
       ...base,
