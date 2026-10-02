@@ -96,13 +96,33 @@ describe("оформление", () => {
     customerType: "PERSON",
     name: "Иван",
     phone: "8 (912) 345-67-89",
+    email: "ivan@example.ru",
     deliveryMethod: "PICKUP",
     consent: true,
   };
 
   it("телефон нормализуется, пустые поля — undefined", () => {
-    const parsed = checkoutSchema.parse({ ...base, email: "", comment: "  " });
-    expect(parsed).toMatchObject({ phone: "+79123456789", email: undefined, comment: undefined });
+    const parsed = checkoutSchema.parse({ ...base, comment: "  " });
+    expect(parsed).toMatchObject({ phone: "+79123456789", email: "ivan@example.ru", comment: undefined });
+  });
+
+  it("почта обязательна — на неё приходит заказ", () => {
+    for (const email of ["", "   ", undefined]) {
+      const result = checkoutSchema.safeParse({ ...base, email });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues).toEqual([
+        expect.objectContaining({ path: ["email"], message: "Укажите e-mail — на него придёт заказ" }),
+      ]);
+    }
+    expect(checkoutSchema.safeParse({ ...base, email: "не почта" }).error?.issues[0]?.message).toBe(
+      "Проверьте адрес почты",
+    );
+  });
+
+  it("пустая почта не прячет другие ошибки формы", () => {
+    const result = checkoutSchema.safeParse({ ...base, email: "", phone: "123", consent: false });
+    const paths = result.error?.issues.map((issue) => issue.path.join(".")).sort();
+    expect(paths).toEqual(["consent", "email", "phone"]);
   });
 
   it("ошибки — по полям, понятным текстом", () => {

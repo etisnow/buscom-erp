@@ -143,6 +143,11 @@ export const checkoutSchema = z
     if (!normalizePhone(value.phone)) {
       ctx.addIssue({ code: "custom", path: ["phone"], message: "Укажите телефон в формате +7 XXX XXX-XX-XX" });
     }
+    // Почта обязательна: на неё уходит письмо о заказе (решение владельца 02.10.2026).
+    // В «Купить в 1 клик» почты нет — там своя схема
+    if (!value.email) {
+      ctx.addIssue({ code: "custom", path: ["email"], message: "Укажите e-mail — на него придёт заказ" });
+    }
     if (!value.consent) {
       ctx.addIssue({ code: "custom", path: ["consent"], message: "Нужно согласие на обработку персональных данных" });
     }

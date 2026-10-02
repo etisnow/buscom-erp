@@ -5,6 +5,8 @@ import { useState, useTransition } from "react";
 import { quickOrderAction } from "@/app/korzina/actions";
 import { ecommerce, reachGoal } from "@/components/analytics/metrika";
 import { COMPANY } from "@/config/company";
+import { PhoneInput } from "@/components/phone-input";
+import { submitWithoutReset } from "@/components/submit-without-reset";
 
 /**
  * «Купить в 1 клик» (экран 03 макета): имя и телефон — заказ сразу уходит в ERP с
@@ -84,7 +86,7 @@ export function QuickOrder({
 
   return (
     <form
-      action={submit}
+      onSubmit={submitWithoutReset(submit)}
       noValidate
       className="border-line col-span-full w-full space-y-3 rounded-[10px] border bg-white p-4"
     >
@@ -98,7 +100,7 @@ export function QuickOrder({
         </label>
         <label className="block">
           <span className="text-sm">Телефон *</span>
-          <input name="phone" type="tel" autoComplete="tel" placeholder="+7" className={input} />
+          <PhoneInput name="phone" className={input} />
           {field("phone")}
         </label>
       </div>

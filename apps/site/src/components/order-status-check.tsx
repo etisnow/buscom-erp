@@ -6,6 +6,8 @@ import type { ClientOrderStatus } from "@buscom/domain/site/order-status";
 import { formatDeliveryDate, formatStepDate } from "@buscom/domain/site/order-status-format";
 import { checkOrderStatusAction } from "@/app/_actions/order-status";
 import { reachGoal } from "@/components/analytics/metrika";
+import { PhoneInput } from "@/components/phone-input";
+import { submitWithoutReset } from "@/components/submit-without-reset";
 
 /**
  * «Проверить статус заказа» на главной (по макету): слева номер заказа и телефон,
@@ -56,7 +58,7 @@ export function OrderStatusCheck({
         <p className="text-ink-2 text-[15px] leading-normal md:text-base">
           Номер заказа есть в письме-подтверждении. Телефон — тот, что указали при оформлении.
         </p>
-        <form action={submit} noValidate className="flex flex-col gap-3.5">
+        <form onSubmit={submitWithoutReset(submit)} noValidate className="flex flex-col gap-3.5">
           <div>
             <label htmlFor="order-status-number" className="text-muted mb-1.5 block text-sm">
               Номер заказа
@@ -75,14 +77,7 @@ export function OrderStatusCheck({
             <label htmlFor="order-status-phone" className="text-muted mb-1.5 block text-sm">
               Телефон
             </label>
-            <input
-              id="order-status-phone"
-              name="phone"
-              type="tel"
-              autoComplete="tel"
-              placeholder="+7 910 123-45-67"
-              className={input}
-            />
+            <PhoneInput id="order-status-phone" name="phone" className={input} />
             {field("phone")}
           </div>
           {message && (

@@ -7,6 +7,8 @@ import type { LeadKind } from "@buscom/domain/site/lead";
 import { sendLeadAction } from "@/app/_actions/lead";
 import { reachGoal } from "@/components/analytics/metrika";
 import { COMPANY } from "@/config/company";
+import { PhoneInput } from "@/components/phone-input";
+import { submitWithoutReset } from "@/components/submit-without-reset";
 
 /**
  * Заявка с сайта: «обратный звонок» (имя и телефон) или «салон целиком» (плюс модель
@@ -57,20 +59,13 @@ export function LeadForm({ kind, submitLabel }: { kind: LeadKind; submitLabel: s
 
   // Поля без подписей, с подсказкой внутри — как в макете; для программ чтения экрана — aria-label
   return (
-    <form action={submit} noValidate className="flex flex-col gap-3">
+    <form onSubmit={submitWithoutReset(submit)} noValidate className="flex flex-col gap-3">
       <div>
         <input name="name" autoComplete="name" placeholder="Имя" aria-label="Имя" className={input} />
         {field("name")}
       </div>
       <div>
-        <input
-          name="phone"
-          type="tel"
-          autoComplete="tel"
-          placeholder="Телефон, +7…"
-          aria-label="Телефон"
-          className={input}
-        />
+        <PhoneInput name="phone" aria-label="Телефон" className={input} />
         {field("phone")}
       </div>
       {kind === "salon" && (

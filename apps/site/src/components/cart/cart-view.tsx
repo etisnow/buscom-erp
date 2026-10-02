@@ -13,6 +13,8 @@ import { NoPhoto } from "@/components/catalog/product-card";
 import { COMPANY, SITE_ORIGIN } from "@/config/company";
 import { cartActions, useCart } from "./cart-store";
 import { DeliveryFields } from "./delivery-fields";
+import { PhoneInput } from "@/components/phone-input";
+import { submitWithoutReset } from "@/components/submit-without-reset";
 
 /**
  * Корзина и оформление (экран 04). Цены показываются из пересчёта на сервере
@@ -287,7 +289,12 @@ function CheckoutForm({
     "border-line-strong focus:border-brand h-12 w-full rounded-[10px] border bg-white px-3.5 text-[15px] outline-none";
 
   return (
-    <form id="checkout" action={submit} className="card flex flex-col gap-8 p-5 md:p-7" noValidate>
+    <form
+      id="checkout"
+      onSubmit={submitWithoutReset(submit)}
+      className="card flex flex-col gap-8 p-5 md:p-7"
+      noValidate
+    >
       <fieldset className="flex flex-col gap-4">
         <Step n={1}>Покупатель</Step>
         <div className="bg-surface flex self-start rounded-xl p-1">
@@ -316,12 +323,12 @@ function CheckoutForm({
           </label>
           <label className="flex flex-col gap-1.5">
             <Label>Телефон *</Label>
-            <input name="phone" type="tel" autoComplete="tel" placeholder="+7" className={input} />
+            <PhoneInput name="phone" className={input} />
             {field("phone")}
           </label>
           <label className="flex flex-col gap-1.5">
-            <Label>E-mail</Label>
-            <input name="email" type="email" autoComplete="email" placeholder="для документов" className={input} />
+            <Label>E-mail *</Label>
+            <input name="email" type="email" autoComplete="email" placeholder="сюда придёт заказ" className={input} />
             {field("email")}
           </label>
         </div>

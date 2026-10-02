@@ -96,7 +96,9 @@ export function DeliveryFields({
             <input
               name="address"
               autoComplete="street-address"
-              placeholder={loading ? "Загружаем терминалы…" : "Например, Казань, ул. Техническая, 20"}
+              // Подсказка постоянная: смена ТК не должна мигать текстом «Загружаем…» на время запроса
+              placeholder="Например, Казань, ул. Техническая, 20"
+              aria-busy={loading}
               className={input}
             />
             {field("address")}
