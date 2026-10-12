@@ -1,9 +1,10 @@
-import Link from "next/link";
+import { OrderViewLink } from "@/components/orders/order-view-link";
 import { ORDER_VIEW_LABELS, VISIBLE_ORDER_VIEWS, type OrderView } from "@/server/orders/list";
 
 /**
  * Вкладки-виды. Обычные ссылки, а не состояние компонента: вид, фильтры и страница
  * живут в URL, поэтому список можно переслать коллеге и вернуть кнопкой «назад».
+ * Выбранная вкладка запоминается вместе с фильтрами (`OrderViewLink`).
  */
 export function OrderViews({
   current,
@@ -23,9 +24,10 @@ export function OrderViews({
         const isActive = view === current;
 
         return (
-          <Link
+          <OrderViewLink
             key={view}
             href={`/orders?${next.toString()}`}
+            query={next.toString()}
             aria-current={isActive ? "page" : undefined}
             className={
               isActive
@@ -35,7 +37,7 @@ export function OrderViews({
           >
             {ORDER_VIEW_LABELS[view]}
             <span className={isActive ? "ml-1.5 opacity-80" : "text-muted-foreground ml-1.5"}>{counts[view]}</span>
-          </Link>
+          </OrderViewLink>
         );
       })}
     </nav>

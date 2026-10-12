@@ -34,6 +34,17 @@ function writeSaved(value: string | null): void {
     : `${base}; path=/; max-age=0; samesite=lax`;
 }
 
+/**
+ * Сохранить набор фильтров, кроме номера страницы: он к фильтрам не относится.
+ * Зовут и фильтры, и вкладки-виды (`order-views.tsx`) — иначе вкладка сбрасывалась бы
+ * на запомненную при последней правке фильтра.
+ */
+export function rememberOrderFilters(params: URLSearchParams): void {
+  const next = new URLSearchParams(params);
+  next.delete("page");
+  writeSaved(next.toString() || null);
+}
+
 export function OrderFilters({
   managers,
   sources,
@@ -44,13 +55,6 @@ export function OrderFilters({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  /** Сохранить набор фильтров, кроме номера страницы: он к фильтрам не относится. */
-  function remember(params: URLSearchParams): void {
-    const next = new URLSearchParams(params);
-    next.delete("page");
-    writeSaved(next.toString() || null);
-  }
 
   /** Любое изменение фильтра переписывает URL — состояние живёт только там. */
   function apply(changes: Record<string, string | string[] | null>) {
@@ -67,7 +71,7 @@ export function OrderFilters({
 
     // Запоминаем здесь, а не в эффекте: нажатие — заведомо клиентский контекст,
     // и набор фильтров уже собран целиком.
-    remember(next);
+    rememberOrderFilters(next);
     router.push(`/orders?${next.toString()}`);
   }
 
@@ -77,11 +81,21 @@ export function OrderFilters({
   const extraCount = ["manager", "source", "payment", "from", "to"].filter((key) => searchParams.has(key)).length;
   const hasFilters = ["q", "status", "manager", "source", "from", "to", "payment"].some((key) => searchParams.has(key));
 
+  /**
+   * Статус выбирается один, как переключатель: другой статус заменяет выбранный,
+   * повторное нажатие снимает выбор — тогда показываются все.
+   */
   function toggleStatus(status: OrderStatus) {
-    const next = selectedStatuses.includes(status)
-      ? selectedStatuses.filter((item) => item !== status)
-      : [...selectedStatuses, status];
-    apply({ status: next });
+    apply({ status: selectedStatuses.length === 1 && selectedStatuses[0] === status ? [] : [status] });
+  }
+
+  /** Сброс чистит фильтры и память, но не вкладку-вид: её выбирают отдельно. */
+  function reset() {
+    const next = new URLSearchParams();
+    const view = searchParams.get("view");
+    if (view) next.set("view", view);
+    writeSaved(next.toString() || null);
+    router.push(`/orders?${next.toString()}`);
   }
 
   return (
@@ -114,14 +128,7 @@ export function OrderFilters({
           {expanded ? "Скрыть фильтры" : extraCount ? `Фильтры (${extraCount})` : "Фильтры"}
         </Button>
         {hasFilters ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              writeSaved(null);
-              router.push("/orders");
-            }}
-          >
+          <Button variant="ghost" size="sm" onClick={reset}>
             <X />
             Сбросить
           </Button>
@@ -220,16 +227,7 @@ export function OrderFilters({
         </div>
 
         {hasFilters ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="max-md:hidden"
-            onClick={() => {
-              // Сброс чистит и память — иначе фильтры вернулись бы на следующем заходе
-              writeSaved(null);
-              router.push("/orders");
-            }}
-          >
+          <Button variant="ghost" size="sm" className="max-md:hidden" onClick={reset}>
             <X />
             Сбросить
           </Button>
