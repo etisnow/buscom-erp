@@ -52,7 +52,15 @@ const detailsInclude = {
     select: { id: true, kind: true, fileName: true, byteSize: true, uploadedAt: true },
   },
   supplierDocuments: {
-    select: { id: true, supplierId: true, kind: true, fileName: true, byteSize: true, uploadedAt: true },
+    select: {
+      id: true,
+      supplierId: true,
+      kind: true,
+      fileName: true,
+      byteSize: true,
+      uploadedAt: true,
+      supplier: { select: { name: true } },
+    },
   },
   payments: { orderBy: { paidAt: "asc" }, include: { createdBy: { select: { name: true } } } },
   events: {

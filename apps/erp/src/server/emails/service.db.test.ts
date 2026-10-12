@@ -18,6 +18,7 @@ import {
   type IncomingEmail,
 } from "@/server/emails/service";
 import { createOrder } from "@/server/orders/create";
+import { createSupplier } from "@/server/suppliers/service";
 import { ingestSiteOrder } from "@/server/integrations/site-orders";
 import { describeDb, resetDb } from "@/test/db";
 import { makeUser } from "@/test/fixtures";
@@ -122,6 +123,52 @@ describeDb("переписка с клиентом (живая БД)", () => {
       }),
     ).rejects.toThrow("реквизиты продавца");
     expect(sent).toHaveLength(0);
+  });
+
+  it("счёт поставщика уходит вложением и ложится в переписку; счёт чужого заказа — нет", async () => {
+    const { id: supplierId } = await createSupplier({ type: "COMPANY", name: "ФП" }, manager);
+    const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34]);
+    const own = await db.orderSupplierDocument.create({
+      data: {
+        orderId: order.id,
+        supplierId,
+        kind: "SUPPLIER_INVOICE",
+        fileName: "Счет_497.pdf",
+        contentType: "application/pdf",
+        data: pdf,
+        byteSize: pdf.byteLength,
+      },
+      select: { id: true },
+    });
+    const other = await createOrder({
+      source: "PHONE",
+      customer: { name: "Другой" },
+      items: [{ sku: "B-1", name: "Ковёр", priceKopecks: 50_000, quantity: 1 }],
+      user: manager,
+    });
+    const foreign = await db.orderSupplierDocument.create({
+      data: {
+        orderId: other.id,
+        supplierId,
+        kind: "SUPPLIER_INVOICE",
+        fileName: "чужой.pdf",
+        contentType: "application/pdf",
+        data: pdf,
+        byteSize: pdf.byteLength,
+      },
+      select: { id: true },
+    });
+    const letter = { orderId: order.id, to: ["client@mail.ru"], subject: "Счёт", body: "Т", attachInvoice: false };
+
+    await expect(sendOrderEmail({ ...letter, supplierInvoiceIds: [foreign.id], user: manager })).rejects.toThrow(
+      "Счёт поставщика не найден",
+    );
+    expect(sent).toHaveLength(0);
+
+    const result = await sendOrderEmail({ ...letter, supplierInvoiceIds: [own.id], user: manager });
+    expect(sent[0].attachments?.map((file) => file.fileName)).toEqual(["Счет_497.pdf"]);
+    const stored = await db.emailAttachment.findMany({ where: { emailId: result.id }, select: { fileName: true } });
+    expect(stored).toEqual([{ fileName: "Счет_497.pdf" }]);
   });
 
   it("ответ клиента находит клиента по цепочке, наше следующее письмо продолжает её; журнал заказа не трогается", async () => {

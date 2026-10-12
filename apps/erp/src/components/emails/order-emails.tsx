@@ -39,6 +39,7 @@ export function OrderEmails({
   templates,
   suggestions,
   invoiceAvailable,
+  supplierInvoices,
   mailReady,
 }: {
   orderId: string;
@@ -54,6 +55,8 @@ export function OrderEmails({
   templates: Record<EmailTemplateKey, Draft>;
   suggestions: EmailTemplateKey[];
   invoiceAvailable: boolean;
+  /** Счета, прикреплённые в блоке «Поставщики», — их можно приложить к письму клиенту */
+  supplierInvoices: { id: string; supplierName: string; fileName: string }[];
   mailReady: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -62,6 +65,7 @@ export function OrderEmails({
   const [subject, setSubject] = useState(replySubject);
   const [body, setBody] = useState("");
   const [attachInvoice, setAttachInvoice] = useState(false);
+  const [supplierInvoiceIds, setSupplierInvoiceIds] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
   // Повтор письма о заказе — то же, что уходит покупателю после заказа с сайта
   const [resendOpen, setResendOpen] = useState(false);
@@ -86,6 +90,7 @@ export function OrderEmails({
       setBody("");
       setAttachInvoice(false);
     }
+    setSupplierInvoiceIds([]);
   }
 
   function startLetter(key: EmailTemplateKey | null) {
@@ -96,7 +101,17 @@ export function OrderEmails({
 
   function send() {
     startTransition(async () => {
-      const result = await sendOrderEmailAction({ orderId, orderNumber, to, subject, body, template, attachInvoice });
+      const result = await sendOrderEmailAction({
+        orderId,
+        orderNumber,
+        to,
+        subject,
+        body,
+        template,
+        attachInvoice,
+        // Файл могли убрать в блоке «Поставщики», пока форма открыта
+        supplierInvoiceIds: supplierInvoiceIds.filter((id) => supplierInvoices.some((doc) => doc.id === id)),
+      });
       if (result.ok) {
         toast.success("Письмо отправлено");
         setOpen(false);
@@ -279,6 +294,33 @@ export function OrderEmails({
               <span className="text-muted-foreground text-xs">— нет реквизитов продавца</span>
             ) : null}
           </label>
+          {supplierInvoices.length > 0 ? (
+            supplierInvoices.map((doc) => (
+              <label key={doc.id} className="flex w-fit items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={supplierInvoiceIds.includes(doc.id)}
+                  onChange={(event) =>
+                    setSupplierInvoiceIds((ids) =>
+                      event.target.checked ? [...ids, doc.id] : ids.filter((id) => id !== doc.id),
+                    )
+                  }
+                  className="accent-primary size-4"
+                />
+                Приложить счёт поставщика
+                <span className="text-muted-foreground max-w-80 truncate text-xs" title={doc.fileName}>
+                  {supplierInvoices.length > 1 ? `${doc.supplierName} · ` : ""}
+                  {doc.fileName}
+                </span>
+              </label>
+            ))
+          ) : (
+            <label className="flex w-fit items-center gap-2 text-sm" title="Прикрепите счёт в блоке «Поставщики»">
+              <input type="checkbox" checked={false} disabled className="accent-primary size-4" />
+              Приложить счёт поставщика
+              <span className="text-muted-foreground text-xs">— счёт не прикреплён в блоке «Поставщики»</span>
+            </label>
+          )}
           <div className="flex gap-2">
             <Button size="sm" onClick={send} disabled={pending || !mailReady}>
               <Send />

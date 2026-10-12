@@ -299,6 +299,9 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
                 usedTemplates,
               )}
               invoiceAvailable={requisitesReady(settings.sellerRequisites)}
+              supplierInvoices={order.supplierDocuments
+                .filter((doc) => doc.kind === "SUPPLIER_INVOICE")
+                .map((doc) => ({ id: doc.id, supplierName: doc.supplier.name, fileName: doc.fileName }))}
               mailReady={mailReady}
             />
           </div>

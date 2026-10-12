@@ -54,6 +54,7 @@ const sendSchema = z.object({
   body: z.string().trim().min(1, { error: "Письмо пустое" }).max(50_000),
   template: z.enum(EMAIL_TEMPLATE_KEYS).nullable(),
   attachInvoice: z.boolean(),
+  supplierInvoiceIds: z.array(z.string().min(1)).max(20).default([]),
 });
 
 export async function sendOrderEmailAction(input: z.input<typeof sendSchema>): Promise<MailActionResult> {
@@ -74,6 +75,7 @@ export async function sendOrderEmailAction(input: z.input<typeof sendSchema>): P
       body: data.body,
       template: data.template,
       attachInvoice: data.attachInvoice,
+      supplierInvoiceIds: data.supplierInvoiceIds,
       user,
     });
     // Копия в «Отправленные» ящика — после ответа: письмо уже ушло и в базе,

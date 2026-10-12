@@ -60,6 +60,8 @@ export type SendOrderEmailInput = {
   body: string;
   template?: EmailTemplateKey | null;
   attachInvoice: boolean;
+  /** Счета поставщиков из блока «Поставщики» этого заказа (`OrderSupplierDocument`), которые приложить */
+  supplierInvoiceIds?: string[];
   user: SessionUser;
 };
 
@@ -87,6 +89,22 @@ export async function sendOrderEmail(input: SendOrderEmailInput): Promise<{ id: 
       contentType: "application/pdf",
       content: await renderPdf(buildInvoice(details, settings.sellerRequisites)),
     });
+  }
+
+  const supplierInvoiceIds = [...new Set(input.supplierInvoiceIds ?? [])];
+  if (supplierInvoiceIds.length > 0) {
+    // Только файлы этого заказа: чужой счёт по подставленному id не уйдёт
+    const files = await db.orderSupplierDocument.findMany({
+      where: { id: { in: supplierInvoiceIds }, orderId: order.id, kind: "SUPPLIER_INVOICE" },
+      orderBy: { uploadedAt: "asc" },
+      select: { fileName: true, contentType: true, data: true },
+    });
+    if (files.length !== supplierInvoiceIds.length) {
+      throw new OrderConflictError("Счёт поставщика не найден — его заменили или удалили, обновите страницу");
+    }
+    for (const file of files) {
+      attachments.push({ fileName: file.fileName, contentType: file.contentType, content: Buffer.from(file.data) });
+    }
   }
 
   return deliverOrderLetter(order, { ...input, attachments });
