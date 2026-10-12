@@ -4,7 +4,8 @@
  * распознавание в `src/server/orders/waybill-recognition.ts`.
  *
  * Правила сняты с экспедиторской расписки «Деловых Линий» (№26-01211275323)
- * с накладной СДЭК (№10327118658, штрихкод с префиксом `[CDK]`)
+ * с накладной СДЭК (№10327118658, штрихкод с префиксом `[CDK]`), с её вариантом «склад-склад»
+ * с таблицей услуг и «ИТОГО» (№10332570402, фото телефоном под углом)
  * и с поручения экспедитору КИТ (№НОВЕКБ0123850991).
  * OCR на сканах ошибается в цифрах, поэтому менеджер проверяет подставленное
  * перед сохранением, а номер сверяется со штрихкодом — там он без ошибок.
@@ -48,24 +49,66 @@ const CARRIER_ALIASES: Record<string, string[]> = {
 /** Штрихкод СДЭК читается как «[CDK]10327118658». */
 const CDEK_BARCODE = /^\[CDK\](\d{10,11})$/;
 
-/** Накладная СДЭК: штрихкод с префиксом, логотип (OCR путает буквы, но «cdek.ru» иногда читается) или заголовок. */
+/**
+ * Накладная СДЭК: штрихкод с префиксом, логотип (OCR путает буквы, но «cdek.ru» иногда читается),
+ * заголовок «Накладная к Заказу» или шапка блока «Информация об отправлении» (OCR склеивает «ОБОТПРАВЛЕНИИ»).
+ */
 export function isCdekWaybill(text: string, barcodes: readonly string[]): boolean {
   return (
-    barcodes.some((code) => CDEK_BARCODE.test(code)) || /cdek|сдэк/i.test(text) || /Накладная\s+к\s+Заказу/.test(text)
+    barcodes.some((code) => CDEK_BARCODE.test(code)) ||
+    /cdek|сдэк/i.test(text) ||
+    /Накладная\s+к\s+Заказу/.test(text) ||
+    /ИНФОРМАЦИЯ\s*ОБ\s*ОТПРАВЛЕНИИ/i.test(text)
   );
 }
 
 /**
- * Номер накладной СДЭК: из штрихкода — он без ошибок; иначе отдельная строка из 10–11
- * цифр под штрихкодом, если OCR прочитал ровно одну такую.
+ * Номер накладной СДЭК: из штрихкода — он без ошибок; иначе число из 10–11 цифр под штрихкодом,
+ * если OCR прочитал ровно одно такое. На фото под углом OCR приклеивает к номеру соседние
+ * слова шапки («10332570402 область»), поэтому ищем число, а не целую строку. Телефоны
+ * (11 цифр с 7 или 8) и ИНН не в счёт.
  */
 export function findCdekTrackingNumber(text: string, barcodes: readonly string[]): string | null {
   for (const code of barcodes) {
     const match = CDEK_BARCODE.exec(code);
     if (match) return match[1]!;
   }
-  const lines = text.split("\n").filter((line) => /^\s*\d{10,11}\s*$/.test(line));
-  return lines.length === 1 ? lines[0]!.trim() : null;
+  const numbers = new Set<string>();
+  for (const match of text.matchAll(/(ИНН\D{0,3})?(?<!\d)(\d{10,11})(?!\d)/gi)) {
+    const number = match[2]!;
+    if (match[1] || (number.length === 11 && /^[78]/.test(number))) continue;
+    numbers.add(number);
+  }
+  return numbers.size === 1 ? [...numbers][0]! : null;
+}
+
+/** Объёмный вес СДЭК — Д × Ш × В в сантиметрах, делённое на 5000 (кг). */
+const CDEK_VOLUME_DIVISOR = 5000;
+
+/**
+ * Объём посылки СДЭК из «Вес физический/объемный: 0.500/0.400 кг.»: габаритов на бланке нет,
+ * а объёмный вес — это они, делённые на 5000. Подпись OCR искажает — ищем пару весов через «/»;
+ * единицу он читает и как «кт».
+ */
+export function findCdekVolumeCm3(text: string): number | null {
+  const match = /\d+[.,]\d{1,3}\s*\/\s*(\d+[.,]\d{1,3})\s*к[гт]/i.exec(text);
+  if (!match) return null;
+  const cm3 = Math.round(Number(match[1]!.replace(",", ".")) * CDEK_VOLUME_DIVISOR);
+  return cm3 > 0 && cm3 <= MAX_CARGO_VOLUME_CM3 ? cm3 : null;
+}
+
+/**
+ * «ИТОГО 933.50» под таблицей услуг СДЭК — последнее. Рамку ячейки OCR читает скобкой
+ * или чертой («итого] 933.50»).
+ */
+export function findCdekTotalKopecks(text: string): Kopecks | null {
+  const last = [...text.matchAll(/Итого(?![а-яё])[\s\]|):]*(\d{1,3}(?:[  ]?\d{3})*[.,]\d{2})(?!\d)/gi)].at(-1);
+  if (!last) return null;
+  try {
+    return rublesToKopecks(last[1]!);
+  } catch {
+    return null;
+  }
 }
 
 /** «Стоимость доставки: 420.00 руб.» — у СДЭК цена доставки подписана так, «Итог» на бланке нет. */
@@ -81,14 +124,18 @@ export function findDeliveryCostKopecks(text: string): Kopecks | null {
 
 /**
  * Куда едет посылка СДЭК: город из шапки («Дубна / Московская область / Россия») и пункт
- * выдачи из строки «ПВЗ: …». OCR иногда рвёт слово на конце («Дубн а») — склеиваем.
+ * выдачи из строки «ПВЗ: …». OCR иногда рвёт слово на конце («Дубн а») — склеиваем; цифру 3
+ * в номере дома читает буквой («д. ЗА») — возвращаем; «Особые отметки» искажает («Особыв»).
  */
 export function findCdekDestination(text: string): string | null {
   const city =
     /((?:[А-ЯЁ][а-яё-]+ )*[А-ЯЁ][а-яё-]+(?: [а-яё])?)\s*\n\s*(?:[а-яё]+ )?[А-ЯЁ][а-яё-]+(?: [А-ЯЁа-яё-]+)*\s(?:область|край|округ)\s*\n\s*Россия/.exec(
       text,
     )?.[1];
-  const point = /ПВЗ\s*:\s*(.+?)(?=\s+(?:Особые|Доп\.)|\s*$)/m.exec(text)?.[1]?.trim();
+  const point = /ПВЗ\s*:\s*(.+?)(?=\s+(?:Особ\S*\s+отмет|Доп\.)|\s*$)/im
+    .exec(text)?.[1]
+    ?.trim()
+    .replace(/(д\.\s*)З(?=[А-ЯЁа-яё]?(?:[\s,.]|$))/, "$13");
   const parts = [city?.replace(/ ([а-яё])$/, "$1"), point ? `ПВЗ: ${point}` : null].filter(Boolean);
   return parts.length > 0 ? parts.join(", ") : null;
 }
@@ -271,9 +318,10 @@ export function findDeliveryDate(text: string, documentDate: string | null = fin
  * единицу OCR может исказить, — иначе первое число с «кг».
  */
 export function findWeightGrams(text: string): number | null {
-  // У СДЭК первым идёт «0.600/1.044 кг» (физический/объёмный) — берём «Вес к оплате»
+  // У СДЭК первым идёт «0.600/1.044 кг» (физический/объёмный) — берём «Вес к оплате»; единицу
+  // после него на фото OCR читает как угодно («0.500 «г.»)
   const match =
-    /Вес\s+к\s+оплате\s*:?\s*(\d+(?:[.,]\d{1,3})?)\s*кг(?![а-яё])/i.exec(text) ??
+    /Вес\s+к\s+оплате\s*:?\s*(\d+(?:[.,]\d{1,3})?)(?![\d.,])/i.exec(text) ??
     /(?:масса|вес)(?![а-яё])[^\d\n]{0,15}(\d+(?:[.,]\d{1,3})?)/i.exec(text) ??
     /(\d+(?:[.,]\d{1,3})?)\s*кг(?![а-яё])/i.exec(text);
   if (!match) return null;
@@ -335,12 +383,17 @@ export function parseWaybill(text: string, barcodes: readonly string[], carriers
     shippedAt: findDocumentDate(text),
     deliveryDate: findDeliveryDate(text),
     weightGrams: findWeightGrams(text),
-    // Объёма на бланке нет (СДЭК) — считаем по трём сторонам, если они есть
-    volumeCm3: findVolumeCm3(text) ?? (sides ? sides[0] * sides[1] * sides[2] : null),
+    // Объёма на бланке нет — считаем по трём сторонам, если они есть, а у СДЭК — по объёмному весу
+    volumeCm3:
+      findVolumeCm3(text) ?? (sides ? sides[0] * sides[1] * sides[2] : null) ?? (cdek ? findCdekVolumeCm3(text) : null),
     lengthCm: sides?.[0] ?? (kit ? findSingleSideCm(text) : null),
     widthCm: sides?.[1] ?? null,
     heightCm: sides?.[2] ?? null,
-    priceKopecks: findTotalKopecks(text) ?? findKitTotalKopecks(text) ?? findDeliveryCostKopecks(text),
+    priceKopecks:
+      findTotalKopecks(text) ??
+      findKitTotalKopecks(text) ??
+      findDeliveryCostKopecks(text) ??
+      (cdek ? findCdekTotalKopecks(text) : null),
     destination:
       findDestination(text) ?? (cdek ? findCdekDestination(text) : null) ?? (kit ? findKitDestination(text) : null),
   };

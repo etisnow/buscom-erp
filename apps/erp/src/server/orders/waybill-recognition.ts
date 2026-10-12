@@ -1,6 +1,6 @@
 import "server-only";
 import path from "node:path";
-import { createCanvas, loadImage, type Image } from "@napi-rs/canvas";
+import { createCanvas, loadImage, type Canvas, type Image } from "@napi-rs/canvas";
 import { createWorker } from "tesseract.js";
 import { extractText, getDocumentProxy, renderPageAsImage } from "unpdf";
 import { readBarcodes } from "zxing-wasm/reader";
@@ -31,8 +31,11 @@ export class WaybillRecognitionError extends Error {
 
 /** Текстовый слой короче — значит, это скан в PDF-обёртке, а не электронный документ. */
 const MIN_TEXT_LAYER_CHARS = 200;
-/** Ширина, до которой растягиваем мелкий скан: на меньшей Tesseract путает цифры. */
-const OCR_WIDTH = 2400;
+/**
+ * Ширина, до которой растягиваем мелкий скан: на меньшей Tesseract путает цифры. На фото
+ * накладной СДЭК под углом (1600 px) с 3200 прочитались «Вес к оплате» и ПВЗ, с 2400 — нет.
+ */
+const OCR_WIDTH = 3200;
 /** Штрихкод читается не на любом масштабе — перебираем, пока не найдётся. */
 const BARCODE_WIDTHS = [0, 1200, 2400, 3600];
 /** Первая страница — лицевая, на ней всё нужное; оборот с условиями не читаем. */
@@ -78,8 +81,24 @@ async function findBarcodes(image: Image): Promise<string[]> {
   return [];
 }
 
+/**
+ * Оттенки серого: на цветном фото телефоном (синие печати, жёлтая бумага) Tesseract теряет
+ * строки, которые в сером читает.
+ */
+function toGray(canvas: Canvas) {
+  const context = canvas.getContext("2d");
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  const data = pixels.data;
+  for (let index = 0; index < data.length; index += 4) {
+    const gray = 0.299 * data[index]! + 0.587 * data[index + 1]! + 0.114 * data[index + 2]!;
+    data[index] = data[index + 1] = data[index + 2] = gray;
+  }
+  context.putImageData(pixels, 0, 0);
+  return canvas;
+}
+
 async function ocr(image: Image): Promise<string> {
-  const canvas = drawAt(image, Math.max(image.width, OCR_WIDTH));
+  const canvas = toGray(drawAt(image, Math.max(image.width, OCR_WIDTH)));
   const worker = await createWorker("rus", 1, { langPath: LANG_PATH, cacheMethod: "none" });
   try {
     const { data } = await worker.recognize(await canvas.encode("png"));
