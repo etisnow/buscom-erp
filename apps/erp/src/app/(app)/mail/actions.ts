@@ -10,6 +10,7 @@ import {
   linkEmailToCustomer,
   markEmailsRead,
   olderCustomerEmails,
+  resendOrderConfirmation,
   searchCustomersForEmail,
   sendOrderEmail,
 } from "@/server/emails/service";
@@ -86,6 +87,43 @@ export async function sendOrderEmailAction(input: z.input<typeof sendSchema>): P
     // Ошибку почтового сервера показываем как есть: по ней видно, что чинить
     // (неверный пароль, сервер недоступен, адрес отвергнут).
     console.error("[mail] Письмо клиенту не отправлено", error);
+    const message = error instanceof Error ? error.message : String(error);
+    return { ok: false, error: `Письмо не отправлено: ${message}` };
+  }
+
+  revalidatePath(`/orders/${data.orderNumber}`);
+  revalidatePath("/mail", "layout");
+  return { ok: true };
+}
+
+const resendConfirmationSchema = z.object({
+  orderId: z.string().min(1),
+  orderNumber: z.number().int().positive(),
+  to: z.string().trim().min(1, { error: "Укажите адрес клиента" }),
+});
+
+/** Повтор письма о заказе (то, что уходит покупателю после заказа с сайта) — если первое не дошло. */
+export async function resendOrderConfirmationAction(
+  input: z.input<typeof resendConfirmationSchema>,
+): Promise<MailActionResult> {
+  const user = await requireUser();
+  const parsed = resendConfirmationSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+  const data = parsed.data;
+
+  const to = parseAddressList(data.to);
+  if (to.invalid.length > 0) return { ok: false, error: `Не похоже на адрес: ${to.invalid.join(", ")}` };
+  if (to.valid.length !== 1) return { ok: false, error: "Укажите один адрес клиента" };
+
+  try {
+    const { source } = await resendOrderConfirmation(data.orderId, to.valid[0]!, user);
+    after(() =>
+      appendToSent(source).catch((error) => console.error("[mail] Копия письма в «Отправленные» не сохранена", error)),
+    );
+  } catch (error) {
+    const known = errorText(error);
+    if (known) return { ok: false, error: known };
+    console.error("[mail] Письмо о заказе не отправлено", error);
     const message = error instanceof Error ? error.message : String(error);
     return { ok: false, error: `Письмо не отправлено: ${message}` };
   }

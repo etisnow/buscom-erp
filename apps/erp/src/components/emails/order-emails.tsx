@@ -1,6 +1,6 @@
 "use client";
 
-import { Mail, Send } from "lucide-react";
+import { Mail, MailCheck, Send } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { EMAIL_TEMPLATE_KEYS, EMAIL_TEMPLATE_LABELS, type EmailTemplateKey } from "@buscom/domain/email/templates";
-import { markEmailsReadAction, sendOrderEmailAction } from "@/app/(app)/mail/actions";
+import { markEmailsReadAction, resendOrderConfirmationAction, sendOrderEmailAction } from "@/app/(app)/mail/actions";
 import { CustomerEmailFeed } from "./customer-email-feed";
 import type { EmailView } from "./email-thread";
 
@@ -63,6 +63,9 @@ export function OrderEmails({
   const [body, setBody] = useState("");
   const [attachInvoice, setAttachInvoice] = useState(false);
   const [pending, startTransition] = useTransition();
+  // Повтор письма о заказе — то же, что уходит покупателю после заказа с сайта
+  const [resendOpen, setResendOpen] = useState(false);
+  const [resendTo, setResendTo] = useState(defaultTo ?? "");
   const formRef = useRef<HTMLDivElement>(null);
 
   // Открыли заказ — входящие письма по нему прочитаны. Один раз на набор непрочитанных.
@@ -102,6 +105,16 @@ export function OrderEmails({
     });
   }
 
+  function resendConfirmation() {
+    startTransition(async () => {
+      const result = await resendOrderConfirmationAction({ orderId, orderNumber, to: resendTo });
+      if (result.ok) {
+        toast.success("Письмо о заказе отправлено");
+        setResendOpen(false);
+      } else toast.error(result.error);
+    });
+  }
+
   return (
     <section className="flex flex-col gap-3 rounded-lg border p-4">
       <div className="flex items-center justify-between gap-2">
@@ -116,13 +129,54 @@ export function OrderEmails({
             </span>
           ) : null}
         </h2>
-        {!open ? (
-          <Button size="sm" variant="outline" onClick={() => startLetter(null)}>
-            <Mail />
-            Написать клиенту
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap justify-end gap-2">
+          {!resendOpen ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setResendOpen(true)}
+              title="Повторить письмо, которое покупатель получает после заказа на сайте"
+            >
+              <MailCheck />
+              Письмо о заказе
+            </Button>
+          ) : null}
+          {!open ? (
+            <Button size="sm" variant="outline" onClick={() => startLetter(null)}>
+              <Mail />
+              Написать клиенту
+            </Button>
+          ) : null}
+        </div>
       </div>
+
+      {resendOpen ? (
+        <div className="bg-muted/40 flex flex-col gap-2 rounded-md border px-3 py-2">
+          <p className="text-sm">
+            Отправить клиенту письмо о заказе — то же, что уходит после заказа на сайте: состав, сумма, доставка и как
+            оплатить. Письмо ляжет в переписку.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Label className="text-xs" htmlFor="resend-to">
+              Кому
+            </Label>
+            <Input
+              id="resend-to"
+              value={resendTo}
+              onChange={(event) => setResendTo(event.target.value)}
+              placeholder="client@mail.ru"
+              className="h-8 w-64"
+            />
+            <Button size="sm" onClick={resendConfirmation} disabled={pending || !mailReady}>
+              <Send />
+              {pending ? "Отправляется…" : "Отправить"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setResendOpen(false)} disabled={pending}>
+              Отмена
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {!mailReady ? (
         <p className="text-muted-foreground text-xs">

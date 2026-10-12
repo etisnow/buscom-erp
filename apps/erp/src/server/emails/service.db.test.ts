@@ -11,6 +11,7 @@ import {
   recentCustomerEmails,
   searchCustomersForEmail,
   sendOrderEmail,
+  resendOrderConfirmation,
   sendSiteOrderConfirmation,
   sentTemplates,
   storeMailboxLetter,
@@ -338,5 +339,31 @@ describeDb("переписка с клиентом (живая БД)", () => {
       customer: { ...payload.customer, email: "" },
     });
     expect(noEmail).toMatchObject({ status: 201, confirmation: null });
+  });
+
+  it("повтор письма о заказе вручную: на указанный адрес, от менеджера, оплата — как выбрал покупатель", async () => {
+    const result = await ingestSiteOrder({
+      externalId: "web-3",
+      numberedByErp: true,
+      customer: { type: "PERSON", name: "Пётр", phone: "+7 900 111-22-44", email: "petr@mail.ru" },
+      items: [{ sku: "X-1", name: "Люк", priceKopecks: 300_000, quantity: 1 }],
+      delivery: { method: "PICKUP" },
+      payment: { method: "INVOICE" },
+    });
+    if (result.status !== 201) throw new Error("заказ не создан");
+    const order = await db.order.findFirstOrThrow({ where: { number: result.orderNumber } });
+
+    const { id } = await resendOrderConfirmation(order.id, "petr2@mail.ru", manager);
+    expect(sent.at(-1)).toMatchObject({
+      to: ["petr2@mail.ru"],
+      subject: `Заказ № ${result.orderNumber} принят — Баском`,
+    });
+    expect(sent.at(-1)?.text).toContain("Подготовим счёт на оплату");
+    expect(await db.email.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      template: "site_order",
+      userId: manager.id,
+    });
+    const event = await db.orderEvent.findFirstOrThrow({ where: { type: "EMAIL_SENT", orderId: order.id } });
+    expect(event.userId).toBe(manager.id);
   });
 });

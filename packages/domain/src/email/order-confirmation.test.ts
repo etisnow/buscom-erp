@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  confirmationPayment,
   formatCardNumber,
   orderConfirmationLetter,
   type ConfirmationContacts,
@@ -98,5 +99,18 @@ describe("письмо покупателю о заказе", () => {
 
   it("номер карты — группами по 4 цифры", () => {
     expect(formatCardNumber("4276-4200 38523139")).toBe("4276 4200 3852 3139");
+  });
+});
+
+describe("confirmationPayment — повтор письма о заказе", () => {
+  it("берёт выбор покупателя из заказа сайта", () => {
+    expect(confirmationPayment({ payment: { method: "INVOICE" } }, "PERSON")).toBe("INVOICE");
+    expect(confirmationPayment({ payment: { method: "ONLINE" } }, "COMPANY")).toBe("CARD");
+  });
+
+  it("без заказа сайта или без способа оплаты в нём — по типу клиента", () => {
+    expect(confirmationPayment(null, "COMPANY")).toBe("INVOICE");
+    expect(confirmationPayment(null, "PERSON")).toBe("CARD");
+    expect(confirmationPayment({ customer: { name: "Иван" } }, "COMPANY")).toBe("INVOICE");
   });
 });

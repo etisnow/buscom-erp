@@ -7,7 +7,11 @@ import {
   orderNumberFromSubject,
 } from "@buscom/domain/email/letters";
 import { COMPANY } from "@buscom/domain/company";
-import { CONFIRMATION_TEMPLATE, orderConfirmationLetter } from "@buscom/domain/email/order-confirmation";
+import {
+  CONFIRMATION_TEMPLATE,
+  confirmationPayment,
+  orderConfirmationLetter,
+} from "@buscom/domain/email/order-confirmation";
 import { EMAIL_TEMPLATE_KEYS, type EmailTemplateKey } from "@buscom/domain/email/templates";
 import { parseOrderItemOptions } from "@buscom/domain/product/options";
 import { requisitesReady, transferCard } from "@buscom/domain/settings";
@@ -96,6 +100,8 @@ export async function sendOrderEmail(input: SendOrderEmailInput): Promise<{ id: 
 export async function sendSiteOrderConfirmation(
   orderNumber: number,
   to: { email: string; customerName: string; invoice: boolean },
+  /** Кто отправил вручную (повтор из карточки заказа); null — система, сразу после заказа */
+  user: SessionUser | null = null,
 ): Promise<{ id: string; source: Buffer }> {
   const order = await db.order.findFirst({
     where: { number: orderNumber, deletedAt: null },
@@ -164,9 +170,42 @@ export async function sendSiteOrderConfirmation(
     body: letter.body,
     html: letter.html,
     template: CONFIRMATION_TEMPLATE,
-    user: null,
+    user,
     attachments: [],
   });
+}
+
+/**
+ * Повтор письма о заказе из карточки заказа — когда первое не дошло. То же письмо,
+ * что уходит покупателю после заказа с сайта; имя — из заказа сайта, иначе из
+ * карточки клиента, способ оплаты — `confirmationPayment`.
+ */
+export async function resendOrderConfirmation(
+  orderId: string,
+  email: string,
+  user: SessionUser,
+): Promise<{ id: string; source: Buffer }> {
+  const order = await db.order.findFirst({
+    where: { id: orderId, deletedAt: null },
+    select: { number: true, customer: { select: { name: true, type: true } } },
+  });
+  if (!order) throw new OrderNotFoundError();
+  const inbox = await db.integrationInbox.findFirst({
+    where: { orderId },
+    orderBy: { receivedAt: "desc" },
+    select: { payload: true },
+  });
+  const payload = inbox?.payload as { customer?: { name?: unknown } } | null | undefined;
+  const siteName = typeof payload?.customer?.name === "string" ? payload.customer.name.trim() : "";
+  return sendSiteOrderConfirmation(
+    order.number,
+    {
+      email,
+      customerName: siteName || order.customer.name,
+      invoice: confirmationPayment(inbox?.payload ?? null, order.customer.type) === "INVOICE",
+    },
+    user,
+  );
 }
 
 type OrderLetter = {

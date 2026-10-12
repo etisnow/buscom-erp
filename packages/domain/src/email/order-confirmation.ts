@@ -49,6 +49,25 @@ export type ConfirmationContacts = {
 
 export const CONFIRMATION_TEMPLATE = "site_order";
 
+/**
+ * Как платить — для повтора письма о заказе из карточки заказа. Выбор покупателя
+ * на сайте лежит только в исходном заказе сайта (`IntegrationInbox.payload`):
+ * «Счёт» — счёт, остальное — перевод на карту. Заказа с сайта нет (заведён
+ * вручную, пришёл письмом) — юрлицу счёт, частному лицу перевод.
+ */
+export function confirmationPayment(
+  sitePayload: unknown,
+  customerType: "PERSON" | "COMPANY",
+): ConfirmationOrder["payment"] {
+  if (typeof sitePayload === "object" && sitePayload !== null && "payment" in sitePayload) {
+    const payment = sitePayload.payment;
+    if (typeof payment === "object" && payment !== null && "method" in payment) {
+      return payment.method === "INVOICE" ? "INVOICE" : "CARD";
+    }
+  }
+  return customerType === "COMPANY" ? "INVOICE" : "CARD";
+}
+
 const INVOICE_TEXT = "Подготовим счёт на оплату и пришлем Вам на эту почту";
 
 /** Номер карты группами по 4 цифры: «4276420038523139» → «4276 4200 3852 3139» */
