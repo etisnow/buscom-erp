@@ -1,4 +1,5 @@
 import "server-only";
+import { format } from "node:util";
 import nodemailer, { type Transporter } from "nodemailer";
 import { smtpConfigured, type SmtpSettings } from "@buscom/domain/settings";
 import { env } from "@/server/env";
@@ -44,13 +45,14 @@ async function resolveSmtp(): Promise<SmtpSettings | null> {
  */
 const TIMEOUTS = { connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000 };
 
-function buildTransport(smtp: SmtpSettings): Transporter {
+function buildTransport(smtp: SmtpSettings, logger?: ReturnType<typeof dialogLogger>): Transporter {
   return nodemailer.createTransport({
     host: smtp.host,
     port: smtp.port,
     secure: smtp.secure,
     ...(smtp.user ? { auth: { user: smtp.user, pass: smtp.password } } : {}),
     ...TIMEOUTS,
+    ...(logger ? { logger, debug: true } : {}),
   });
 }
 
@@ -119,7 +121,10 @@ export function passwordResetLetter(to: string, url: string): Letter {
  * Ошибку не глушит: вызывающий показывает её администратору.
  */
 export async function sendTestLetter(smtp: SmtpSettings, to: string): Promise<void> {
-  const transporter = buildTransport(smtp);
+  // Диалог с сервером: по одной строке ошибки («Connection closed unexpectedly») не понять,
+  // на каком шаге сервер оборвал соединение, — к ошибке добавляем его последние строки
+  const dialog: string[] = [];
+  const transporter = buildTransport(smtp, dialogLogger(dialog));
   try {
     await transporter.sendMail({
       from: smtp.from || env.SMTP_FROM,
@@ -133,9 +138,45 @@ export async function sendTestLetter(smtp: SmtpSettings, to: string): Promise<vo
         "Раз письмо дошло, ссылки на смену пароля сотрудникам тоже будут доходить.",
       ].join("\n"),
     });
+  } catch (error) {
+    if (!(error instanceof Error) || dialog.length === 0) throw error;
+    console.error(`Проверка SMTP ${smtp.host}:${smtp.port}: ${error.message}\n${dialog.join("\n")}`);
+    throw new Error(`${error.message}. Последние строки диалога: ${dialog.slice(-DIALOG_TAIL).join(" | ")}`, {
+      cause: error,
+    });
   } finally {
     transporter.close();
   }
+}
+
+/** Сколько последних строк диалога показать в ошибке проверки. */
+const DIALOG_TAIL = 6;
+
+/**
+ * Логгер nodemailer, который складывает SMTP-диалог в `dialog`: «C:» — наши команды, «S:» — ответы
+ * сервера. Пароль nodemailer и сам прячет, но после AUTH на всякий случай скрываем всё, что мы
+ * отправляем, до ответа сервера о входе.
+ */
+function dialogLogger(dialog: string[]) {
+  let authorizing = false;
+  const record = (entry: unknown, message: unknown, ...args: unknown[]) => {
+    const tnx = (entry as { tnx?: string } | null)?.tnx;
+    // Сообщения приходят шаблоном («%s established to %s:%s»), ответы сервера — в несколько строк
+    const text = format(String(message ?? ""), ...args)
+      .trim()
+      .replace(/\s*\n\s*/g, " / ");
+    if (!text) return;
+    if (tnx === "client") {
+      if (/^AUTH\b/i.test(text)) authorizing = true;
+      dialog.push(authorizing ? `C: ${text.split(" ").slice(0, 2).join(" ")} …` : `C: ${text}`);
+    } else if (tnx === "server") {
+      if (/^(235|[45]\d\d)\b/.test(text)) authorizing = false;
+      dialog.push(`S: ${text}`);
+    } else if (tnx === "network" || tnx === "connection") {
+      dialog.push(`— ${text}`);
+    }
+  };
+  return { trace: record, debug: record, info: record, warn: record, error: record, fatal: record };
 }
 
 /** Проверка адреса уведомлений из личных настроек. */
