@@ -6,6 +6,7 @@ import {
   notificationPushPayload,
   pushSubscriptionSchema,
 } from "./payload";
+import { GENERAL_CHAT_ROOM_ID } from "../chat/room";
 
 describe("pushSubscriptionSchema", () => {
   const keys = { p256dh: "BNc...", auth: "tBH..." };
@@ -49,26 +50,39 @@ describe("isPushServiceHost", () => {
 });
 
 describe("chatPushPayload", () => {
-  it("автор в заголовке, текст в одну строку, нажатие ведёт в чат", () => {
-    expect(chatPushPayload({ authorName: "Максим", text: "привет\n\nкак дела", attachmentCount: 0 })).toEqual({
-      title: "Чат · Максим",
+  const general = { id: GENERAL_CHAT_ROOM_ID, name: "Общий чат" };
+
+  it("комната и автор в заголовке, текст в одну строку, нажатие ведёт в комнату", () => {
+    expect(
+      chatPushPayload({ room: general, authorName: "Максим", text: "привет\n\nкак дела", attachmentCount: 0 }),
+    ).toEqual({
+      title: "Общий чат · Максим",
       body: "привет как дела",
       url: "/chat",
-      tag: "chat",
+      tag: "chat:chat_room_general",
     });
+    const other = chatPushPayload({
+      room: { id: "r1", name: "Склад" },
+      authorName: "А",
+      text: "x",
+      attachmentCount: 0,
+    });
+    expect(other).toMatchObject({ title: "Склад · А", url: "/chat/r1", tag: "chat:r1" });
   });
 
   it("длинный текст обрезается", () => {
-    const { body } = chatPushPayload({ authorName: "А", text: "я".repeat(500), attachmentCount: 0 });
+    const { body } = chatPushPayload({ room: general, authorName: "А", text: "я".repeat(500), attachmentCount: 0 });
     expect(body).toHaveLength(MAX_PUSH_BODY);
     expect(body.endsWith("…")).toBe(true);
   });
 
   it("файлы — отдельной строкой с числом", () => {
-    expect(chatPushPayload({ authorName: "А", text: "смотри", attachmentCount: 1 }).body).toBe("смотри\n📎 1 файл");
-    expect(chatPushPayload({ authorName: "А", text: "", attachmentCount: 3 }).body).toBe("📎 3 файла");
-    expect(chatPushPayload({ authorName: "А", text: "", attachmentCount: 5 }).body).toBe("📎 5 файлов");
-    expect(chatPushPayload({ authorName: "А", text: "", attachmentCount: 11 }).body).toBe("📎 11 файлов");
+    const files = (text: string, attachmentCount: number) =>
+      chatPushPayload({ room: general, authorName: "А", text, attachmentCount }).body;
+    expect(files("смотри", 1)).toBe("смотри\n📎 1 файл");
+    expect(files("", 3)).toBe("📎 3 файла");
+    expect(files("", 5)).toBe("📎 5 файлов");
+    expect(files("", 11)).toBe("📎 11 файлов");
   });
 });
 

@@ -8,6 +8,7 @@ import { DiscountLimitError } from "@buscom/domain/order/discount";
 import { OrderEditError } from "@buscom/domain/order/editing";
 import { OrderTransitionError } from "@buscom/domain/order/status";
 import { isOrderDocumentKind } from "@buscom/domain/order/order-document";
+import { MAX_ORDER_FILE_NAME, OrderFileError } from "@buscom/domain/order/order-files";
 import { SupplierDocumentError } from "@buscom/domain/order/supplier-document";
 import type { WaybillFields } from "@buscom/domain/order/waybill-parse";
 import { ProductOptionError } from "@buscom/domain/product/options";
@@ -22,6 +23,7 @@ import { updateOrderDelivery } from "@/server/orders/delivery";
 import { OrderConflictError, OrderNotFoundError } from "@/server/orders/internal";
 import { updateOrderItems } from "@/server/orders/items";
 import { deleteOrderDocument, uploadOrderDocument } from "@/server/orders/order-documents";
+import { deleteOrderFile, uploadOrderFile } from "@/server/orders/order-files";
 import { recognizeWaybill, WaybillRecognitionError } from "@/server/orders/waybill-recognition";
 import { addPayment } from "@/server/orders/payments";
 import { changeOrderStatus } from "@/server/orders/status";
@@ -60,6 +62,7 @@ async function run(orderNumber: number, action: () => Promise<unknown>): Promise
       error instanceof OrderConflictError ||
       error instanceof OrderNotFoundError ||
       error instanceof SupplierDocumentError ||
+      error instanceof OrderFileError ||
       error instanceof SupplierNotFoundError ||
       error instanceof ForbiddenError
     ) {
@@ -383,4 +386,30 @@ export async function deleteOrderDocumentAction(
   const user = await requireUser();
   if (!isOrderDocumentKind(kind)) return { ok: false, error: "Неизвестный вид файла" };
   return run(orderNumber, () => deleteOrderDocument(orderId, kind, user));
+}
+
+/** Файл в галерею заказа. Несколько файлов форма шлёт по одному: каждый — до 15 МБ. */
+export async function uploadOrderFileAction(
+  orderId: string,
+  orderNumber: number,
+  form: FormData,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  const file = form.get("file");
+  if (!(file instanceof File)) return { ok: false, error: "Выберите файл" };
+  const fileName = file.name.slice(0, MAX_ORDER_FILE_NAME) || "файл";
+
+  const data = new Uint8Array(await file.arrayBuffer());
+  return run(orderNumber, () => uploadOrderFile(z.string().min(1).parse(orderId), fileName, data, user));
+}
+
+export async function deleteOrderFileAction(
+  orderId: string,
+  orderNumber: number,
+  fileId: string,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  const parsed = z.object({ orderId: z.string().min(1), fileId: z.string().min(1) }).safeParse({ orderId, fileId });
+  if (!parsed.success) return { ok: false, error: "Неизвестный файл" };
+  return run(orderNumber, () => deleteOrderFile(parsed.data.orderId, parsed.data.fileId, user));
 }

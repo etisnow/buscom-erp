@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransitio
 import { Loader2, Paperclip, Reply, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { ChatMessage, formatSize } from "@/components/chat/chat-message";
-import { CHAT_UNREAD_EVENT } from "@/components/chat/events";
+import { CHAT_ROOMS_EVENT } from "@/components/chat/events";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,7 +28,7 @@ import {
   sendChatMessageAction,
   toggleChatReactionAction,
 } from "@/app/(app)/chat/actions";
-import type { ChatMessageView } from "@/server/chat/service";
+import type { ChatMessageView, ChatRoomView } from "@/server/chat/service";
 
 /** Раз в столько опрашиваем ленту, пока вкладка видна. */
 const POLL_MS = 4_000;
@@ -58,6 +58,7 @@ function merge(current: ChatMessageView[], incoming: ChatMessageView[]): ChatMes
 const hasFiles = (event: DragEvent) => event.dataTransfer.types.includes("Files");
 
 export function ChatRoom({
+  roomId,
   initialMessages,
   initialHasMore,
   initialCursor,
@@ -65,11 +66,12 @@ export function ChatRoom({
   user,
   initialDraft = "",
 }: {
+  roomId: string;
   initialMessages: ChatMessageView[];
   initialHasMore: boolean;
   /** Время сервера на момент загрузки страницы — с него начинается опрос */
   initialCursor: string;
-  /** До какого момента чат прочитал кто-то из других сотрудников (null — никто) */
+  /** До какого момента комнату прочитал кто-то из других сотрудников (null — никто) */
   initialOthersReadAt: string | null;
   user: { id: string; role: UserRole };
   /** Заготовка сообщения — например, ссылка на заказ из его карточки */
@@ -125,6 +127,27 @@ export function ChatRoom({
     }
   }, [messages]);
 
+  // Картинки догружаются после прокрутки вниз и сдвигают ленту вверх — особенно при переходе
+  // в другую комнату, когда их нет в кеше. Была лента у низа до загрузки — возвращаем её туда.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    let atBottom = true;
+    const onScroll = () => {
+      atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX;
+    };
+    const onLoad = (event: Event) => {
+      if (event.target instanceof HTMLImageElement && atBottom) el.scrollTop = el.scrollHeight;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    // load не всплывает, но проходит фазу перехвата — ловим его на ленте
+    el.addEventListener("load", onLoad, true);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("load", onLoad, true);
+    };
+  }, []);
+
   // Заготовку сразу в работу: фокус и курсор в конец. Параметр из адреса убираем,
   // чтобы обновление страницы не вернуло черновик после отправки.
   useEffect(() => {
@@ -135,35 +158,41 @@ export function ChatRoom({
     window.history.replaceState(window.history.state, "", window.location.pathname);
   }, [initialDraft]);
 
-  /** Отметить прочитанным всё, что видно, — только когда вкладка на экране. */
-  const markRead = useCallback((list: ChatMessageView[]) => {
-    const last = list.at(-1)?.createdAt;
-    if (!last || document.visibilityState !== "visible" || lastReadMark.current === last) return;
-    lastReadMark.current = last;
-    void markChatReadAction(last);
-    window.dispatchEvent(new CustomEvent(CHAT_UNREAD_EVENT, { detail: 0 }));
-  }, []);
+  /**
+   * Отметить прочитанным всё, что видно, — только когда вкладка на экране. Значок в меню
+   * пересчитывает список комнат (src/components/chat/chat-rooms.tsx): открытую он не считает.
+   */
+  const markRead = useCallback(
+    (list: ChatMessageView[]) => {
+      const last = list.at(-1)?.createdAt;
+      if (!last || document.visibilityState !== "visible" || lastReadMark.current === last) return;
+      lastReadMark.current = last;
+      void markChatReadAction({ roomId, upTo: last });
+    },
+    [roomId],
+  );
 
   const poll = useCallback(async () => {
     try {
-      const response = await fetch(`/api/chat/messages?since=${encodeURIComponent(cursor.current)}`, {
-        cache: "no-store",
-      });
+      const params = new URLSearchParams({ room: roomId, since: cursor.current });
+      const response = await fetch(`/api/chat/messages?${params}`, { cache: "no-store" });
       if (!response.ok) return;
       const data = (await response.json()) as {
         messages: ChatMessageView[];
         serverTime: string;
         othersReadAt: string | null;
+        rooms: ChatRoomView[];
       };
       cursor.current = data.serverTime;
       setOthersReadAt(data.othersReadAt);
       stickToBottom.current = nearBottom();
       setMessages((current) => merge(current, data.messages));
       markRead(data.messages);
+      window.dispatchEvent(new CustomEvent(CHAT_ROOMS_EVENT, { detail: data.rooms }));
     } catch {
       // Сеть моргнула — следующий опрос попробует снова.
     }
-  }, [markRead]);
+  }, [markRead, roomId]);
 
   useEffect(() => {
     markRead(initialMessages);
@@ -185,7 +214,8 @@ export function ChatRoom({
     if (!first || loadingOlder) return;
     setLoadingOlder(true);
     try {
-      const response = await fetch(`/api/chat/messages?before=${encodeURIComponent(first.id)}`, { cache: "no-store" });
+      const params = new URLSearchParams({ room: roomId, before: first.id });
+      const response = await fetch(`/api/chat/messages?${params}`, { cache: "no-store" });
       if (!response.ok) throw new Error();
       const data = (await response.json()) as { messages: ChatMessageView[]; hasMore: boolean };
       heightBeforeOlder.current = scroller.current?.scrollHeight ?? null;
@@ -211,6 +241,7 @@ export function ChatRoom({
   function send() {
     if (sending || (!text.trim() && !files.length)) return;
     const form = new FormData();
+    form.set("roomId", roomId);
     form.set("text", text);
     if (replyTo) form.set("replyToId", replyTo.id);
     for (const file of files) form.append("files", file);

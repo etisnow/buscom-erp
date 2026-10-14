@@ -30,7 +30,7 @@ self.addEventListener("push", (event) => {
         badge: "/icons/badge-96.png",
         data: { url: data.url || "/" },
       }),
-      data.tag === "chat" ? updateBadge() : null,
+      data.tag?.startsWith("chat") ? updateBadge() : null,
     ]),
   );
 });

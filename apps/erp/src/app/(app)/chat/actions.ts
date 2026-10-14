@@ -5,10 +5,13 @@ import { z } from "zod";
 import { ChatError, MAX_ATTACHMENT_NAME } from "@buscom/domain/chat/message";
 import { pushChatMessage } from "@/server/chat/push";
 import {
+  createChatRoom,
   deleteChatMessage,
+  deleteChatRoom,
   editChatMessage,
   markChatRead,
   postChatMessage,
+  renameChatRoom,
   toggleChatReaction,
   type ChatMessageView,
 } from "@/server/chat/service";
@@ -34,9 +37,11 @@ export async function sendChatMessageAction(
   form: FormData,
 ): Promise<{ ok: true; message: ChatMessageView } | { ok: false; error: string }> {
   const user = await requireUser();
+  const roomId = form.get("roomId");
   const text = form.get("text");
   const replyTo = form.get("replyToId");
   const files = form.getAll("files").filter((file): file is File => file instanceof File);
+  if (typeof roomId !== "string" || !roomId) return { ok: false, error: "Неизвестная комната" };
 
   const inputs = await Promise.all(
     files.map(async (file) => ({
@@ -48,12 +53,13 @@ export async function sendChatMessageAction(
   try {
     const message = await postChatMessage(
       user,
+      roomId,
       typeof text === "string" ? text : "",
       inputs,
       typeof replyTo === "string" && replyTo ? replyTo : null,
     );
     // Пуши — после ответа: отправитель не ждёт сервисы Google и Apple
-    after(() => pushChatMessage(message));
+    after(() => pushChatMessage(roomId, message));
     return { ok: true, message };
   } catch (error) {
     if (error instanceof ChatError) return { ok: false, error: error.message };
@@ -94,10 +100,44 @@ export async function toggleChatReactionAction(
   }
 }
 
-/** `upTo` — время последнего сообщения, которое сотрудник увидел в ленте. */
-export async function markChatReadAction(upTo: string): Promise<void> {
+const readSchema = z.object({ roomId: z.string().min(1), upTo: z.iso.datetime() });
+
+/** `upTo` — время последнего сообщения, которое сотрудник увидел в ленте комнаты. */
+export async function markChatReadAction(input: z.input<typeof readSchema>): Promise<void> {
   const user = await requireUser();
-  const date = z.iso.datetime().safeParse(upTo);
-  if (!date.success) return;
-  await markChatRead(user, new Date(date.data));
+  const parsed = readSchema.safeParse(input);
+  if (!parsed.success) return;
+  await markChatRead(user, parsed.data.roomId, new Date(parsed.data.upTo));
+}
+
+/** Новая комната; в ответе — её id, чтобы сразу в неё перейти. */
+export async function createChatRoomAction(
+  name: string,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const user = await requireUser();
+  const parsed = z.string().safeParse(name);
+  if (!parsed.success) return { ok: false, error: "Введите название комнаты" };
+  try {
+    const room = await createChatRoom(user, parsed.data);
+    return { ok: true, id: room.id };
+  } catch (error) {
+    if (error instanceof ChatError) return { ok: false, error: error.message };
+    throw error;
+  }
+}
+
+const renameSchema = z.object({ id: z.string().min(1), name: z.string() });
+
+export async function renameChatRoomAction(input: z.input<typeof renameSchema>): Promise<ChatActionResult> {
+  const user = await requireUser();
+  const parsed = renameSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Неизвестная комната" };
+  return run(() => renameChatRoom(parsed.data.id, parsed.data.name, user));
+}
+
+export async function deleteChatRoomAction(id: string): Promise<ChatActionResult> {
+  const user = await requireUser();
+  const parsed = z.string().min(1).safeParse(id);
+  if (!parsed.success) return { ok: false, error: "Неизвестная комната" };
+  return run(() => deleteChatRoom(parsed.data, user));
 }

@@ -3,6 +3,7 @@
  * от браузера при подписке и что уходит в уведомление.
  */
 import { z } from "zod";
+import { chatRoomHref } from "../chat/room";
 
 /**
  * Сервисы пушей браузеров: Chrome и прочие на Chromium (в том числе Яндекс, Samsung,
@@ -59,16 +60,29 @@ function filesLabel(count: number): string {
   return `${count} файлов`;
 }
 
-export function chatPushPayload(message: { authorName: string; text: string; attachmentCount: number }): PushPayload {
+/**
+ * Пуш о сообщении чата: в заголовке комната и автор, нажатие открывает комнату.
+ * Тег — по комнате: новое сообщение заменяет прежнее уведомление той же комнаты,
+ * а уведомления разных комнат не перетирают друг друга.
+ */
+export function chatPushPayload(message: {
+  room: { id: string; name: string };
+  authorName: string;
+  text: string;
+  attachmentCount: number;
+}): PushPayload {
   const files = message.attachmentCount ? `📎 ${filesLabel(message.attachmentCount)}` : "";
   const text = truncate(message.text, MAX_PUSH_BODY);
   return {
-    title: `Чат · ${message.authorName}`,
+    title: `${truncate(message.room.name, 40)} · ${message.authorName}`,
     body: [text, files].filter(Boolean).join("\n") || "Новое сообщение",
-    url: "/chat",
-    tag: "chat",
+    url: chatRoomHref(message.room.id),
+    tag: `${CHAT_PUSH_TAG}:${message.room.id}`,
   };
 }
+
+/** Начало тега пушей чата — по нему service worker обновляет число на значке приложения. */
+export const CHAT_PUSH_TAG = "chat";
 
 /**
  * Пуш по уведомлению о заказе (те же темы, что у писем: новый заказ, статус оплаты, этап поставщика).

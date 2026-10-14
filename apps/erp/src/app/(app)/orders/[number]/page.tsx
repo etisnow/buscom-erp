@@ -11,6 +11,7 @@ import { OrderHeader } from "@/components/orders/order-header";
 import { OrderHistory } from "@/components/orders/order-history";
 import { OrderItems } from "@/components/orders/order-items";
 import { OrderMarginBlock } from "@/components/orders/order-margin";
+import { OrderFiles } from "@/components/orders/order-files";
 import { OrderPayments } from "@/components/orders/order-payments";
 import { SupplierTracks } from "@/components/orders/supplier-tracks";
 import { parseCustomerRequisites } from "@buscom/domain/customer/requisites";
@@ -27,6 +28,7 @@ import { hasSupplierAction } from "@buscom/domain/supplier/actions";
 import { parsePriceFormula, unitCostFor } from "@buscom/domain/supplier/price-economics";
 import { canMoveStages } from "@buscom/domain/supplier/stages";
 import { findOrderByNumber } from "@/server/orders/details";
+import { listOrderFiles } from "@/server/orders/order-files";
 import { listManagers } from "@/server/orders/list";
 import { listCategories } from "@/server/products/categories";
 import { findProductRows } from "@/server/products/list";
@@ -70,16 +72,18 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
   if (!order) notFound();
 
   // Товары позиций, поставщики, категории и модели — для правки позиции и карточки товара прямо из заказа.
-  const [products, suppliers, categories, carModels, emails, usedTemplates, settings, mailReady] = await Promise.all([
-    findProductRows(order.items.map((item) => item.productId).filter((id): id is string => id !== null)),
-    listSupplierOptions(),
-    listCategories(),
-    getCarModels(),
-    recentCustomerEmails({ id: order.customer.id, email: order.customer.email }),
-    sentTemplates(order.id),
-    getSettings(),
-    mailConfigured(),
-  ]);
+  const [products, suppliers, categories, carModels, emails, usedTemplates, settings, mailReady, files] =
+    await Promise.all([
+      findProductRows(order.items.map((item) => item.productId).filter((id): id is string => id !== null)),
+      listSupplierOptions(),
+      listCategories(),
+      getCarModels(),
+      recentCustomerEmails({ id: order.customer.id, email: order.customer.email }),
+      sentTemplates(order.id),
+      getSettings(),
+      mailConfigured(),
+      listOrderFiles(order.id),
+    ]);
 
   // Шаблоны писем заполняются данными заказа здесь, на сервере; в форме их только правят.
   // Клиент знает заказ с сайта по номеру на сайте — его и подставляем в письма.
@@ -272,6 +276,15 @@ export default async function OrderPage({ params }: PageProps<"/orders/[number]"
                 authorName: payment.createdBy?.name ?? null,
               }))}
               canAdd={order.status !== "CANCELLED"}
+            />
+          </div>
+
+          <div id="files" className="min-w-0 scroll-mt-16 max-lg:order-7">
+            <OrderFiles
+              orderId={order.id}
+              orderNumber={order.number}
+              files={files}
+              user={{ id: user.id, role: user.role }}
             />
           </div>
 

@@ -5,15 +5,19 @@ import { db } from "@/server/db";
 import { sendPush } from "@/server/push/service";
 
 /** Пуш о новом сообщении всем, кроме автора. Вызывается после ответа (`after`), ошибки — только в лог. */
-export async function pushChatMessage(message: ChatMessageView): Promise<void> {
+export async function pushChatMessage(roomId: string, message: ChatMessageView): Promise<void> {
   try {
-    const recipients = await db.user.findMany({
-      where: { isActive: true, id: { not: message.author.id }, pushDevices: { some: {} } },
-      select: { id: true },
-    });
+    const [room, recipients] = await Promise.all([
+      db.chatRoom.findUniqueOrThrow({ where: { id: roomId }, select: { id: true, name: true } }),
+      db.user.findMany({
+        where: { isActive: true, id: { not: message.author.id }, pushDevices: { some: {} } },
+        select: { id: true },
+      }),
+    ]);
     await sendPush(
       { userIds: recipients.map((user) => user.id) },
       chatPushPayload({
+        room,
         authorName: message.author.name,
         text: message.text,
         attachmentCount: message.attachments.length,

@@ -42,7 +42,8 @@ model User {
   notificationEmail  String?
   /// На что подписан: ключи тем из packages/domain/src/notification/topics.ts
   notificationTopics String[]     @default([])
-  /// Сообщения чата до этого момента прочитаны; null — чат ещё не открывал
+  /// Устарело: отметки «прочитано» теперь по комнатам (`ChatRoomRead`), значения перенесены
+  /// в «Общий чат». Колонка живёт, пока в бою не останется кода, который её читает
   chatReadAt         DateTime?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
@@ -56,6 +57,9 @@ model User {
   sentEmails    Email[]
   chatMessages  ChatMessage[]
   chatReactions ChatReaction[]
+  chatRooms     ChatRoom[]
+  chatRoomReads ChatRoomRead[]
+  orderFiles    OrderFile[]
   pushDevices   PushSubscription[]
   sitePages     SitePage[]
   expenses      Expense[]
@@ -589,6 +593,7 @@ model Order {
   supplierDocuments OrderSupplierDocument[]
   documents         OrderDocument[]
   emails            Email[]
+  files             OrderFile[]
 
   @@unique([source, externalId])
   @@index([siteNumber])
@@ -686,6 +691,27 @@ model OrderDocument {
   uploadedAt  DateTime @default(now())
 
   @@unique([orderId, kind])
+}
+
+/// Галерея файлов заказа: фото, сканы, документы — что угодно, без вида и без замены.
+/// Тип — по сигнатуре (картинки и PDF), остальное хранится как `application/octet-stream`
+/// и отдаётся только скачиванием. У картинок — уменьшенная копия для плитки.
+model OrderFile {
+  id           String   @id @default(cuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fileName     String
+  contentType  String
+  byteSize     Int
+  data         Bytes
+  /// JPEG до 480 px по длинной стороне; null — не картинка или уменьшить не удалось
+  thumbData    Bytes?
+  /// Кто загрузил. SetNull — сотрудников не удаляют, но файл пережил бы и это
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedAt   DateTime @default(now())
+
+  @@index([orderId, uploadedAt])
 }
 
 enum PaymentMethod {
@@ -989,11 +1015,42 @@ model EmailAttachment {
 // Чат сотрудников: один общий канал
 // ---------------------------------------------------------------------------
 
-/// Сообщение общего чата. Удалённое не стирается строкой — остаётся с `deletedAt`
+/// Комната чата сотрудников. Комнаты открыты всем сотрудникам — списка участников нет.
+/// «Общий чат» (`id` = GENERAL_CHAT_ROOM_ID из packages/domain/src/chat/room.ts) заведён
+/// миграцией и не удаляется. Удаление мягкое (`deletedAt`): сообщения остаются в базе
+model ChatRoom {
+  id          String    @id @default(cuid())
+  name        String
+  createdById String?
+  createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  messages ChatMessage[]
+  reads    ChatRoomRead[]
+}
+
+/// Отметка «прочитано» сотрудника в комнате: сообщения до `readAt` он видел.
+/// Нет строки — комнату ещё не открывал, все чужие сообщения в ней непрочитаны
+model ChatRoomRead {
+  roomId String
+  room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt DateTime
+
+  @@id([roomId, userId])
+  @@index([userId])
+}
+
+/// Сообщение чата в комнате. Удалённое не стирается строкой — остаётся с `deletedAt`
 /// и пустым текстом, чтобы в ленте было видно «сообщение удалено».
 /// `updatedAt` — курсор опроса: по нему клиент получает новые, исправленные и удалённые.
 model ChatMessage {
   id        String        @id @default(cuid())
+  roomId    String
+  room      ChatRoom      @relation(fields: [roomId], references: [id], onDelete: Restrict)
   userId    String
   user      User          @relation(fields: [userId], references: [id], onDelete: Restrict)
   text      String
@@ -1010,8 +1067,8 @@ model ChatMessage {
   attachments ChatAttachment[]
   reactions   ChatReaction[]
 
-  @@index([createdAt])
-  @@index([updatedAt])
+  @@index([roomId, createdAt])
+  @@index([roomId, updatedAt])
 }
 
 /// Новости платформы: журнал новых возможностей ERP и сайта. Читают все сотрудники, пишет администратор

@@ -10,15 +10,16 @@ import {
 } from "@buscom/domain/chat/message";
 import { orderNumbersIn } from "@buscom/domain/chat/order-links";
 import { MAX_REACTION_KINDS, normalizeReaction } from "@buscom/domain/chat/reaction";
+import { canDeleteRoom, canRenameRoom, GENERAL_CHAT_ROOM_ID, normalizeRoomName } from "@buscom/domain/chat/room";
 import { detectDocumentType } from "@buscom/domain/order/supplier-document";
 import { db } from "@/server/db";
 import { ForbiddenError } from "@/server/errors";
 import type { SessionUser } from "@/server/session";
 
 /**
- * Общий чат сотрудников. Лента обновляется опросом: клиент раз в несколько секунд
- * спрашивает сообщения, изменённые после курсора (`updatedAt`), — так приходят
- * и новые, и исправленные, и удалённые.
+ * Чат сотрудников по комнатам. Лента комнаты обновляется опросом: клиент раз в несколько
+ * секунд спрашивает её сообщения, изменённые после курсора (`updatedAt`), — так приходят
+ * и новые, и исправленные, и удалённые. Отметка «прочитано» у каждого своя в каждой комнате.
  */
 
 /** Страница истории: столько сообщений при открытии и при «Показать раньше». */
@@ -168,20 +169,119 @@ async function toViews(rows: MessageRow[]): Promise<ChatMessageView[]> {
   }));
 }
 
+// --- Комнаты ---------------------------------------------------------------
+
+export type ChatRoomView = {
+  id: string;
+  name: string;
+  /** Кто создал; null — «Общий чат» или автор удалён */
+  createdById: string | null;
+  /** Чужие сообщения после отметки «прочитано» этого сотрудника */
+  unread: number;
+};
+
+/** Непрочитанные по комнатам одним запросом: у каждой комнаты своя отметка «прочитано». */
+async function unreadByRoom(userId: string, roomIds: string[]): Promise<Map<string, number>> {
+  if (!roomIds.length) return new Map();
+  const reads = await db.chatRoomRead.findMany({
+    where: { userId, roomId: { in: roomIds } },
+    select: { roomId: true, readAt: true },
+  });
+  const readAt = new Map(reads.map((read) => [read.roomId, read.readAt]));
+  const groups = await db.chatMessage.groupBy({
+    by: ["roomId"],
+    where: {
+      userId: { not: userId },
+      deletedAt: null,
+      OR: roomIds.map((roomId) => {
+        const mark = readAt.get(roomId);
+        return mark ? { roomId, createdAt: { gt: mark } } : { roomId };
+      }),
+    },
+    _count: { _all: true },
+  });
+  return new Map(groups.map((group) => [group.roomId, group._count._all]));
+}
+
+/** Комнаты для списка слева: «Общий чат» первым, остальные — в порядке создания. */
+export async function listChatRooms(userId: string): Promise<ChatRoomView[]> {
+  const rooms = await db.chatRoom.findMany({
+    where: { deletedAt: null },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    select: { id: true, name: true, createdById: true },
+  });
+  const unread = await unreadByRoom(
+    userId,
+    rooms.map((room) => room.id),
+  );
+  return rooms
+    .map((room) => ({ ...room, unread: unread.get(room.id) ?? 0 }))
+    .sort((a, b) => Number(b.id === GENERAL_CHAT_ROOM_ID) - Number(a.id === GENERAL_CHAT_ROOM_ID));
+}
+
+/** Комната для страницы; удалённой для системы нет. */
+export async function findChatRoom(
+  id: string,
+): Promise<{ id: string; name: string; createdById: string | null } | null> {
+  return db.chatRoom.findFirst({
+    where: { id, deletedAt: null },
+    select: { id: true, name: true, createdById: true },
+  });
+}
+
+async function requireRoom(id: string) {
+  const room = await findChatRoom(id);
+  if (!room) throw new ChatError("Комната не найдена — возможно, её удалили");
+  return room;
+}
+
+export async function createChatRoom(user: SessionUser, name: string): Promise<{ id: string }> {
+  return db.chatRoom.create({
+    data: { name: normalizeRoomName(name), createdById: user.id },
+    select: { id: true },
+  });
+}
+
+export async function renameChatRoom(id: string, name: string, user: SessionUser): Promise<void> {
+  const room = await requireRoom(id);
+  if (!canRenameRoom(room, user)) {
+    throw new ForbiddenError("Переименовать комнату может тот, кто её создал, или администратор");
+  }
+  await db.chatRoom.update({ where: { id }, data: { name: normalizeRoomName(name) }, select: { id: true } });
+}
+
+/** Удаление мягкое: комната пропадает из списка, сообщения остаются в базе. */
+export async function deleteChatRoom(id: string, user: SessionUser): Promise<void> {
+  const room = await requireRoom(id);
+  if (!canDeleteRoom(room, user)) {
+    throw new ForbiddenError(
+      room.id === GENERAL_CHAT_ROOM_ID
+        ? "«Общий чат» удалить нельзя"
+        : "Удалить комнату может тот, кто её создал, или администратор",
+    );
+  }
+  await db.chatRoom.update({ where: { id }, data: { deletedAt: new Date() }, select: { id: true } });
+}
+
+// --- Сообщения -------------------------------------------------------------
+
 /**
- * Последние сообщения (или предшествующие сообщению `beforeId`) в порядке времени.
+ * Последние сообщения комнаты (или предшествующие сообщению `beforeId`) в порядке времени.
  * `hasMore` — есть ли что показать ещё раньше.
  */
-export async function listChatMessages(beforeId?: string): Promise<{ messages: ChatMessageView[]; hasMore: boolean }> {
+export async function listChatMessages(
+  roomId: string,
+  beforeId?: string,
+): Promise<{ messages: ChatMessageView[]; hasMore: boolean }> {
   let before: Date | undefined;
   if (beforeId) {
-    const anchor = await db.chatMessage.findUnique({ where: { id: beforeId }, select: { createdAt: true } });
+    const anchor = await db.chatMessage.findFirst({ where: { id: beforeId, roomId }, select: { createdAt: true } });
     if (!anchor) return { messages: [], hasMore: false };
     before = anchor.createdAt;
   }
 
   const rows = await db.chatMessage.findMany({
-    where: before ? { createdAt: { lt: before } } : {},
+    where: { roomId, ...(before ? { createdAt: { lt: before } } : {}) },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: PAGE_SIZE + 1,
     select: messageSelect,
@@ -190,10 +290,10 @@ export async function listChatMessages(beforeId?: string): Promise<{ messages: C
   return { messages: await toViews(rows.slice(0, PAGE_SIZE).reverse()), hasMore };
 }
 
-/** Новые, исправленные и удалённые с момента `since` (с запасом, см. POLL_OVERLAP_MS). */
-export async function chatChangesSince(since: Date): Promise<ChatMessageView[]> {
+/** Новые, исправленные и удалённые в комнате с момента `since` (с запасом, см. POLL_OVERLAP_MS). */
+export async function chatChangesSince(roomId: string, since: Date): Promise<ChatMessageView[]> {
   const rows = await db.chatMessage.findMany({
-    where: { updatedAt: { gte: new Date(since.getTime() - POLL_OVERLAP_MS) } },
+    where: { roomId, updatedAt: { gte: new Date(since.getTime() - POLL_OVERLAP_MS) } },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: 500,
     select: messageSelect,
@@ -205,21 +305,27 @@ export type ChatFileInput = { fileName: string; data: Uint8Array<ArrayBuffer> };
 
 export async function postChatMessage(
   user: SessionUser,
+  roomId: string,
   text: string,
   files: ChatFileInput[],
   replyToId: string | null = null,
 ): Promise<ChatMessageView> {
   assertAttachments(files.map((file) => ({ byteSize: file.data.byteLength })));
   const normalized = normalizeMessageText(text, files.length);
+  await requireRoom(roomId);
   if (replyToId) {
-    const original = await db.chatMessage.findUnique({ where: { id: replyToId }, select: { deletedAt: true } });
-    if (!original) throw new ChatError("Сообщение, на которое вы отвечаете, не найдено");
+    const original = await db.chatMessage.findUnique({
+      where: { id: replyToId },
+      select: { deletedAt: true, roomId: true },
+    });
+    if (!original || original.roomId !== roomId) throw new ChatError("Сообщение, на которое вы отвечаете, не найдено");
     if (original.deletedAt) throw new ChatError("Сообщение, на которое вы отвечаете, удалено");
   }
 
   const row = await db.$transaction(async (tx) => {
     const created = await tx.chatMessage.create({
       data: {
+        roomId,
         userId: user.id,
         text: normalized,
         replyToId,
@@ -236,8 +342,13 @@ export async function postChatMessage(
       },
       select: messageSelect,
     });
-    // Кто пишет в чат, видит ленту: всё до его сообщения прочитано.
-    await tx.user.update({ where: { id: user.id }, data: { chatReadAt: created.createdAt }, select: { id: true } });
+    // Кто пишет в комнату, видит её ленту: всё до его сообщения прочитано.
+    await tx.chatRoomRead.upsert({
+      where: { roomId_userId: { roomId, userId: user.id } },
+      create: { roomId, userId: user.id, readAt: created.createdAt },
+      update: { readAt: created.createdAt },
+      select: { roomId: true },
+    });
     return created;
   }, UPLOAD_TX);
 
@@ -304,28 +415,30 @@ export async function deleteChatMessage(id: string, user: SessionUser): Promise<
 }
 
 /**
- * Чат прочитан до `upTo` — времени последнего сообщения, которое сотрудник увидел.
+ * Комната прочитана до `upTo` — времени последнего сообщения, которое сотрудник в ней увидел.
  * Отметка только двигается вперёд и не дальше текущего момента.
  */
-export async function markChatRead(user: SessionUser, upTo: Date): Promise<void> {
+export async function markChatRead(user: SessionUser, roomId: string, upTo: Date): Promise<void> {
   const now = new Date();
   const mark = upTo > now ? now : upTo;
-  await db.user.updateMany({
-    where: { id: user.id, OR: [{ chatReadAt: null }, { chatReadAt: { lt: mark } }] },
-    data: { chatReadAt: mark },
+  const { count } = await db.chatRoomRead.updateMany({
+    where: { roomId, userId: user.id, readAt: { lt: mark } },
+    data: { readAt: mark },
   });
+  if (count) return;
+  // Строки нет (комнату открыл впервые) — заводим; если она есть и новее, повтор ничего не меняет
+  if (!(await findChatRoom(roomId))) return;
+  await db.chatRoomRead.createMany({ data: [{ roomId, userId: user.id, readAt: mark }], skipDuplicates: true });
 }
 
-/** Чужие сообщения после отметки «прочитано». */
+/** Чужие сообщения после отметки «прочитано» — во всех комнатах вместе, для значка у пункта меню. */
 export async function unreadChatCount(userId: string): Promise<number> {
-  const user = await db.user.findUnique({ where: { id: userId }, select: { chatReadAt: true } });
-  return db.chatMessage.count({
-    where: {
-      userId: { not: userId },
-      deletedAt: null,
-      ...(user?.chatReadAt ? { createdAt: { gt: user.chatReadAt } } : {}),
-    },
-  });
+  const rooms = await db.chatRoom.findMany({ where: { deletedAt: null }, select: { id: true } });
+  const unread = await unreadByRoom(
+    userId,
+    rooms.map((room) => room.id),
+  );
+  return [...unread.values()].reduce((sum, count) => sum + count, 0);
 }
 
 /** Байты файла для маршрута `/api/chat-attachments/[id]`. null — нет или срок хранения вышел. */
@@ -350,14 +463,14 @@ export async function purgeExpiredChatAttachments(now: Date = new Date()): Promi
 }
 
 /**
- * До какого момента чат прочитал хоть кто-то из других сотрудников — самая поздняя отметка
+ * До какого момента комнату прочитал хоть кто-то из других сотрудников — самая поздняя отметка
  * «прочитано» среди действующих. Своё сообщение старше этого момента кто-то уже видел;
  * новее — его пока не читал никто, и лента подсвечивает такие сообщения.
  */
-export async function othersChatReadAt(userId: string): Promise<string | null> {
-  const row = await db.user.aggregate({
-    where: { id: { not: userId }, isActive: true },
-    _max: { chatReadAt: true },
+export async function othersChatReadAt(roomId: string, userId: string): Promise<string | null> {
+  const row = await db.chatRoomRead.aggregate({
+    where: { roomId, userId: { not: userId }, user: { isActive: true } },
+    _max: { readAt: true },
   });
-  return row._max.chatReadAt?.toISOString() ?? null;
+  return row._max.readAt?.toISOString() ?? null;
 }
