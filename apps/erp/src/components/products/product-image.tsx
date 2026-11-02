@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRef, useState, useTransition } from "react";
-import { Download, Eraser, ImageMinus, ImageOff, ImageUp, Star, Trash2, Undo2, WandSparkles } from "lucide-react";
+import { Crop, Download, Eraser, ImageMinus, ImageOff, ImageUp, Star, Trash2, Undo2, WandSparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 import { Input } from "@/components/ui/input";
+import { ImageCropDialog } from "@/components/products/image-crop-dialog";
 import { cn } from "@/lib/utils";
 import {
   deleteProductImageAction,
@@ -80,6 +81,7 @@ export function ProductGalleryEditor({
   const input = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [viewing, setViewing] = useState<number | null>(null);
+  const [croppingId, setCroppingId] = useState<string | null>(null);
 
   function upload(files: File[]) {
     startTransition(async () => {
@@ -142,6 +144,13 @@ export function ProductGalleryEditor({
         index={viewing}
         onIndexChange={setViewing}
       />
+      <ImageCropDialog
+        imageId={croppingId}
+        open={croppingId !== null}
+        onOpenChange={(open) => {
+          if (!open) setCroppingId(null);
+        }}
+      />
       {/* Картинок у сиденья бывает и сорок пять — ряд прокручивается, чтобы поля товара не уезжали вниз */}
       <div className={cn("flex max-h-56 flex-wrap items-start gap-2 overflow-y-auto", pending && "opacity-50")}>
         {images.map((image, index) => (
@@ -189,11 +198,16 @@ export function ProductGalleryEditor({
               )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon-xs" title="Убрать знак или фон" disabled={pending}>
+                  <Button variant="outline" size="icon-xs" title="Обработать картинку" disabled={pending}>
                     <WandSparkles />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={() => setCroppingId(image.id)}>
+                    <Crop />
+                    Обрезать
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onSelect={() => process(image.id, "watermark")}>
                     <Eraser />
                     Удалить водяной знак

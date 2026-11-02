@@ -31,7 +31,7 @@ import {
 import { toggleModel } from "@buscom/domain/product/compatibility";
 import { compatibilityHints, type CompatibilityHints } from "@buscom/domain/product/compatibility-hints";
 import { calculateUnitCost } from "@buscom/domain/supplier/price-economics";
-import { CategorySelect } from "@/components/products/category-select";
+import { CategoryMultiSelect, CategorySelect } from "@/components/products/category-select";
 import { ProductGalleryEditor } from "@/components/products/product-image";
 import {
   ProductOptionsEditor,
@@ -160,6 +160,9 @@ export function ProductDialog({
   // Тип сиденья (фильтр на сайте): "auto" — по разделу и названию, иначе задан вручную
   const [seatType, setSeatType] = useState<SeatType | "auto">(parseSeatType(product?.seatType) ?? "auto");
   const [categoryId, setCategoryId] = useState<string | null>(product?.categoryId ?? draft?.categoryId ?? null);
+  const [extraCategoryIds, setExtraCategoryIds] = useState<string[]>(
+    product?.extraCategories.map((item) => item.id) ?? [],
+  );
   // Цену продажи у импорта ставит человек: у поставщика — закупка, наценку решаем мы
   const [price, setPrice] = useState(draft ? "" : ((product?.priceKopecks ?? 0) / 100).toFixed(2));
   // У импорта сразу отмечаем модели, которые название и описание называют однозначно
@@ -405,6 +408,7 @@ export function ProductDialog({
       name,
       description,
       categoryId,
+      extraCategoryIds: extraCategoryIds.filter((id) => id !== categoryId),
       priceKopecks,
       compatibility,
       isHit,
@@ -496,6 +500,16 @@ export function ProductDialog({
               onChange={setCategoryId}
               emptyLabel="Без категории"
               className="w-full"
+            />
+            <Label className="text-xs" htmlFor="product-extra-categories">
+              Дополнительные категории
+            </Label>
+            <CategoryMultiSelect
+              id="product-extra-categories"
+              categories={categories}
+              value={extraCategoryIds}
+              onChange={setExtraCategoryIds}
+              excludedId={categoryId}
             />
           </div>
           <div className="flex flex-col gap-1.5 sm:col-span-2">

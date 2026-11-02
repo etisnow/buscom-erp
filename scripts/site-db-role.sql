@@ -20,6 +20,7 @@ SELECT format('GRANT CONNECT ON DATABASE %I TO buscom_site', current_database())
 GRANT USAGE ON SCHEMA public TO buscom_site;
 GRANT SELECT ON
   "Product",
+  "_ExtraProductCategories",
   "ProductCategory",
   "ProductImage",
   "ProductOption",

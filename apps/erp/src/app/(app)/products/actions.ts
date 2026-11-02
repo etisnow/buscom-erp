@@ -13,7 +13,7 @@ import {
 } from "@/server/products/supplier-price";
 import { getDewatermarkKey, removeWatermark } from "@/server/products/dewatermark";
 import { getCarveKey, removeBackground } from "@/server/products/carve";
-import { processStoredImage, restoreOriginalImage } from "@/server/products/image-processing";
+import { cropStoredImage, processStoredImage, restoreOriginalImage } from "@/server/products/image-processing";
 import { addImages, deleteImage, makeImageMain } from "@/server/products/images";
 import { canEditCatalog, createProduct, deleteProduct, updateProduct } from "@/server/products/service";
 import {
@@ -42,6 +42,7 @@ const draftSchema = z.object({
   name: z.string().min(1, { error: "Укажите название" }),
   description: z.string().max(20_000, { error: "Описание слишком длинное" }).nullable().optional(),
   categoryId: z.string().min(1).nullable().optional(),
+  extraCategoryIds: z.array(z.string().min(1)).optional(),
   priceKopecks: z.number().int().min(0, { error: "Цена не может быть отрицательной" }),
   /** Совместимые модели авто вводятся через запятую */
   compatibility: z.array(z.string().min(1)).optional(),
@@ -267,6 +268,14 @@ export async function processProductImageAction(imageId: string, operation: Imag
 export async function restoreProductImageAction(imageId: string): Promise<ProductResult> {
   const user = await requireUser();
   return run(() => restoreOriginalImage(imageId, user), "Оригинал возвращён");
+}
+
+export async function cropProductImageAction(imageId: string, form: FormData): Promise<ProductResult> {
+  const user = await requireUser();
+  const file = form.get("file");
+  if (!(file instanceof File)) return { ok: false, error: "Не удалось получить обрезанную картинку" };
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  return run(() => cropStoredImage(imageId, bytes, user), "Картинка обрезана");
 }
 
 /** Картинка становится аватаркой: её видно в списках и в позициях заказа. */

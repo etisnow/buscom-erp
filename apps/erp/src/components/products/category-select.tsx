@@ -1,6 +1,13 @@
 "use client";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronDownIcon } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { buildCategoryTree, flattenCategoryTree, type CategoryNode } from "@buscom/domain/product/categories";
 
 const EMPTY = "__empty__";
@@ -46,5 +53,56 @@ export function CategorySelect({
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+/** Тот же порядок дерева, но несколько выбранных категорий. Меню остаётся открытым при выборе. */
+export function CategoryMultiSelect({
+  categories,
+  value,
+  onChange,
+  excludedId,
+  id,
+}: {
+  categories: readonly CategoryNode[];
+  value: string[];
+  onChange: (value: string[]) => void;
+  excludedId?: string | null;
+  id?: string;
+}) {
+  const options = flattenCategoryTree(buildCategoryTree(categories)).filter((option) => option.id !== excludedId);
+  const selected = options.filter((option) => value.includes(option.id));
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          id={id}
+          type="button"
+          className="border-input focus-visible:border-ring focus-visible:ring-ring/50 flex h-7 w-full items-center justify-between gap-1.5 rounded-md border bg-transparent px-2.5 text-left text-sm outline-none focus-visible:ring-3 max-md:h-10"
+        >
+          <span className={`truncate ${selected.length === 0 ? "text-muted-foreground" : ""}`}>
+            {selected.length ? selected.map((option) => option.name).join(", ") : "Без дополнительных категорий"}
+          </span>
+          <ChevronDownIcon className="text-muted-foreground size-4 shrink-0" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="max-h-72 overflow-y-auto">
+        {options.map((option) => (
+          <DropdownMenuCheckboxItem
+            key={option.id}
+            checked={value.includes(option.id)}
+            onCheckedChange={(checked) =>
+              onChange(checked ? [...value, option.id] : value.filter((id) => id !== option.id))
+            }
+            onSelect={(event) => event.preventDefault()}
+          >
+            <span style={{ paddingLeft: option.depth * 16 }} className={option.depth === 0 ? "font-medium" : undefined}>
+              {option.name}
+            </span>
+          </DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -19,6 +19,7 @@ const listSelect = {
   name: true,
   description: true,
   categoryId: true,
+  extraCategories: { select: { id: true } },
   priceKopecks: true,
   compatibility: true,
   isActive: true,
@@ -83,9 +84,20 @@ export async function productsWhere(filters: ProductFilters): Promise<Prisma.Pro
   if (filters.categoryId) {
     const id = filters.categoryId;
     and.push({
-      category: {
-        OR: [{ id }, { parentId: id }, { parent: { parentId: id } }, { parent: { parent: { parentId: id } } }],
-      },
+      OR: [
+        {
+          category: {
+            OR: [{ id }, { parentId: id }, { parent: { parentId: id } }, { parent: { parent: { parentId: id } } }],
+          },
+        },
+        {
+          extraCategories: {
+            some: {
+              OR: [{ id }, { parentId: id }, { parent: { parentId: id } }, { parent: { parent: { parentId: id } } }],
+            },
+          },
+        },
+      ],
     });
   }
   if (filters.onlyInactive) and.push({ isActive: false });

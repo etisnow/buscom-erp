@@ -102,3 +102,34 @@ export async function restoreOriginalImage(imageId: string, user: SessionUser): 
     });
   });
 }
+
+/** Сохраняем кадр вместо прежнего снимка с новым id, чтобы бессрочный кэш изображения не показывал старые байты. */
+export async function cropStoredImage(
+  imageId: string,
+  bytes: Uint8Array<ArrayBuffer>,
+  user: SessionUser,
+): Promise<void> {
+  if (!canEditCatalog(user.role)) throw new ForbiddenError(NO_ACCESS);
+  const contentType = assertProductImage(bytes);
+  const image = await db.productImage.findUnique({ where: { id: imageId }, select: IMAGE_SELECT });
+  if (!image) throw new Error(GONE);
+
+  await db.$transaction(async (tx) => {
+    await tx.productImage.delete({ where: { id: imageId }, select: { id: true } });
+    await tx.productImage.create({
+      data: {
+        productId: image.productId,
+        sortOrder: image.sortOrder,
+        sourceUrl: image.sourceUrl,
+        data: bytes,
+        contentType,
+        byteSize: bytes.byteLength,
+        thumbData: null,
+        thumbContentType: null,
+        originalData: image.originalData ?? image.data,
+        originalContentType: image.originalContentType ?? image.contentType,
+      },
+      select: { id: true },
+    });
+  });
+}

@@ -33,6 +33,7 @@ export async function snapshotProduct(tx: Tx, id: string): Promise<ProductLogSna
       metaTitle: true,
       metaDescription: true,
       category: { select: { name: true } },
+      extraCategories: { select: { name: true } },
       suppliers: {
         select: {
           purchasePriceKopecks: true,
@@ -78,7 +79,9 @@ export async function snapshotProduct(tx: Tx, id: string): Promise<ProductLogSna
     sku: product.sku,
     name: product.name,
     description: product.description,
-    category: product.category?.name ?? null,
+    category:
+      [product.category?.name, ...product.extraCategories.map((item) => item.name).sort()].filter(Boolean).join(", ") ||
+      null,
     price: formatRub(product.priceKopecks),
     compatibility: product.compatibility.join(", "),
     isActive: product.isActive,

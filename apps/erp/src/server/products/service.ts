@@ -45,6 +45,7 @@ export type ProductDraft = {
   /** Описание для карточки; пустая строка — описания нет */
   description?: string | null;
   categoryId?: string | null;
+  extraCategoryIds?: string[];
   priceKopecks: Kopecks;
   compatibility?: string[];
   isActive?: boolean;
@@ -88,6 +89,11 @@ export async function createProduct(
           name: draft.name.trim(),
           description: draft.description?.trim() || null,
           categoryId: draft.categoryId || null,
+          extraCategories: {
+            connect: [...new Set(draft.extraCategoryIds ?? [])]
+              .filter((id) => id !== draft.categoryId)
+              .map((id) => ({ id })),
+          },
           priceKopecks: draft.priceKopecks,
           compatibility: await checkCompatibility(tx, draft.compatibility ?? []),
           isActive: draft.isActive ?? true,
@@ -134,6 +140,15 @@ export async function updateProduct(id: string, draft: Partial<ProductDraft>, us
         ...(draft.name !== undefined ? { name: draft.name.trim() } : {}),
         ...(draft.description !== undefined ? { description: draft.description?.trim() || null } : {}),
         ...(draft.categoryId !== undefined ? { categoryId: draft.categoryId || null } : {}),
+        ...(draft.extraCategoryIds !== undefined
+          ? {
+              extraCategories: {
+                set: [...new Set(draft.extraCategoryIds)]
+                  .filter((categoryId) => categoryId !== draft.categoryId)
+                  .map((id) => ({ id })),
+              },
+            }
+          : {}),
         ...(draft.priceKopecks !== undefined ? { priceKopecks: draft.priceKopecks } : {}),
         ...(draft.compatibility !== undefined
           ? { compatibility: await checkCompatibility(tx, draft.compatibility, id) }

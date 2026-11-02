@@ -1,7 +1,7 @@
 import { beforeEach, expect, it } from "vitest";
 import { ProductImageError } from "@buscom/domain/product/images";
 import { addImages, deleteImage, makeImageMain, readImage } from "@/server/products/images";
-import { restoreOriginalImage } from "@/server/products/image-processing";
+import { cropStoredImage, restoreOriginalImage } from "@/server/products/image-processing";
 import { createProduct } from "@/server/products/service";
 import type { SessionUser } from "@/server/session";
 import { describeDb, resetDb, testDb } from "@/test/db";
@@ -130,5 +130,24 @@ describeDb("галерея товара в карточке (живая БД)", 
     await addImages(productId, [JPEG(1)], manager);
     const image = await testDb.productImage.findFirstOrThrow({ where: { productId } });
     await expect(restoreOriginalImage(image.id, manager)).rejects.toThrow("не обрабатывали");
+  });
+
+  it("обрезка сохраняет место в галерее и позволяет вернуть первоначальный снимок", async () => {
+    await addImages(productId, [JPEG(1), JPEG(2)], manager);
+    const image = await testDb.productImage.findFirstOrThrow({ where: { productId, sortOrder: 0 } });
+
+    await cropStoredImage(image.id, PNG, manager);
+    const cropped = await testDb.productImage.findFirstOrThrow({ where: { productId, sortOrder: 0 } });
+    expect(cropped.id).not.toBe(image.id);
+    expect(cropped.contentType).toBe("image/png");
+    expect([...cropped.originalData!]).toEqual([...JPEG(1)]);
+    expect(await order()).toEqual([
+      [0, "image/png"],
+      [1, "image/jpeg"],
+    ]);
+
+    await restoreOriginalImage(cropped.id, manager);
+    const restored = await testDb.productImage.findFirstOrThrow({ where: { productId, sortOrder: 0 } });
+    expect([...restored.data]).toEqual([...JPEG(1)]);
   });
 });

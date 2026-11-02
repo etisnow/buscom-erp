@@ -17,7 +17,7 @@ async function load(): Promise<LandingIndex> {
   const [products, categories] = await Promise.all([
     db.product.findMany({
       where: { isActive: true, slug: { not: null }, compatibility: { isEmpty: false } },
-      select: { categoryId: true, compatibility: true },
+      select: { categoryId: true, extraCategories: { select: { id: true } }, compatibility: true },
     }),
     db.productCategory.findMany({ where: { slug: { not: null } }, select: { id: true, slug: true, parentId: true } }),
   ]);
@@ -31,9 +31,12 @@ async function load(): Promise<LandingIndex> {
     return path;
   };
   const combos = landingCombos(
-    products
-      .filter((product) => product.categoryId)
-      .map((product) => ({ categoryPath: pathOf(product.categoryId), compatibility: product.compatibility })),
+    products.map((product) => ({
+      categoryPath: [
+        ...new Set([product.categoryId, ...product.extraCategories.map((item) => item.id)].flatMap(pathOf)),
+      ],
+      compatibility: product.compatibility,
+    })),
   );
   return {
     pages: new Set(combos.map((combo) => landingPath(combo.familySlug, byId.get(combo.categoryId)?.slug as string))),

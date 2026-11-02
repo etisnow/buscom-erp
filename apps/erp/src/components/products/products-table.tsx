@@ -162,7 +162,10 @@ export function ProductsTable({
                   </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {categoryPath(product.categoryId, categories) || "—"}
+                  {[product.categoryId, ...product.extraCategories.map((item) => item.id)]
+                    .filter((id): id is string => !!id)
+                    .map((id) => categoryPath(id, categories))
+                    .join(", ") || "—"}
                 </TableCell>
                 <TableCell className="text-right whitespace-nowrap">{formatRub(product.priceKopecks)}</TableCell>
                 <TableCell>

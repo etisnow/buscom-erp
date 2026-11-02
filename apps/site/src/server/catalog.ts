@@ -252,7 +252,11 @@ export const getPageBySlug = cached(async (slug: string): Promise<ProductPage | 
   const parent = category.parentId ? find(tree, category.parentId) : undefined;
   const ids = [category.id, ...(node?.children.map((child) => child.id) ?? [])];
   const products = await db.product.findMany({
-    where: { categoryId: { in: ids }, isActive: true, slug: { not: null } },
+    where: {
+      OR: [{ categoryId: { in: ids } }, { extraCategories: { some: { id: { in: ids } } } }],
+      isActive: true,
+      slug: { not: null },
+    },
     orderBy: { name: "asc" },
     select: cardSelect,
   });
@@ -352,8 +356,8 @@ export type LandingInfo = {
 export const getLandings = cached(async (): Promise<LandingInfo[]> => {
   const [products, tree] = await Promise.all([
     db.product.findMany({
-      where: { isActive: true, slug: { not: null }, categoryId: { not: null }, compatibility: { isEmpty: false } },
-      select: { categoryId: true, compatibility: true },
+      where: { isActive: true, slug: { not: null }, compatibility: { isEmpty: false } },
+      select: { categoryId: true, extraCategories: { select: { id: true } }, compatibility: true },
     }),
     getCategoryTree(),
   ]);
@@ -369,7 +373,13 @@ export const getLandings = cached(async (): Promise<LandingInfo[]> => {
   walk(tree, []);
   return landingCombos(
     products.map((product) => ({
-      categoryPath: paths.get(product.categoryId as string) ?? [],
+      categoryPath: [
+        ...new Set(
+          [product.categoryId, ...product.extraCategories.map((item) => item.id)].flatMap((id) =>
+            id ? (paths.get(id) ?? []) : [],
+          ),
+        ),
+      ],
       compatibility: product.compatibility,
     })),
   ).flatMap((combo) => {
@@ -415,7 +425,7 @@ export const getLandingPage = cached(async (familySlug: string, categorySlug: st
     where: {
       isActive: true,
       slug: { not: null },
-      categoryId: { in: ids },
+      OR: [{ categoryId: { in: ids } }, { extraCategories: { some: { id: { in: ids } } } }],
       compatibility: { hasSome: model.members },
     },
     orderBy: { name: "asc" },
@@ -439,7 +449,7 @@ export const getModelPage = cached(async (slug: string): Promise<ModelPage | nul
     db.product.findMany({
       where: { isActive: true, slug: { not: null }, compatibility: { hasSome: model.members } },
       orderBy: { name: "asc" },
-      select: { ...cardSelect, categoryId: true },
+      select: { ...cardSelect, categoryId: true, extraCategories: { select: { id: true } } },
     }),
     getCategoryTree(),
     getLandings(),
@@ -461,9 +471,15 @@ export const getModelPage = cached(async (slug: string): Promise<ModelPage | nul
     { name: "Другое", slug: null, products: [] as ProductCard[] },
   ];
   for (const product of products) {
-    const section = product.categoryId ? sectionOf.get(product.categoryId) : undefined;
-    const target = sections.find((item) => item.slug === (section?.slug ?? null)) ?? sections[sections.length - 1];
-    target.products.push(toCard(product));
+    const sectionSlugs = new Set(
+      [product.categoryId, ...product.extraCategories.map((item) => item.id)]
+        .map((id) => (id ? sectionOf.get(id)?.slug : undefined))
+        .filter((slug): slug is string => !!slug),
+    );
+    if (sectionSlugs.size === 0) sections[sections.length - 1].products.push(toCard(product));
+    for (const section of sections) {
+      if (section.slug && sectionSlugs.has(section.slug)) section.products.push(toCard(product));
+    }
   }
   return {
     ...model,

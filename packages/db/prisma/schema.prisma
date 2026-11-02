@@ -199,6 +199,7 @@ model Product {
   /// Категория из справочника (docs/DECISIONS.md, «Справочник категорий»)
   categoryId      String?
   category        ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  extraCategories ProductCategory[] @relation("ExtraProductCategories")
   priceKopecks    Int
   /// Совместимые модели авто: ["ГАЗель Next", "Ford Transit", ...]
   compatibility   String[]
@@ -278,6 +279,7 @@ model ProductCategory {
   updatedAt       DateTime          @updatedAt
 
   products  Product[]
+  extraProducts Product[] @relation("ExtraProductCategories")
   redirects UrlRedirect[]
 
   @@index([parentId])

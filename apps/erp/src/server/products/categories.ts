@@ -34,7 +34,7 @@ export async function listCategories(): Promise<CategoryRow[]> {
       metaTitle: true,
       metaDescription: true,
       seoText: true,
-      _count: { select: { products: true } },
+      _count: { select: { products: true, extraProducts: true } },
     },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
@@ -43,7 +43,7 @@ export async function listCategories(): Promise<CategoryRow[]> {
     name: row.name,
     parentId: row.parentId,
     sortOrder: row.sortOrder,
-    productsCount: row._count.products,
+    productsCount: row._count.products + row._count.extraProducts,
     slug: row.slug,
     metaTitle: row.metaTitle,
     metaDescription: row.metaDescription,
@@ -140,7 +140,7 @@ export async function deleteCategory(id: string, user: SessionUser): Promise<voi
   assertEditor(user);
   const category = await db.productCategory.findUnique({
     where: { id },
-    select: { _count: { select: { products: true, children: true } } },
+    select: { _count: { select: { products: true, extraProducts: true, children: true } } },
   });
   if (!category) throw new CategoryError("Категория не найдена — обновите страницу");
   if (category._count.children > 0) {
@@ -148,8 +148,10 @@ export async function deleteCategory(id: string, user: SessionUser): Promise<voi
       `В категории есть подкатегории (${category._count.children}) — сначала перенесите или удалите их`,
     );
   }
-  if (category._count.products > 0) {
-    throw new CategoryError(`В категории есть товары (${category._count.products}) — сначала перенесите их в другую`);
+  if (category._count.products + category._count.extraProducts > 0) {
+    throw new CategoryError(
+      `В категории есть товары (${category._count.products + category._count.extraProducts}) — сначала перенесите их в другую`,
+    );
   }
   await db.productCategory.delete({ where: { id } });
 }
